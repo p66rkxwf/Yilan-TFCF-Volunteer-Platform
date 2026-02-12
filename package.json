@@ -1,0 +1,40 @@
+{
+    "name": "yilan-tfcf-volunteer-platform",
+    "version": "1.0.0",
+    "description": "宜蘭家扶志工管理與報名平台。",
+    "main": "index.js",
+    "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/p66rkxwf/yilan-TFCF-volunteer-platform.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "type": "module",
+    "bugs": {
+        "url": "https://github.com/p66rkxwf/yilan-TFCF-volunteer-platform/issues"
+    },
+    "homepage": "https://github.com/p66rkxwf/yilan-TFCF-volunteer-platform#readme",
+    "dependencies": {
+        "@tailwindcss/postcss": "^4.1.18",
+        "@types/node": "^25.2.3",
+        "@types/react": "^19.2.14",
+        "@types/react-dom": "^19.2.3",
+        "lucide-react": "^0.563.0",
+        "next": "^16.1.6",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+        "typescript": "^5.9.3"
+    },
+    "devDependencies": {
+        "autoprefixer": "^10.4.24",
+        "postcss": "^8.5.6",
+        "tailwindcss": "^4.1.18"
+    }
+}
