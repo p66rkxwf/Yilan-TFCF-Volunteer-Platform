@@ -29,7 +29,7 @@ export function Badge({
 
   return (
     <span
-      className={`inline-block ${sizes[size]} ${variants[variant]} ${className}`}
+      className={`inline-block whitespace-nowrap shrink-0 ${sizes[size]} ${variants[variant]} ${className}`}
     >
       {children}
     </span>
