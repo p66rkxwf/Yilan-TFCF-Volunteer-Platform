@@ -8,8 +8,8 @@ export function Footer() {
 
   return (
     <footer className="bg-linear-to-b from-gray-900 to-gray-950 text-gray-300">
-      <div className="container-custom py-16">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+      <div className="container-custom py-12 sm:py-16">
+        <div className="mb-8 grid grid-cols-1 gap-8 sm:gap-10 md:grid-cols-4">
           {/* About */}
           <div>
             <h3 className="text-white font-bold text-base sm:text-lg mb-4">關於我們</h3>
@@ -103,7 +103,10 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
-                <a href="mailto:info@tfcf.org.tw" className="text-gray-400 hover:text-white">
+                <a
+                  href="mailto:info@tfcf.org.tw"
+                  className="break-all text-gray-400 hover:text-white"
+                >
                   info@tfcf.org.tw
                 </a>
               </li>
@@ -118,7 +121,7 @@ export function Footer() {
 
         {/* Bottom Bar */}
         <div className="border-t border-gray-800 pt-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col items-center justify-between gap-4 text-center md:flex-row md:text-left">
             <p className="text-xs sm:text-sm text-gray-400">
               © {currentYear} 宜蘭家扶基金會. 版權所有。
             </p>

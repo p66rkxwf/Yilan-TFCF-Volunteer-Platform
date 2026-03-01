@@ -6,10 +6,10 @@ import { CTA } from "@/components/layout/cta";
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <div className="min-h-screen">
       <Hero />
       <Features />
       <CTA />
-    </main>
+    </div>
   );
 }

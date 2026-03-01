@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -19,7 +20,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ userRole = "volunteer" }: SidebarProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   const volunteerMenus = [
     { icon: LayoutDashboard, label: "儀表板", href: "/volunteer/dashboard" },
@@ -46,12 +47,16 @@ export function Sidebar({ userRole = "volunteer" }: SidebarProps) {
         onClick={() => setIsOpen(!isOpen)}
         className="md:hidden fixed top-20 left-4 z-40 p-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow"
         aria-label="切換側邊欄"
+        aria-expanded={isOpen}
+        aria-controls="dashboard-sidebar"
+        type="button"
       >
         {isOpen ? <X className="w-6 h-6 text-gray-900" /> : <Menu className="w-6 h-6 text-gray-900" />}
       </button>
 
       {/* Sidebar */}
       <aside
+        id="dashboard-sidebar"
         className={`${
           isOpen ? "w-64" : "w-0"
         } bg-gray-900 text-white transition-all duration-300 overflow-hidden md:w-64 md:relative fixed h-full z-30 md:z-0 flex flex-col`}
@@ -106,5 +111,3 @@ export function Sidebar({ userRole = "volunteer" }: SidebarProps) {
     </>
   );
 }
-
-import { LogOut } from "lucide-react";
