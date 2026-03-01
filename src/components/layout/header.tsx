@@ -12,7 +12,7 @@ export function Header() {
       <div className="container-custom">
         <nav className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="group flex min-w-0 items-center gap-3">
+          <Link href="/" className="group flex min-w-0 items-center gap-3 shrink-0">
             <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold transition-transform group-hover:scale-105">
               TFCF
             </div>
@@ -22,7 +22,7 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden md:flex items-center gap-6 shrink-0">
             <Link
               href="#features"
               className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
