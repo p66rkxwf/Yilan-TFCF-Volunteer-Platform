@@ -2,14 +2,12 @@
 
 import { Hero } from "@/components/layout/hero";
 import { Features } from "@/components/layout/features";
-import { CTA } from "@/components/layout/cta";
 
 export default function Home() {
   return (
-    <div className="min-h-screen">
+    <main className="flex flex-col flex-1 w-full">
       <Hero />
       <Features />
-      <CTA />
-    </div>
+    </main>
   );
 }
