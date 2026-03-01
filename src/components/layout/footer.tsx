@@ -14,7 +14,7 @@ export function Footer() {
           <div>
             <h3 className="text-white font-bold text-base sm:text-lg mb-4">關於我們</h3>
             <p className="text-xs sm:text-sm leading-relaxed text-gray-400">
-              宜蘭家扶基金會致力於推動志願服務，建設更美好的社區。
+              。
             </p>
           </div>
 
