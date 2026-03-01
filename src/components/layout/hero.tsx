@@ -16,7 +16,7 @@ export function Hero() {
           <p className="mt-6 text-gray-500 md:text-xl font-normal leading-relaxed">
             串聯熱血青年與社區需求，讓每一份服務都更有意義。
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/auth/register" className="btn-primary shadow-blue-200/50 shadow-lg">
               立即加入
             </Link>

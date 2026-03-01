@@ -20,7 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-TW">
-      <body className={inter.className}>
+      <body className={`${inter.className} font-sans antialiased bg-white text-gray-900`}>
         <RootLayoutClient>{children}</RootLayoutClient>
       </body>
     </html>
