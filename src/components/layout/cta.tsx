@@ -4,7 +4,10 @@ import Link from "next/link";
 
 export function CTA() {
   return (
-    <section className="section-padding-lg bg-linear-to-r from-blue-600 via-blue-700 to-indigo-700 relative overflow-hidden">
+    <section
+      id="about"
+      className="section-padding-lg scroll-mt-24 relative overflow-hidden bg-linear-to-r from-blue-600 via-blue-700 to-indigo-700"
+    >
       {/* 裝飾背景 */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400 rounded-full mix-blend-screen filter blur-3xl opacity-20 -mr-48 -mt-32"></div>
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-300 rounded-full mix-blend-screen filter blur-3xl opacity-20 -ml-48 -mb-32"></div>
@@ -19,13 +22,13 @@ export function CTA() {
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center">
           <Link
             href="/auth/register"
-            className="px-8 sm:px-10 py-3 sm:py-4 bg-white text-blue-600 text-base sm:text-lg rounded-lg font-semibold hover:shadow-2xl hover:bg-gray-50 hover:-translate-y-1 transition-all duration-200 inline-block"
+            className="inline-flex w-full items-center justify-center rounded-lg bg-white px-8 py-3 text-base font-semibold text-blue-600 transition-all duration-200 hover:-translate-y-1 hover:bg-gray-50 hover:shadow-2xl sm:w-auto sm:px-10 sm:py-4 sm:text-lg"
           >
             志工註冊
           </Link>
           <Link
             href="/auth/login"
-            className="px-8 sm:px-10 py-3 sm:py-4 border-2 border-white text-white text-base sm:text-lg rounded-lg font-semibold hover:bg-white hover:text-blue-600 hover:shadow-2xl hover:-translate-y-1 transition-all duration-200 inline-block"
+            className="inline-flex w-full items-center justify-center rounded-lg border-2 border-white px-8 py-3 text-base font-semibold text-white transition-all duration-200 hover:-translate-y-1 hover:bg-white hover:text-blue-600 hover:shadow-2xl sm:w-auto sm:px-10 sm:py-4 sm:text-lg"
           >
             管理員登入
           </Link>
