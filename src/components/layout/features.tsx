@@ -63,7 +63,7 @@ export function Features() {
             return (
               <div
                 key={index}
-                className="feature-card group h-full"
+                className="p-6 md:p-8 bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-2xl hover:border-blue-200 hover:-translate-y-2 transition-all duration-300 group h-full flex flex-col"
               >
                 <div className="w-14 h-14 sm:w-16 sm:h-16 bg-linear-to-br from-blue-100 to-indigo-100 rounded-lg sm:rounded-xl flex items-center justify-center mb-5 sm:mb-6 group-hover:scale-110 transition-transform duration-300">
                   <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />

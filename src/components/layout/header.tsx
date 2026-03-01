@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
@@ -13,11 +14,18 @@ export function Header() {
         <nav className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="group flex min-w-0 items-center gap-3 shrink-0">
-            <div className="w-9 h-9 md:w-10 md:h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold transition-transform group-hover:scale-105">
-              TFCF
-            </div>
-            <span className="max-w-[10rem] truncate text-base font-bold tracking-tight text-gray-900 sm:max-w-none sm:text-lg md:text-xl">
-              宜蘭志工平台
+            {/* 使用 Next.js Image 元件載入 public/logo.webp */}
+            <Image 
+              src="/logo.webp" 
+              alt="TFCF Logo" 
+              width={36} 
+              height={36} 
+              className="w-8 h-8 md:w-9 md:h-9 object-contain transition-transform group-hover:scale-105 rounded-lg"
+              priority
+            />
+            {/* 文字保持先前的縮小設定 */}
+            <span className="max-w-[10rem] truncate text-xs font-bold tracking-tight text-gray-900 sm:max-w-none sm:text-sm md:text-base">
+              宜蘭家扶志工平台
             </span>
           </Link>
 
