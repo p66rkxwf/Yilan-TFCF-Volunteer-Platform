@@ -44,7 +44,10 @@ const features = [
 
 export function Features() {
   return (
-    <section id="features" className="section-padding bg-linear-to-b from-white to-gray-50">
+    <section
+      id="features"
+      className="section-padding scroll-mt-24 bg-linear-to-b from-white to-gray-50"
+    >
       <div className="container-custom">
         <div className="text-center mb-16 sm:mb-20">
           <h2 className="gradient-heading mb-4 sm:mb-6">
@@ -60,7 +63,7 @@ export function Features() {
             return (
               <div
                 key={index}
-                className="feature-card group"
+                className="feature-card group h-full"
               >
                 <div className="w-14 h-14 sm:w-16 sm:h-16 bg-linear-to-br from-blue-100 to-indigo-100 rounded-lg sm:rounded-xl flex items-center justify-center mb-5 sm:mb-6 group-hover:scale-110 transition-transform duration-300">
                   <Icon className="w-7 h-7 sm:w-8 sm:h-8 text-blue-600" />
