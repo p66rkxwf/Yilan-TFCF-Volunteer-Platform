@@ -16,7 +16,7 @@ export function Header() {
     <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between relative z-10">
         
-        {/* Logo 與 標題 (逐字保留已確認內容) */}
+        {/* Logo 與 標題 */}
         <Link href="/" className="flex items-center space-x-3 focus:outline-none p-1 group">
           <Image 
             src="/logo.webp" 
@@ -31,7 +31,7 @@ export function Header() {
           </h1>
         </Link>
 
-        {/* 桌面端導覽列 (效仿案例：加大間距與底線動畫) */}
+        {/* 桌面端導覽列 */}
         <nav className="hidden lg:flex items-center lg:space-x-8" role="navigation">
           <Link href="/" className="underline-extend px-2 py-1 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
             首頁
