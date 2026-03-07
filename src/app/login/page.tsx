@@ -48,19 +48,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">歡迎回來</h1>
-          <p className="mt-2 text-gray-600">
+          <h1 className="text-3xl font-bold text-foreground">歡迎回來</h1>
+          <p className="mt-2 text-muted">
             還沒有帳號嗎？{" "}
-            <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+            <Link href="/register" className="font-medium text-foreground underline underline-offset-2 hover:opacity-80 transition-opacity">
               立即註冊成為志工
             </Link>
           </p>
         </div>
 
-        <Card>
+        <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>
             <h2 className="text-xl font-bold text-center">志工登入</h2>
           </CardHeader>
@@ -78,7 +78,7 @@ export default function LoginPage() {
                   value={formData.password} onChange={handleChange} error={errors.password}
                 />
                 <div className="text-right mt-2">
-                  <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-500 transition-colors">
+                  <Link href="/forgot-password" className="text-sm text-foreground underline underline-offset-2 hover:opacity-80 transition-opacity">
                     忘記密碼？
                   </Link>
                 </div>

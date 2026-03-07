@@ -15,7 +15,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       lg: "px-4 py-3 text-base",
     };
 
-    const baseClasses = `w-full border rounded-lg bg-surface text-foreground placeholder-muted transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent dark:bg-surface dark:text-foreground ${sizeClasses[inputSize]}`;
+    const baseClasses = `w-full border rounded-lg bg-surface text-foreground placeholder-muted transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-zinc-300 focus:ring-offset-1 focus:ring-offset-background focus:border-transparent dark:bg-surface dark:text-foreground dark:focus:ring-zinc-600 ${sizeClasses[inputSize]}`;
 
     return (
       <div className="w-full">
@@ -28,8 +28,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           className={`${baseClasses} ${
             error
-              ? "border-red-500 focus:ring-red-500"
-              : "border-border focus:border-ring"
+              ? "border-red-500 focus:ring-red-500 focus:ring-1"
+              : "border-border"
           } ${className}`}
           {...props}
         />
