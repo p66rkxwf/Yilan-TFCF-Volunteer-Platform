@@ -1,98 +1,111 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import Link from "next/link";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardBody, CardFooter } from "@/components/ui/card";
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import Swal from 'sweetalert2'
+import withReactContent from 'sweetalert2-react-content'
+import { login } from '@/app/actions/auth'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
+
+const MySwal = withReactContent(Swal)
+
+const loginSchema = z.object({
+  email: z.string().email('請輸入有效的 Email 格式'),
+  password: z.string().min(1, '請輸入密碼'),
+})
+
+type LoginFormValues = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState({
-    account: "",
-    password: "",
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema)
+  })
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    if (!formData.account.trim()) newErrors.account = "請輸入帳號";
-    if (!formData.password) newErrors.password = "請輸入密碼";
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  const onSubmit = async (data: LoginFormValues) => {
+    setIsSubmitting(true)
+    const formData = new FormData()
+    formData.append('email', data.email)
+    formData.append('password', data.password)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
+    const result = await login(formData)
+
+    setIsSubmitting(false)
+
+    if (result?.error) {
+      MySwal.fire({ icon: 'error', title: '登入失敗', text: result.error })
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateForm()) {
-      setIsLoading(true);
-      // TODO: 串接登入 API 邏輯
-      console.log("登入資料：", formData);
-
-      // 模擬 API 請求延遲
-      setTimeout(() => {
-        setIsLoading(false);
-        alert("登入成功！");
-      }, 1000);
-    }
-  };
+  }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-background">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-foreground">歡迎回來</h1>
-          <p className="mt-2 text-muted">
-            還沒有帳號嗎？{" "}
-            <Link href="/register" className="font-medium text-foreground underline underline-offset-2 hover:opacity-80 transition-opacity">
-              立即註冊成為志工
-            </Link>
-          </p>
-        </div>
+    <div className="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          志工平台登入
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          歡迎回來！請輸入您的帳號與密碼
+        </p>
+      </div>
 
-        <Card className="border-zinc-200 dark:border-zinc-800">
-          <CardHeader>
-            <h2 className="text-xl font-bold text-center">志工登入</h2>
-          </CardHeader>
-          
-          <form onSubmit={handleSubmit}>
-            <CardBody className="content-spacing">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow-xl border border-gray-100 sm:rounded-xl sm:px-10">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                電子郵件 (帳號)
+              </label>
               <Input 
-                label="帳號" name="account" type="text" placeholder="請輸入您的帳號" 
-                value={formData.account} onChange={handleChange} error={errors.account}
+                type="email" 
+                placeholder="example@mail.com" 
+                className="border-gray-300 shadow-sm"
+                {...register('email')} 
               />
-              
-              <div>
-                <Input 
-                  label="密碼" name="password" type="password" placeholder="請輸入您的密碼" 
-                  value={formData.password} onChange={handleChange} error={errors.password}
-                />
-                <div className="text-right mt-2">
-                  <Link href="/forgot-password" className="text-sm text-foreground underline underline-offset-2 hover:opacity-80 transition-opacity">
-                    忘記密碼？
-                  </Link>
-                </div>
-              </div>
-            </CardBody>
+              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>}
+            </div>
 
-            <CardFooter>
-              <Button type="submit" variant="primary" fullWidth size="lg" isLoading={isLoading}>
-                登入
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                密碼
+              </label>
+              <Input 
+                type="password" 
+                placeholder="請輸入密碼" 
+                className="border-gray-300 shadow-sm"
+                {...register('password')} 
+              />
+              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>}
+            </div>
+
+            <div className="flex items-center justify-end">
+              <div className="text-sm">
+                <Link href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500">
+                  忘記密碼？
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <Button type="submit" className="w-full text-base py-5" disabled={isSubmitting}>
+                {isSubmitting ? '登入驗證中...' : '登入'}
               </Button>
-            </CardFooter>
+            </div>
+
+            <div className="mt-6 text-center text-sm text-gray-600">
+              還沒有帳號嗎？{' '}
+              <Link href="/register" className="font-medium text-blue-600 hover:underline">
+                立即註冊
+              </Link>
+            </div>
           </form>
-        </Card>
+        </div>
       </div>
     </div>
-  );
+  )
 }

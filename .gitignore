@@ -16,9 +16,6 @@
 *.log
 npm-debug.log*
 
-# env files
-.env.local
-
 # vercel
 .vercel
 
@@ -35,3 +32,26 @@ public/storage/attachments/*
 
 # backups
 /backups/
+
+# env
+.env*
+
+# next build
+.next/
+out/
+
+# dependencies
+node_modules/
+
+# logs
+*.log
+
+# system
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# vercel
+.vercel
