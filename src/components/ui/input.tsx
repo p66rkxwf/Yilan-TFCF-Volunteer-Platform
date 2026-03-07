@@ -15,12 +15,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       lg: "px-4 py-3 text-base",
     };
 
-    const baseClasses = `w-full border rounded-lg text-gray-900 placeholder-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${sizeClasses[inputSize]}`;
+    const baseClasses = `w-full border rounded-lg bg-surface text-foreground placeholder-muted transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent dark:bg-surface dark:text-foreground ${sizeClasses[inputSize]}`;
 
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground mb-2">
             {label}
           </label>
         )}
@@ -29,7 +29,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className={`${baseClasses} ${
             error
               ? "border-red-500 focus:ring-red-500"
-              : "border-gray-300 focus:border-blue-500"
+              : "border-border focus:border-ring"
           } ${className}`}
           {...props}
         />
@@ -37,7 +37,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <p className="mt-1.5 text-sm font-medium text-red-600">{error}</p>
         )}
         {helperText && !error && (
-          <p className="mt-1.5 text-sm text-gray-500">{helperText}</p>
+          <p className="mt-1.5 text-sm text-muted">{helperText}</p>
         )}
       </div>
     );

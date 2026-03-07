@@ -22,13 +22,18 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 whitespace-nowrap shrink-0";
+      "inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background whitespace-nowrap shrink-0";
     const variants = {
-      primary: "bg-linear-to-r from-blue-600 to-blue-700 text-white hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 focus:ring-blue-500",
-      secondary: "bg-gray-200 text-gray-900 hover:bg-gray-300 hover:shadow-md active:bg-gray-200 focus:ring-gray-400",
-      outline: "border-2 border-blue-600 text-blue-600 hover:bg-blue-50 hover:shadow-md active:bg-blue-100 focus:ring-blue-500",
-      danger: "bg-red-600 text-white hover:bg-red-700 hover:shadow-md active:bg-red-800 focus:ring-red-500",
-      ghost: "text-gray-700 hover:bg-gray-100 active:bg-gray-200 focus:ring-gray-300",
+      primary:
+        "bg-foreground text-background hover:opacity-90 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 focus:ring-ring dark:bg-foreground dark:text-background",
+      secondary:
+        "bg-zinc-200 text-zinc-900 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600 focus:ring-zinc-400",
+      outline:
+        "border-2 border-zinc-300 text-foreground bg-transparent hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800 focus:ring-ring",
+      danger:
+        "bg-red-600 text-white hover:bg-red-700 hover:shadow-md active:bg-red-800 focus:ring-red-500",
+      ghost:
+        "text-foreground hover:bg-zinc-100 active:bg-zinc-200 dark:hover:bg-zinc-800 dark:active:bg-zinc-700 focus:ring-zinc-300",
     };
 
     const sizes = {
