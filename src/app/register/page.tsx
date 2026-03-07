@@ -71,19 +71,19 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div className="min-h-[calc(100vh-80px)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-background">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">加入志工行列</h1>
-          <p className="mt-2 text-gray-600">
+          <h1 className="text-3xl font-bold text-foreground">加入志工行列</h1>
+          <p className="mt-2 text-muted">
             已經有帳號了嗎？{" "}
-            <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
+            <Link href="/login" className="font-medium text-foreground underline underline-offset-2 hover:opacity-80 transition-opacity">
               立即登入
             </Link>
           </p>
         </div>
 
-        <Card>
+        <Card className="border-zinc-200 dark:border-zinc-800">
           <CardHeader>
             <h2 className="text-xl font-bold text-center">填寫註冊資料</h2>
           </CardHeader>

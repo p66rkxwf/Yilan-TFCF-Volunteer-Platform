@@ -8,12 +8,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        /* 極簡設計：語義化變數綁定 globals.css，供 bg-background / text-foreground 等使用 */
+        /* 極簡設計：語義化變數綁定 globals.css */
         background: "var(--background)",
         foreground: "var(--foreground)",
+        card: "var(--card)",
         surface: "var(--surface)",
         muted: "var(--muted)",
         border: "var(--border)",
+        primary: "var(--primary)",
         ring: "var(--ring)",
         /* 唯一語義色彩：錯誤與危險操作 */
         error: {
