@@ -19,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="zh-TW">
-      <body className={`${inter.className} font-sans antialiased bg-white text-gray-900`}>
+    <html lang="zh-TW" suppressHydrationWarning>
+      <body className={`${inter.className} font-sans antialiased bg-background text-foreground`}>
         <RootLayoutClient>{children}</RootLayoutClient>
       </body>
     </html>
