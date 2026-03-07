@@ -53,7 +53,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       >
         {isLoading ? (
           <>
-            <span className="animate-spin mr-2">⏳</span>
+            <span className="animate-spin mr-2"></span>
             處理中...
           </>
         ) : (
