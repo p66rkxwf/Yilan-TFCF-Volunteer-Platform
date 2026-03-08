@@ -118,3 +118,46 @@ export async function getUser() {
   } = await supabase.auth.getUser();
   return user;
 }
+
+export async function updatePassword(newPassword: string): Promise<AuthResult> {
+  if (newPassword.length < 8) {
+    return { error: "密碼至少需要 8 個字元。" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+  if (error) return { error: `密碼更新失敗：${error.message}` };
+  return { success: true };
+}
+
+export async function updateEmail(newEmail: string): Promise<AuthResult> {
+  if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+    return { error: "請輸入有效的 Email 地址。" };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ email: newEmail });
+
+  if (error) return { error: `Email 更新失敗：${error.message}` };
+  return { success: true };
+}
+
+export async function deleteAccount(): Promise<AuthResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "尚未登入。" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ status: "blacklisted" })
+    .eq("id", user.id);
+
+  if (error) return { error: `帳號停用失敗：${error.message}` };
+
+  await supabase.auth.signOut();
+  return { success: true };
+}
