@@ -67,6 +67,13 @@ export interface Registration {
   created_at: string;
 }
 
+export interface Favorite {
+  id: string;
+  user_id: string;
+  activity_id: string;
+  created_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -86,6 +93,12 @@ export interface Database {
         Row: Registration;
         Insert: Omit<Registration, "id" | "created_at">;
         Update: Partial<Omit<Registration, "id" | "created_at">>;
+        Relationships: [];
+      };
+      favorites: {
+        Row: Favorite;
+        Insert: Omit<Favorite, "id" | "created_at">;
+        Update: Partial<Omit<Favorite, "id" | "created_at">>;
         Relationships: [];
       };
     };

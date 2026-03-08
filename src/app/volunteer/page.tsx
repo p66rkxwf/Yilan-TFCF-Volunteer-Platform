@@ -9,18 +9,55 @@ interface ActivityWithSlots extends Activity {
   spots_left: number;
 }
 
+function FavoriteButton({
+  activityId,
+  favoriteIds,
+  onToggle,
+}: {
+  activityId: string;
+  favoriteIds: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  const isFav = favoriteIds.has(activityId);
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle(activityId);
+      }}
+      className={`p-1.5 rounded-lg transition-colors ${
+        isFav
+          ? "text-red-500 hover:text-red-600"
+          : "text-slate-300 hover:text-red-400"
+      }`}
+      title={isFav ? "取消收藏" : "加入收藏"}
+    >
+      <span
+        className="material-symbols-outlined text-[22px]"
+        style={{ fontVariationSettings: isFav ? "'FILL' 1" : "'FILL' 0" }}
+      >
+        favorite
+      </span>
+    </button>
+  );
+}
+
 function EventDetailModal({
   event,
   onClose,
   onRegister,
   isRegistering,
   registrationResult,
+  favoriteIds,
+  onToggleFavorite,
 }: {
   event: ActivityWithSlots;
   onClose: () => void;
   onRegister: (id: string) => void;
   isRegistering: boolean;
   registrationResult: { type: "success" | "error"; text: string } | null;
+  favoriteIds: Set<string>;
+  onToggleFavorite: (id: string) => void;
 }) {
   return (
     <div
@@ -42,12 +79,19 @@ function EventDetailModal({
               活動負責人：{event.manager_name}
             </p>
           </div>
-          <button
-            className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors shrink-0"
-            onClick={onClose}
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <FavoriteButton
+              activityId={event.id}
+              favoriteIds={favoriteIds}
+              onToggle={onToggleFavorite}
+            />
+            <button
+              className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+              onClick={onClose}
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+          </div>
         </div>
 
         <div className="p-8 md:p-12 space-y-8">
@@ -146,11 +190,15 @@ function EventCard({
   onViewDetail,
   onRegister,
   isRegistering,
+  favoriteIds,
+  onToggleFavorite,
 }: {
   event: ActivityWithSlots;
   onViewDetail: () => void;
   onRegister: (id: string) => void;
   isRegistering: boolean;
+  favoriteIds: Set<string>;
+  onToggleFavorite: (id: string) => void;
 }) {
   return (
     <div className="flex flex-col md:flex-row items-stretch bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
@@ -165,11 +213,18 @@ function EventCard({
             <h3 className="text-xl font-bold text-slate-900 tracking-tight">
               {event.title}
             </h3>
-            {event.spots_left <= 0 && (
-              <span className="shrink-0 ml-3 px-2 py-1 bg-red-100 text-[10px] font-bold uppercase tracking-widest text-red-600 rounded">
-                額滿
-              </span>
-            )}
+            <div className="flex items-center gap-1 shrink-0 ml-3">
+              <FavoriteButton
+                activityId={event.id}
+                favoriteIds={favoriteIds}
+                onToggle={onToggleFavorite}
+              />
+              {event.spots_left <= 0 && (
+                <span className="px-2 py-1 bg-red-100 text-[10px] font-bold uppercase tracking-widest text-red-600 rounded">
+                  額滿
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap gap-y-2 gap-x-6 text-sm text-slate-600 mt-3">
             <div className="flex items-center gap-2">
@@ -249,8 +304,48 @@ export default function VolunteerPage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadFavorites() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("favorites")
+        .select("activity_id")
+        .eq("user_id", user.id);
+      if (data) setFavoriteIds(new Set(data.map((f) => f.activity_id)));
+    }
+    loadFavorites();
+  }, [supabase]);
+
+  const handleToggleFavorite = async (activityId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const isFav = favoriteIds.has(activityId);
+
+    if (isFav) {
+      await supabase
+        .from("favorites")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("activity_id", activityId);
+      setFavoriteIds((prev) => {
+        const next = new Set(prev);
+        next.delete(activityId);
+        return next;
+      });
+    } else {
+      await supabase.from("favorites").insert({
+        user_id: user.id,
+        activity_id: activityId,
+      });
+      setFavoriteIds((prev) => new Set(prev).add(activityId));
+    }
+  };
 
   const loadActivities = useCallback(async () => {
     setFetchError(null);
@@ -425,6 +520,8 @@ export default function VolunteerPage() {
                   }}
                   onRegister={handleRegister}
                   isRegistering={isRegistering}
+                  favoriteIds={favoriteIds}
+                  onToggleFavorite={handleToggleFavorite}
                 />
               ))
             ) : (
@@ -453,6 +550,8 @@ export default function VolunteerPage() {
           onRegister={handleRegister}
           isRegistering={isRegistering}
           registrationResult={registrationResult}
+          favoriteIds={favoriteIds}
+          onToggleFavorite={handleToggleFavorite}
         />
       )}
     </>

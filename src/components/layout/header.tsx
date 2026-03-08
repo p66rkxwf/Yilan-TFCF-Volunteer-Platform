@@ -146,7 +146,7 @@ export function Header() {
 
       <nav className="hidden md:flex items-center gap-10">
         <Link
-          href="/scholarship"
+          href="#"
           className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
         >
           獎學金專區
@@ -194,7 +194,7 @@ export function Header() {
               獎學金專區
             </Link>
             <Link
-              href="/volunteer"
+              href="#"
               className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >

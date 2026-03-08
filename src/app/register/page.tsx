@@ -131,7 +131,7 @@ export default function RegisterPage() {
             建立帳號
           </h1>
           <p className="text-slate-600 text-lg">
-            加入志工社群，掌握最新的服務機會與獎學金資訊。
+            掌握最新的服務機會與獎學金資訊。
           </p>
         </div>
 
