@@ -71,7 +71,7 @@ function LoginForm() {
           <h1 className="text-slate-900 text-4xl font-black tracking-tight leading-tight">
             歡迎回來
           </h1>
-          <p className="text-slate-600 text-lg">登入您的志工平台帳號</p>
+          <p className="text-slate-600 text-lg">登入您的帳號</p>
         </div>
 
         {serverError && (
