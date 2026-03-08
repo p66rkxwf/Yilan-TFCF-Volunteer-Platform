@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Public_Sans } from "next/font/google";
 import "./globals.css";
 import { RootLayoutClient } from "@/components/layout/root-layout-client";
 
-const inter = Inter({ subsets: ["latin"] });
+const publicSans = Public_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
 
 export const metadata: Metadata = {
   title: "宜蘭TFCF志工平台",
@@ -20,7 +23,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-TW">
-      <body className={`${inter.className} font-sans antialiased bg-white text-gray-900`}>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body
+        className={`${publicSans.className} antialiased bg-[#f6f7f8] text-slate-900 min-h-screen flex flex-col`}
+      >
         <RootLayoutClient>{children}</RootLayoutClient>
       </body>
     </html>

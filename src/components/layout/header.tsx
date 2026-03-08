@@ -1,134 +1,223 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
-import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
+
+function LogoIcon() {
+  return (
+    <svg
+      className="text-primary w-8 h-8"
+      fill="none"
+      viewBox="0 0 48 48"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        clipRule="evenodd"
+        d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z"
+        fill="currentColor"
+        fillRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+const ADMIN_ROLES = ["system_admin", "unit_admin", "internal_staff"];
 
 export function Header() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  
-  // 模擬登入狀態，開發時可手動切換以測試 UI
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user: u } }) => {
+      setUser(u);
+      if (u) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", u.id)
+          .single();
+        setIsAdmin(!!profile && ADMIN_ROLES.includes(profile.role));
+      }
+      setIsLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (!session?.user) setIsAdmin(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setMobileMenuOpen(false);
+    router.push("/");
+    router.refresh();
+  };
+
+  const authLink = isLoading ? null : user ? (
+    <div className="flex items-center gap-10">
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors flex items-center gap-1"
+        >
+          <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
+          後台管理
+        </Link>
+      )}
+      <Link
+        href="/profile"
+        className="text-slate-600 text-sm font-medium hover:text-primary transition-colors flex items-center gap-1"
+      >
+        <span className="material-symbols-outlined text-[18px]">person</span>
+        個人資料
+      </Link>
+      <button
+        onClick={handleSignOut}
+        className="text-slate-600 text-sm font-medium hover:text-red-500 transition-colors"
+      >
+        登出
+      </button>
+    </div>
+  ) : (
+    <Link
+      href="/login"
+      className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+    >
+      登入
+    </Link>
+  );
+
+  const mobileAuthLink = isLoading ? null : user ? (
+    <>
+      {isAdmin && (
+        <Link
+          href="/admin"
+          className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2 flex items-center gap-2"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
+          後台管理
+        </Link>
+      )}
+      <Link
+        href="/profile"
+        className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+        onClick={() => setMobileMenuOpen(false)}
+      >
+        個人資料
+      </Link>
+      <button
+        onClick={handleSignOut}
+        className="text-left text-red-500 text-base font-medium py-2"
+      >
+        登出
+      </button>
+    </>
+  ) : (
+    <Link
+      href="/login"
+      className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+      onClick={() => setMobileMenuOpen(false)}
+    >
+      登入
+    </Link>
+  );
 
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 md:h-20 flex items-center justify-between relative z-10">
-        
-        {/* Logo 與 標題 */}
-        <Link href="/" className="flex items-center space-x-3 focus:outline-none p-1 group">
-          <Image 
-            src="/logo.webp" 
-            alt="Logo" 
-            width={52} 
-            height={52} 
-            className="h-10 w-10 sm:h-12 sm:w-12 rounded-full"
-            priority
-          />
-          <h1 className="font-bold text-base sm:text-lg whitespace-nowrap text-black transition-colors">
-            宜蘭家扶志工平台
-          </h1>
+    <header className="flex items-center justify-between border-b border-slate-200 px-6 md:px-16 py-4 bg-white sticky top-0 z-50">
+      <Link href="/" className="flex items-center gap-3">
+        <LogoIcon />
+        <h2 className="text-slate-900 text-xl font-bold tracking-tight">
+          宜蘭家扶志工平台
+        </h2>
+      </Link>
+
+      <nav className="hidden md:flex items-center gap-10">
+        <Link
+          href="/scholarship"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+        >
+          獎學金專區
         </Link>
+        <Link
+          href="/volunteer"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+        >
+          志工專區
+        </Link>
+        <Link
+          href="/resource"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+        >
+          常見問題
+        </Link>
+        <Link
+          href="#"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+        >
+          關於我們
+        </Link>
+        {authLink}
+      </nav>
 
-        {/* 桌面端導覽列 */}
-        <nav className="hidden lg:flex items-center lg:space-x-8" role="navigation">
-          <Link href="/" className="underline-extend px-2 py-1 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
-            首頁
-          </Link>
-          <Link href="/resource" className="underline-extend px-2 py-1 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
-            FAQ
-          </Link>
-
-          {!isLoggedIn ? (
-            <>
-              <Link href="/login" className="underline-extend px-2 py-1 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
-                登入
-              </Link>
-              <Link href="/register" className="underline-extend px-2 py-1 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors">
-                註冊
-              </Link>
-            </>
-          ) : (
-            <div className="relative ml-4">
-              <button 
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-blue-600 focus:outline-none"
-              >
-                <span>Hi, 方梓寧</span>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${userMenuOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {userMenuOpen && (
-                <div className="absolute right-0 top-full pt-2 w-48 z-50">
-                  <div className="bg-white rounded-lg shadow-xl p-2 border border-gray-100">
-                    <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors">
-                      個資管理
-                    </Link>
-                    <hr className="my-1 border-gray-100" />
-                    <button 
-                      onClick={() => setIsLoggedIn(false)}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                    >
-                      登出
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </nav>
-
-        {/* 行動端三條線按鈕 (動畫結構與案例相同) */}
-        <div className="lg:hidden">
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="relative w-10 h-10 inline-flex items-center justify-center rounded-lg hover:bg-gray-100 transition-all duration-300"
-            aria-label="選單"
-          >
-            <div className="relative w-6 h-6">
-              <span className={`absolute left-0 w-6 h-0.5 bg-gray-600 transition-all duration-300 ${isOpen ? 'top-1/2 -translate-y-1/2 rotate-45' : 'top-1'}`}></span>
-              <span className={`absolute left-0 w-6 h-0.5 bg-gray-600 top-1/2 -translate-y-1/2 transition-all duration-300 ${isOpen ? 'opacity-0' : 'opacity-100'}`}></span>
-              <span className={`absolute left-0 w-6 h-0.5 bg-gray-600 transition-all duration-300 ${isOpen ? 'top-1/2 -translate-y-1/2 -rotate-45' : 'bottom-1'}`}></span>
-            </div>
-          </button>
-        </div>
+      <div className="md:hidden">
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="選單"
+        >
+          <span className="material-symbols-outlined text-slate-900 text-3xl">
+            {mobileMenuOpen ? "close" : "menu"}
+          </span>
+        </button>
       </div>
 
-      {/* 行動端下拉選單 (效仿案例動畫與毛玻璃效果) */}
-      <div className={`lg:hidden absolute left-0 w-full bg-white/95 backdrop-blur-lg shadow-lg border-t border-gray-100 transition-all duration-300 ease-in-out overflow-hidden ${isOpen ? 'max-h-[570px] opacity-100' : 'max-h-0 opacity-0'}`}>
-        <div className="p-4 space-y-2">
-          <Link href="/" className="block w-full px-4 py-3 rounded-lg text-lg text-blue-600 bg-blue-50 font-semibold" onClick={() => setIsOpen(false)}>
-            首頁
-          </Link>
-          <Link href="/resource" className="block w-full px-4 py-3 rounded-lg text-lg text-gray-700" onClick={() => setIsOpen(false)}>
-            FAQ
-          </Link>
-          
-          {!isLoggedIn ? (
-            <div className="pt-2 space-y-2">
-              <Link href="/login" className="block w-full px-4 py-3 rounded-lg text-lg text-gray-700" onClick={() => setIsOpen(false)}>
-                登入
-              </Link>
-              <Link href="/register" className="block w-full px-4 py-3 rounded-lg text-lg text-gray-700" onClick={() => setIsOpen(false)}>
-                註冊
-              </Link>
-            </div>
-          ) : (
-            <div className="border-t pt-4 mt-4 border-gray-200">
-              <div className="px-4 py-2 text-gray-500">Hi, 方梓寧</div>
-              <Link href="/profile" className="block w-full px-4 py-3 rounded-lg text-lg text-gray-700" onClick={() => setIsOpen(false)}>
-                個資管理
-              </Link>
-              <button 
-                onClick={() => { setIsLoggedIn(false); setIsOpen(false); }}
-                className="block w-full text-left px-4 py-3 rounded-lg text-lg text-red-600"
-              >
-                登出
-              </button>
-            </div>
-          )}
+      {mobileMenuOpen && (
+        <div className="absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-lg md:hidden z-40">
+          <nav className="flex flex-col p-6 gap-4">
+            <Link
+              href="/scholarship"
+              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              獎學金專區
+            </Link>
+            <Link
+              href="/volunteer"
+              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              志工專區
+            </Link>
+            <Link
+              href="/resource"
+              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              常見問題
+            </Link>
+            <Link
+              href="#"
+              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              關於我們
+            </Link>
+            {mobileAuthLink}
+          </nav>
         </div>
-      </div>
+      )}
     </header>
   );
 }
