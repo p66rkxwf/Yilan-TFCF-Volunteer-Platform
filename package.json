@@ -22,6 +22,8 @@
     },
     "homepage": "https://github.com/p66rkxwf/yilan-TFCF-volunteer-platform#readme",
     "dependencies": {
+        "@supabase/ssr": "^0.9.0",
+        "@supabase/supabase-js": "^2.98.0",
         "@tailwindcss/postcss": "^4.1.18",
         "@types/node": "^25.2.3",
         "@types/react": "^19.2.14",
