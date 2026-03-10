@@ -83,17 +83,15 @@ export function Header() {
       {isAdmin && (
         <Link
           href="/admin"
-          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors flex items-center gap-1"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
         >
-          <span className="material-symbols-outlined text-[18px]">admin_panel_settings</span>
           後台管理
         </Link>
       )}
       <Link
         href="/profile"
-        className="text-slate-600 text-sm font-medium hover:text-primary transition-colors flex items-center gap-1"
+        className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
       >
-        <span className="material-symbols-outlined text-[18px]">person</span>
         個人資料
       </Link>
       <button
@@ -117,10 +115,9 @@ export function Header() {
       {isAdmin && (
         <Link
           href="/admin"
-          className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2 flex items-center gap-2"
+          className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
           onClick={() => setMobileMenuOpen(false)}
         >
-          <span className="material-symbols-outlined text-[20px]">admin_panel_settings</span>
           後台管理
         </Link>
       )}
