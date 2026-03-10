@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, YilanRegion } from "@/lib/types/database";
+import { useToast } from "@/components/ui/toast";
 
 const REGIONS: YilanRegion[] = [
   "宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉",
@@ -27,11 +28,11 @@ interface RegistrationWithActivity {
 
 export default function ProfilePage() {
   const supabase = createClient();
+  const toast = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [registrations, setRegistrations] = useState<RegistrationWithActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -80,16 +81,14 @@ export default function ProfilePage() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
-    if (saveMessage) setSaveMessage(null);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-    setSaveMessage(null);
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      setSaveMessage({ type: "error", text: "尚未登入。" });
+      toast.error("尚未登入。");
       setIsSaving(false);
       return;
     }
@@ -105,9 +104,20 @@ export default function ProfilePage() {
       .eq("id", user.id);
 
     if (error) {
-      setSaveMessage({ type: "error", text: `更新失敗：${error.message}` });
+      toast.error(`更新失敗：${error.message}`);
     } else {
-      setSaveMessage({ type: "success", text: "個人資料已更新！" });
+      setProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              full_name: form.full_name,
+              email: form.email,
+              birthday: form.birthday || null,
+              region: (form.region as YilanRegion) || null,
+            }
+          : prev
+      );
+      toast.success("個人資料已更新！");
     }
     setIsSaving(false);
   };
@@ -136,18 +146,6 @@ export default function ProfilePage() {
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
         <div className="max-w-5xl mx-auto space-y-8">
-          {saveMessage && (
-            <div
-              className={`px-4 py-3 rounded-lg text-sm ${
-                saveMessage.type === "success"
-                  ? "bg-green-50 border border-green-200 text-green-700"
-                  : "bg-red-50 border border-red-200 text-red-700"
-              }`}
-            >
-              {saveMessage.text}
-            </div>
-          )}
-
           <section className="bg-white p-6 rounded-xl border border-slate-200 flex flex-col md:flex-row items-center gap-6">
             <div className="relative">
               <div className="w-24 h-24 rounded-full border-4 border-slate-100 bg-slate-200 flex items-center justify-center">

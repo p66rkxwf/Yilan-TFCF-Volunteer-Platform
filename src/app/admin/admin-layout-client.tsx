@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AdminProvider } from "./admin-context";
+import { setFlashToast, useToast } from "@/components/ui/toast";
 
 const NAV_ITEMS = [
   { icon: "dashboard", label: "儀表板", href: "/admin" },
@@ -34,9 +35,21 @@ export function AdminLayoutClient({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      toast.error(`登出失敗：${error.message}`);
+      return;
+    }
+
+    setFlashToast({
+      variant: "success",
+      title: "已登出",
+      description: "管理員帳號已登出。",
+    });
     router.push("/login");
     router.refresh();
   };

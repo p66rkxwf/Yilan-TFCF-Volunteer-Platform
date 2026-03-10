@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/lib/actions/auth";
+import { setFlashToast, useToast } from "@/components/ui/toast";
 
 export default function LoginPage() {
   return (
@@ -17,6 +18,8 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/";
+  const registered = searchParams.get("registered");
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     account: "",
@@ -25,8 +28,13 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [serverError, setServerError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (registered === "true") {
+      toast.success("註冊成功，請登入您的帳號。");
+    }
+  }, [registered, toast]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -42,7 +50,6 @@ function LoginForm() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-    if (serverError) setServerError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,16 +57,20 @@ function LoginForm() {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setServerError("");
 
     const result = await signIn(formData);
 
     if (result.error) {
-      setServerError(result.error);
+      toast.error(result.error);
       setIsLoading(false);
       return;
     }
 
+    setFlashToast({
+      variant: "success",
+      title: "登入成功",
+      description: "歡迎回來。",
+    });
     router.push(redirectTo);
     router.refresh();
   };
@@ -73,12 +84,6 @@ function LoginForm() {
           </h1>
           <p className="text-slate-600 text-lg">登入您的帳號</p>
         </div>
-
-        {serverError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            {serverError}
-          </div>
-        )}
 
         <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
           <div className="flex flex-col gap-2">

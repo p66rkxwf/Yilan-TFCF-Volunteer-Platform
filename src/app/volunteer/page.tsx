@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Activity } from "@/lib/types/database";
+import { useToast } from "@/components/ui/toast";
 
 interface ActivityWithSlots extends Activity {
   registered_count: number;
@@ -47,7 +48,6 @@ function EventDetailModal({
   onClose,
   onRegister,
   isRegistering,
-  registrationResult,
   favoriteIds,
   onToggleFavorite,
 }: {
@@ -55,7 +55,6 @@ function EventDetailModal({
   onClose: () => void;
   onRegister: (id: string) => void;
   isRegistering: boolean;
-  registrationResult: { type: "success" | "error"; text: string } | null;
   favoriteIds: Set<string>;
   onToggleFavorite: (id: string) => void;
 }) {
@@ -146,18 +145,6 @@ function EventDetailModal({
               </p>
             </div>
           </div>
-
-          {registrationResult && (
-            <div
-              className={`px-4 py-3 rounded-lg text-sm ${
-                registrationResult.type === "success"
-                  ? "bg-green-50 border border-green-200 text-green-700"
-                  : "bg-red-50 border border-red-200 text-red-700"
-              }`}
-            >
-              {registrationResult.text}
-            </div>
-          )}
 
           <div className="pt-8 mt-8 border-t border-slate-100">
             <button
@@ -295,15 +282,12 @@ function EventCard({
 
 export default function VolunteerPage() {
   const supabase = createClient();
+  const toast = useToast();
   const [activities, setActivities] = useState<ActivityWithSlots[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEvent, setSelectedEvent] = useState<ActivityWithSlots | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
-  const [registrationResult, setRegistrationResult] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
 
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -321,29 +305,52 @@ export default function VolunteerPage() {
     loadFavorites();
   }, [supabase]);
 
+  useEffect(() => {
+    if (fetchError) {
+      toast.error(fetchError, "活動載入失敗");
+    }
+  }, [fetchError, toast]);
+
   const handleToggleFavorite = async (activityId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      toast.info("請先登入後再使用收藏功能。");
+      return;
+    }
 
     const isFav = favoriteIds.has(activityId);
 
     if (isFav) {
-      await supabase
+      const { error } = await supabase
         .from("favorites")
         .delete()
         .eq("user_id", user.id)
         .eq("activity_id", activityId);
+
+      if (error) {
+        toast.error(`取消收藏失敗：${error.message}`);
+        return;
+      }
+
       setFavoriteIds((prev) => {
         const next = new Set(prev);
         next.delete(activityId);
         return next;
       });
+      toast.success("已取消收藏活動。");
     } else {
-      await supabase.from("favorites").insert({
+      const { error } = await supabase.from("favorites").insert({
         user_id: user.id,
         activity_id: activityId,
       });
+
+      if (error) {
+        toast.error(`加入收藏失敗：${error.message}`);
+        return;
+      }
+
       setFavoriteIds((prev) => new Set(prev).add(activityId));
+      toast.success("活動已加入收藏。");
     }
   };
 
@@ -395,14 +402,13 @@ export default function VolunteerPage() {
 
   const handleRegister = async (activityId: string) => {
     setIsRegistering(true);
-    setRegistrationResult(null);
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setRegistrationResult({ type: "error", text: "請先登入再進行報名。" });
+      toast.error("請先登入再進行報名。");
       setIsRegistering(false);
       return;
     }
@@ -416,7 +422,7 @@ export default function VolunteerPage() {
       .single();
 
     if (existing) {
-      setRegistrationResult({ type: "error", text: "您已報名此活動。" });
+      toast.info("您已報名此活動。");
       setIsRegistering(false);
       return;
     }
@@ -428,12 +434,9 @@ export default function VolunteerPage() {
     });
 
     if (error) {
-      setRegistrationResult({
-        type: "error",
-        text: `報名失敗：${error.message}`,
-      });
+      toast.error(`報名失敗：${error.message}`);
     } else {
-      setRegistrationResult({ type: "success", text: "報名成功！請等待審核。" });
+      toast.success("報名成功！請等待審核。");
       await loadActivities();
     }
 
@@ -482,18 +485,6 @@ export default function VolunteerPage() {
             </div>
           )}
 
-          {registrationResult && !selectedEvent && (
-            <div
-              className={`mb-6 px-4 py-3 rounded-lg text-sm ${
-                registrationResult.type === "success"
-                  ? "bg-green-50 border border-green-200 text-green-700"
-                  : "bg-red-50 border border-red-200 text-red-700"
-              }`}
-            >
-              {registrationResult.text}
-            </div>
-          )}
-
           <div className="flex flex-col gap-6 mb-10">
             <div className="flex w-full items-stretch rounded-lg h-14 bg-white border border-slate-200 shadow-sm">
               <div className="text-slate-400 flex items-center justify-center pl-4">
@@ -516,7 +507,6 @@ export default function VolunteerPage() {
                   event={a}
                   onViewDetail={() => {
                     setSelectedEvent(a);
-                    setRegistrationResult(null);
                   }}
                   onRegister={handleRegister}
                   isRegistering={isRegistering}
@@ -543,13 +533,9 @@ export default function VolunteerPage() {
       {selectedEvent && (
         <EventDetailModal
           event={selectedEvent}
-          onClose={() => {
-            setSelectedEvent(null);
-            setRegistrationResult(null);
-          }}
+          onClose={() => setSelectedEvent(null)}
           onRegister={handleRegister}
           isRegistering={isRegistering}
-          registrationResult={registrationResult}
           favoriteIds={favoriteIds}
           onToggleFavorite={handleToggleFavorite}
         />

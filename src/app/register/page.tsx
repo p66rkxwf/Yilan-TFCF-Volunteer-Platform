@@ -6,6 +6,7 @@ import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
 import { getSocialWorkers } from "@/lib/actions/profiles";
 import type { YilanRegion } from "@/lib/types/database";
+import { setFlashToast, useToast } from "@/components/ui/toast";
 
 const REGIONS: YilanRegion[] = [
   "宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉",
@@ -19,6 +20,7 @@ interface SocialWorker {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const toast = useToast();
 
   const [formData, setFormData] = useState({
     account: "",
@@ -38,12 +40,15 @@ export default function RegisterPage() {
 
   const [socialWorkers, setSocialWorkers] = useState<SocialWorker[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [serverError, setServerError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    getSocialWorkers().then(setSocialWorkers);
-  }, []);
+    getSocialWorkers()
+      .then(setSocialWorkers)
+      .catch(() => {
+        toast.error("社工名單載入失敗，請稍後再試。");
+      });
+  }, [toast]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -80,7 +85,6 @@ export default function RegisterPage() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-    if (serverError) setServerError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,7 +92,6 @@ export default function RegisterPage() {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    setServerError("");
 
     const result = await signUp({
       account: formData.account,
@@ -101,12 +104,17 @@ export default function RegisterPage() {
     });
 
     if (result.error) {
-      setServerError(result.error);
+      toast.error(result.error);
       setIsLoading(false);
       return;
     }
 
-    router.push("/login?registered=true");
+    setFlashToast({
+      variant: "success",
+      title: "註冊成功",
+      description: "帳號已建立，請登入繼續。",
+    });
+    router.push("/login");
   };
 
   const requiredFields = ["account", "password", "confirmPassword", "name", "email", "birthday"];
@@ -149,12 +157,6 @@ export default function RegisterPage() {
             />
           </div>
         </div>
-
-        {serverError && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-            {serverError}
-          </div>
-        )}
 
         <form
           className="flex flex-col gap-6 bg-white p-8 rounded-xl shadow-sm border border-primary/5"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/components/ui/toast";
 
 const CATEGORIES = [
   "全部類別",
@@ -77,9 +78,11 @@ const SCHOLARSHIPS: Scholarship[] = [
 function ScholarshipDetailModal({
   scholarship,
   onClose,
+  onApply,
 }: {
   scholarship: Scholarship;
   onClose: () => void;
+  onApply: () => void;
 }) {
   return (
     <div
@@ -162,7 +165,10 @@ function ScholarshipDetailModal({
           </section>
 
           <div className="pt-8 mt-8 border-t border-slate-100">
-            <button className="w-full md:w-auto px-12 py-4 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-colors">
+            <button
+              onClick={onApply}
+              className="w-full md:w-auto px-12 py-4 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-colors"
+            >
               立即申請
             </button>
             <p className="text-xs text-slate-400 mt-4 text-center md:text-left">
@@ -178,9 +184,11 @@ function ScholarshipDetailModal({
 function ScholarshipCard({
   scholarship,
   onViewDetail,
+  onApply,
 }: {
   scholarship: Scholarship;
   onViewDetail: () => void;
+  onApply: () => void;
 }) {
   return (
     <div className="flex flex-col md:flex-row items-stretch bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
@@ -237,7 +245,10 @@ function ScholarshipCard({
           >
             查看詳情
           </button>
-          <button className="bg-primary hover:bg-primary/90 text-white px-8 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors">
+          <button
+            onClick={onApply}
+            className="bg-primary hover:bg-primary/90 text-white px-8 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-colors"
+          >
             立即申請
           </button>
         </div>
@@ -247,10 +258,15 @@ function ScholarshipCard({
 }
 
 export default function ScholarshipPage() {
+  const toast = useToast();
   const [activeCategory, setActiveCategory] = useState<Category>("全部類別");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedScholarship, setSelectedScholarship] =
     useState<Scholarship | null>(null);
+
+  const handleApply = () => {
+    toast.info("獎學金申請功能建置中，請稍後再試。");
+  };
 
   const filtered = SCHOLARSHIPS.filter((s) => {
     const matchCategory =
@@ -317,6 +333,7 @@ export default function ScholarshipPage() {
                   key={s.id}
                   scholarship={s}
                   onViewDetail={() => setSelectedScholarship(s)}
+                  onApply={handleApply}
                 />
               ))
             ) : (
@@ -363,6 +380,7 @@ export default function ScholarshipPage() {
         <ScholarshipDetailModal
           scholarship={selectedScholarship}
           onClose={() => setSelectedScholarship(null)}
+          onApply={handleApply}
         />
       )}
     </>

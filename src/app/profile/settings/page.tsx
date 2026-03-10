@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updatePassword, updateEmail, deleteAccount } from "@/lib/actions/auth";
+import { setFlashToast, useToast } from "@/components/ui/toast";
 
 function SettingsSection({
   icon,
@@ -41,59 +42,37 @@ function SettingsSection({
   );
 }
 
-function StatusMessage({
-  msg,
-}: {
-  msg: { type: "success" | "error"; text: string } | null;
-}) {
-  if (!msg) return null;
-  return (
-    <div
-      className={`px-4 py-3 rounded-lg text-sm font-medium border ${
-        msg.type === "success"
-          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-          : "bg-red-50 border-red-200 text-red-700"
-      }`}
-    >
-      {msg.text}
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const router = useRouter();
+  const toast = useToast();
 
   const [pwForm, setPwForm] = useState({ password: "", confirm: "" });
   const [pwLoading, setPwLoading] = useState(false);
-  const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [emailForm, setEmailForm] = useState({ email: "" });
   const [emailLoading, setEmailLoading] = useState(false);
-  const [emailMsg, setEmailMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteMsg, setDeleteMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPwMsg(null);
 
     if (pwForm.password !== pwForm.confirm) {
-      setPwMsg({ type: "error", text: "兩次密碼輸入不一致。" });
+      toast.error("兩次密碼輸入不一致。");
       return;
     }
     if (pwForm.password.length < 8) {
-      setPwMsg({ type: "error", text: "密碼至少需要 8 個字元。" });
+      toast.error("密碼至少需要 8 個字元。");
       return;
     }
 
     setPwLoading(true);
     const result = await updatePassword(pwForm.password);
     if (result.error) {
-      setPwMsg({ type: "error", text: result.error });
+      toast.error(result.error);
     } else {
-      setPwMsg({ type: "success", text: "密碼已更新！" });
+      toast.success("密碼已更新！");
       setPwForm({ password: "", confirm: "" });
     }
     setPwLoading(false);
@@ -101,29 +80,33 @@ export default function SettingsPage() {
 
   const handleEmailUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setEmailMsg(null);
 
     setEmailLoading(true);
     const result = await updateEmail(emailForm.email);
     if (result.error) {
-      setEmailMsg({ type: "error", text: result.error });
+      toast.error(result.error);
     } else {
-      setEmailMsg({ type: "success", text: "驗證信已寄出，請至新信箱確認。" });
+      toast.success("驗證信已寄出，請至新信箱確認。");
       setEmailForm({ email: "" });
     }
     setEmailLoading(false);
   };
 
   const handleDeleteAccount = async () => {
-    setDeleteMsg(null);
     setDeleteLoading(true);
 
     const result = await deleteAccount();
     if (result.error) {
-      setDeleteMsg({ type: "error", text: result.error });
+      toast.error(result.error);
       setDeleteLoading(false);
     } else {
+      setFlashToast({
+        variant: "success",
+        title: "帳號已停用",
+        description: "您的帳號已停用並完成登出。",
+      });
       router.push("/login");
+      router.refresh();
     }
   };
 
@@ -145,7 +128,6 @@ export default function SettingsPage() {
             description="建議定期更換密碼以維護帳號安全。"
           >
             <form onSubmit={handlePasswordUpdate} className="space-y-4">
-              <StatusMessage msg={pwMsg} />
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">
                   新密碼
@@ -202,7 +184,6 @@ export default function SettingsPage() {
             description="更改後需至新信箱完成驗證。"
           >
             <form onSubmit={handleEmailUpdate} className="space-y-4">
-              <StatusMessage msg={emailMsg} />
               <div className="space-y-2">
                 <label className="text-sm font-semibold text-slate-700">
                   新的 Email 地址
@@ -243,7 +224,6 @@ export default function SettingsPage() {
             danger
           >
             <div className="space-y-4">
-              <StatusMessage msg={deleteMsg} />
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-700 font-medium mb-3">
                   請在下方輸入「刪除我的帳號」確認此操作：
