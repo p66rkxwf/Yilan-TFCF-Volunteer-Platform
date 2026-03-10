@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminProfile } from "../admin-context";
+import { useToast } from "@/components/ui/toast";
 
 interface UserRow {
   id: string;
@@ -32,6 +33,7 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
 
 export default function AdminUsersPage() {
   const supabase = createClient();
+  const toast = useToast();
   const adminProfile = useAdminProfile();
   const isSystemAdmin = adminProfile.role === "system_admin";
 
@@ -56,10 +58,14 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     if (actionMsg) {
-      const t = setTimeout(() => setActionMsg(null), 3000);
-      return () => clearTimeout(t);
+      if (actionMsg.type === "success") {
+        toast.success(actionMsg.text);
+      } else {
+        toast.error(actionMsg.text);
+      }
+      setActionMsg(null);
     }
-  }, [actionMsg]);
+  }, [actionMsg, toast]);
 
   const handleToggleStatus = async (user: UserRow) => {
     const newStatus = user.status === "active" ? "blacklisted" : "active";
@@ -104,19 +110,6 @@ export default function AdminUsersPage() {
       </header>
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
-        {/* Toast */}
-        {actionMsg && (
-          <div
-            className={`px-4 py-3 rounded-lg text-sm font-medium border ${
-              actionMsg.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                : "bg-red-50 border-red-200 text-red-700"
-            }`}
-          >
-            {actionMsg.text}
-          </div>
-        )}
-
         {/* Search & Filters */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[300px]">

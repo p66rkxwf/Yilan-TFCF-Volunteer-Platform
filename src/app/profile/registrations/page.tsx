@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/toast";
 
 interface RegistrationRow {
   id: string;
@@ -32,6 +33,7 @@ const FILTER_TABS = [
 
 export default function RegistrationsPage() {
   const supabase = createClient();
+  const toast = useToast();
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -68,10 +70,14 @@ export default function RegistrationsPage() {
 
   useEffect(() => {
     if (actionMsg) {
-      const t = setTimeout(() => setActionMsg(null), 3000);
-      return () => clearTimeout(t);
+      if (actionMsg.type === "success") {
+        toast.success(actionMsg.text);
+      } else {
+        toast.error(actionMsg.text);
+      }
+      setActionMsg(null);
     }
-  }, [actionMsg]);
+  }, [actionMsg, toast]);
 
   const handleCancel = async (reg: RegistrationRow) => {
     const today = new Date().toISOString().split("T")[0];
@@ -122,18 +128,6 @@ export default function RegistrationsPage() {
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
-          {actionMsg && (
-            <div
-              className={`px-4 py-3 rounded-lg text-sm font-medium border ${
-                actionMsg.type === "success"
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                  : "bg-red-50 border-red-200 text-red-700"
-              }`}
-            >
-              {actionMsg.text}
-            </div>
-          )}
-
           {/* Filter Tabs */}
           <div className="flex flex-wrap gap-2">
             {FILTER_TABS.map((tab) => {

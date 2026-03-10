@@ -3,8 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { resetPassword } from "@/lib/actions/auth";
+import { useToast } from "@/components/ui/toast";
 
 export default function ForgotPasswordPage() {
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -27,13 +29,14 @@ export default function ForgotPasswordPage() {
     const result = await resetPassword(email);
 
     if (result.error) {
-      setError(result.error);
+      toast.error(result.error);
       setIsLoading(false);
       return;
     }
 
     setIsLoading(false);
     setIsSent(true);
+    toast.success("重設密碼連結已寄出，請至信箱查看。");
   };
 
   const handleResend = async () => {
@@ -44,9 +47,10 @@ export default function ForgotPasswordPage() {
 
     setIsLoading(false);
     if (result.error) {
-      setError(result.error);
+      toast.error(result.error);
     } else {
       setIsSent(true);
+      toast.success("已重新發送重設密碼連結。");
     }
   };
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/toast";
 
 interface FavoriteActivity {
   id: string;
@@ -20,6 +21,7 @@ interface FavoriteActivity {
 
 export default function FavoritesPage() {
   const supabase = createClient();
+  const toast = useToast();
   const [favorites, setFavorites] = useState<FavoriteActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -69,10 +71,14 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     if (actionMsg) {
-      const t = setTimeout(() => setActionMsg(null), 3000);
-      return () => clearTimeout(t);
+      if (actionMsg.type === "success") {
+        toast.success(actionMsg.text);
+      } else {
+        toast.error(actionMsg.text);
+      }
+      setActionMsg(null);
     }
-  }, [actionMsg]);
+  }, [actionMsg, toast]);
 
   const handleRemoveFavorite = async (fav: FavoriteActivity) => {
     const { error } = await supabase
@@ -103,18 +109,6 @@ export default function FavoritesPage() {
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
-          {actionMsg && (
-            <div
-              className={`px-4 py-3 rounded-lg text-sm font-medium border ${
-                actionMsg.type === "success"
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                  : "bg-red-50 border-red-200 text-red-700"
-              }`}
-            >
-              {actionMsg.text}
-            </div>
-          )}
-
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <span className="material-symbols-outlined animate-spin text-4xl text-primary">
