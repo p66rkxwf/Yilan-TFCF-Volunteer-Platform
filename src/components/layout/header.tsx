@@ -170,18 +170,6 @@ export function Header() {
         >
           志工專區
         </Link>
-        <Link
-          href="/resource"
-          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
-        >
-          常見問題
-        </Link>
-        <Link
-          href="#"
-          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
-        >
-          關於我們
-        </Link>
         {authLink}
       </nav>
 
@@ -212,20 +200,6 @@ export function Header() {
               onClick={() => setMobileMenuOpen(false)}
             >
               志工專區
-            </Link>
-            <Link
-              href="/resource"
-              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              常見問題
-            </Link>
-            <Link
-              href="#"
-              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              關於我們
             </Link>
             {mobileAuthLink}
           </nav>
