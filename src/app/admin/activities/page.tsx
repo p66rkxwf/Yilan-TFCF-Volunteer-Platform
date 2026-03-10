@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/toast";
 
 interface ActivityRow {
   id: string;
@@ -36,6 +37,7 @@ const REG_STATUS: Record<string, { label: string; dot: string; text: string }> =
 
 export default function AdminActivitiesPage() {
   const supabase = createClient();
+  const toast = useToast();
   const [activities, setActivities] = useState<ActivityRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -84,10 +86,14 @@ export default function AdminActivitiesPage() {
 
   useEffect(() => {
     if (actionMsg) {
-      const t = setTimeout(() => setActionMsg(null), 3000);
-      return () => clearTimeout(t);
+      if (actionMsg.type === "success") {
+        toast.success(actionMsg.text);
+      } else {
+        toast.error(actionMsg.text);
+      }
+      setActionMsg(null);
     }
-  }, [actionMsg]);
+  }, [actionMsg, toast]);
 
   const handleCancelActivity = async (id: string) => {
     if (!confirm("確定要取消此活動嗎？")) return;
@@ -139,18 +145,6 @@ export default function AdminActivitiesPage() {
       </header>
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
-        {actionMsg && (
-          <div
-            className={`px-4 py-3 rounded-lg text-sm font-medium border ${
-              actionMsg.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                : "bg-red-50 border-red-200 text-red-700"
-            }`}
-          >
-            {actionMsg.text}
-          </div>
-        )}
-
         {/* Search & Filters */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[300px]">
@@ -332,9 +326,9 @@ function ActivityFormModal({
   onSaved: () => void;
 }) {
   const supabase = createClient();
+  const toast = useToast();
   const isEditing = !!activity;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     title: activity?.title || "",
@@ -354,7 +348,6 @@ function ActivityFormModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setError("");
 
     const payload = {
       title: form.title,
@@ -374,7 +367,7 @@ function ActivityFormModal({
         .eq("id", activity.id);
 
       if (updateError) {
-        setError(`更新失敗：${updateError.message}`);
+        toast.error(`更新失敗：${updateError.message}`);
         setIsSubmitting(false);
         return;
       }
@@ -384,7 +377,7 @@ function ActivityFormModal({
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setError("請先登入");
+        toast.error("請先登入");
         setIsSubmitting(false);
         return;
       }
@@ -396,7 +389,7 @@ function ActivityFormModal({
       });
 
       if (insertError) {
-        setError(`建立失敗：${insertError.message}`);
+        toast.error(`建立失敗：${insertError.message}`);
         setIsSubmitting(false);
         return;
       }
@@ -420,10 +413,6 @@ function ActivityFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
-          )}
-
           <div className="space-y-2">
             <label className="text-sm font-semibold text-slate-700">活動名稱</label>
             <input name="title" required value={form.title} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
@@ -492,6 +481,7 @@ function RegistrationsModal({
   onClose: () => void;
 }) {
   const supabase = createClient();
+  const toast = useToast();
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -522,10 +512,14 @@ function RegistrationsModal({
 
   useEffect(() => {
     if (actionMsg) {
-      const t = setTimeout(() => setActionMsg(null), 3000);
-      return () => clearTimeout(t);
+      if (actionMsg.type === "success") {
+        toast.success(actionMsg.text);
+      } else {
+        toast.error(actionMsg.text);
+      }
+      setActionMsg(null);
     }
-  }, [actionMsg]);
+  }, [actionMsg, toast]);
 
   const updateStatus = async (regId: string, newStatus: string, name: string) => {
     const label = newStatus === "approved" ? "通過" : "拒絕";
@@ -593,18 +587,6 @@ function RegistrationsModal({
             </span>
           )}
         </div>
-
-        {actionMsg && (
-          <div
-            className={`mx-6 mt-4 px-4 py-3 rounded-lg text-sm font-medium border ${
-              actionMsg.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                : "bg-red-50 border-red-200 text-red-700"
-            }`}
-          >
-            {actionMsg.text}
-          </div>
-        )}
 
         <div className="flex-1 overflow-y-auto p-6">
           {isLoading ? (

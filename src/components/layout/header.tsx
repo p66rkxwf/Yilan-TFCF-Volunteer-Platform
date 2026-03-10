@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
+import { setFlashToast, useToast } from "@/components/ui/toast";
 
 function LogoIcon() {
   return (
@@ -29,6 +30,7 @@ const ADMIN_ROLES = ["system_admin", "unit_admin", "internal_staff"];
 export function Header() {
   const router = useRouter();
   const supabase = createClient();
+  const toast = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -59,7 +61,18 @@ export function Header() {
   }, [supabase]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      toast.error(`登出失敗：${error.message}`);
+      return;
+    }
+
+    setFlashToast({
+      variant: "success",
+      title: "已登出",
+      description: "您已安全登出。",
+    });
     setMobileMenuOpen(false);
     router.push("/");
     router.refresh();
