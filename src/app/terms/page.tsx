@@ -8,7 +8,7 @@ const TERMS_SECTIONS = [
     index: "01",
     title: "服務適用範圍",
     paragraphs: [
-      "本平台提供志工帳號註冊、活動瀏覽、報名、收藏與個人資料管理等功能，適用於宜蘭家扶基金會志工相關業務需求。",
+      "本平台提供志工帳號註冊、活動瀏覽、報名、收藏與個人資料管理等功能，適用於宜蘭家扶中心志工相關業務需求。",
       "當您建立帳號、登入或使用任何與活動參與相關的功能時，即表示您已閱讀、理解並同意遵守本服務條款與相關平台規範。",
     ],
   },
@@ -67,7 +67,7 @@ const RELATED_DOCUMENTS = [
 
 export const metadata: Metadata = {
   title: "服務條款 | 宜蘭TFCF志工平台",
-  description: "查看宜蘭家扶志工平台的使用條款、報名規範與帳號責任說明。",
+  description: "查看宜蘭家扶中心志工平台的使用條款、報名規範與帳號責任說明。",
 };
 
 export default function TermsPage() {
@@ -76,7 +76,7 @@ export default function TermsPage() {
       icon="gavel"
       eyebrow="Terms of Service"
       title="服務條款"
-      description="本條款說明您在使用宜蘭家扶志工平台時的帳號義務、活動參與規範，以及平台內容與服務範圍。"
+      description="本條款說明您在使用宜蘭家扶中心志工平台時的帳號義務、活動參與規範，以及平台內容與服務範圍。"
       meta={
         <>
           <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm shadow-slate-900/5 backdrop-blur">
