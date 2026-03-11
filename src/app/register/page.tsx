@@ -380,9 +380,14 @@ export default function RegisterPage() {
             </button>
             <p className="text-center mt-6 text-sm text-slate-500">
               註冊即代表您同意我們的{" "}
-              <Link href="#" className="text-primary underline">服務條款</Link>
+              <Link href="/terms" className="text-primary underline">
+                服務條款
+              </Link>
               {" "}和{" "}
-              <Link href="#" className="text-primary underline">隱私政策</Link>。
+              <Link href="/privacy" className="text-primary underline">
+                隱私政策
+              </Link>
+              。
             </p>
           </div>
         </form>
