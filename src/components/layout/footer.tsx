@@ -41,7 +41,7 @@ export function Footer() {
           </Link>
         </div>
         <p className="text-slate-400 text-xs">
-          © {currentYear} 宜蘭家扶基金會. 版權所有。
+          © {currentYear} 宜蘭家扶中心. 版權所有。
         </p>
       </div>
     </footer>

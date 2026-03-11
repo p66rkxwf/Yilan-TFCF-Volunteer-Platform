@@ -87,7 +87,7 @@ const RELATED_LINKS = [
 
 export const metadata: Metadata = {
   title: "隱私政策 | 宜蘭TFCF志工平台",
-  description: "了解宜蘭家扶志工平台如何蒐集、使用、保存與保護個人資料。",
+  description: "了解宜蘭家扶中心志工平台如何蒐集、使用、保存與保護個人資料。",
 };
 
 export default function PrivacyPage() {
@@ -96,7 +96,7 @@ export default function PrivacyPage() {
       icon="shield_lock"
       eyebrow="Privacy Policy"
       title="隱私政策"
-      description="本政策說明宜蘭家扶志工平台如何蒐集、使用、保存與保護您在使用帳號與活動報名功能時提供的資料。"
+      description="本政策說明宜蘭家扶中心志工平台如何蒐集、使用、保存與保護您在使用帳號與活動報名功能時提供的資料。"
       meta={
         <>
           <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm shadow-slate-900/5 backdrop-blur">
