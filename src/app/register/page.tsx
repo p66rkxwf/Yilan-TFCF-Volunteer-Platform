@@ -103,6 +103,13 @@ export default function RegisterPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleBirthdayBlur = () => {
+    setFormData((prev) => ({
+      ...prev,
+      birthday: normalizeBirthdayForSubmit(prev.birthday),
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -253,6 +260,7 @@ export default function RegisterPage() {
                 pattern="\d{4}-\d{2}-\d{2}"
                 value={formData.birthday}
                 onChange={handleChange}
+                onBlur={handleBirthdayBlur}
               />
             </div>
             <FieldError field="birthday" />
