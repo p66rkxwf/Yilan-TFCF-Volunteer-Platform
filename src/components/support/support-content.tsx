@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 
 const TOPICS = [
@@ -11,6 +12,8 @@ const TOPICS = [
   "通知與收藏",
   "其他問題",
 ] as const;
+
+type SupportTopic = (typeof TOPICS)[number];
 
 const CONTACT_GUIDES = [
   {
@@ -33,7 +36,12 @@ const CONTACT_GUIDES = [
 export function SupportContent() {
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    email: string;
+    topic: SupportTopic;
+    message: string;
+  }>({
     name: "",
     email: "",
     topic: TOPICS[0],
@@ -41,7 +49,7 @@ export function SupportContent() {
   });
 
   const handleChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
@@ -104,21 +112,23 @@ export function SupportContent() {
           </label>
         </div>
 
-        <label className="mt-5 flex flex-col gap-2">
+        <div className="mt-5 flex flex-col gap-2">
           <span className="text-sm font-bold text-slate-900">問題類型</span>
-          <select
+          <Select
             name="topic"
             value={formData.topic}
-            onChange={handleChange}
-            className="rounded-2xl border border-slate-200 bg-background-light px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
-          >
-            {TOPICS.map((topic) => (
-              <option key={topic} value={topic}>
-                {topic}
-              </option>
-            ))}
-          </select>
-        </label>
+            ariaLabel="問題類型"
+            onValueChange={(value) =>
+              setFormData((current) => ({
+                ...current,
+                topic: value as SupportTopic,
+              }))
+            }
+            triggerClassName="rounded-2xl border border-slate-200 bg-background-light px-4 py-3 text-sm text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            menuClassName="rounded-2xl bg-white"
+            options={TOPICS.map((topic) => ({ value: topic, label: topic }))}
+          />
+        </div>
 
         <label className="mt-5 flex flex-col gap-2">
           <span className="text-sm font-bold text-slate-900">問題描述</span>

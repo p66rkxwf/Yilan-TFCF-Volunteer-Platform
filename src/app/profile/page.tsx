@@ -7,6 +7,7 @@ import {
   normalizeBirthdayForSubmit,
   normalizeBirthdayInput,
 } from "@/lib/birthday";
+import { Select } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, YilanRegion } from "@/lib/types/database";
 import { useToast } from "@/components/ui/toast";
@@ -83,12 +84,16 @@ export default function ProfilePage() {
     load();
   }, [supabase]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const nextValue =
       name === "birthday" ? normalizeBirthdayInput(value) : value;
 
     setForm((prev) => ({ ...prev, [name]: nextValue }));
+  };
+
+  const handleRegionChange = (value: string) => {
+    setForm((prev) => ({ ...prev, region: value as YilanRegion | "" }));
   };
 
   const handleSave = async () => {
@@ -249,17 +254,19 @@ export default function ProfilePage() {
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700">所在地區</label>
-                    <select
-                      className="w-full px-4 py-2 rounded-lg border border-slate-200 bg-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    <Select
+                      className="w-full"
+                      triggerClassName="w-full rounded-lg border border-slate-200 bg-transparent px-4 py-2 text-slate-900 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      menuClassName="bg-white"
                       name="region"
                       value={form.region}
-                      onChange={handleChange}
-                    >
-                      <option value="">請選擇</option>
-                      {REGIONS.map((r) => (
-                        <option key={r} value={r}>{r}</option>
-                      ))}
-                    </select>
+                      ariaLabel="所在地區"
+                      onValueChange={handleRegionChange}
+                      options={[
+                        { value: "", label: "請選擇" },
+                        ...REGIONS.map((region) => ({ value: region, label: region })),
+                      ]}
+                    />
                   </div>
                 </div>
               </section>
