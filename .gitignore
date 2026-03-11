@@ -24,6 +24,7 @@ npm-debug.log*
 
 # next.js type generation
 next-env.d.ts
+*.tsbuildinfo
 
 # editors
 .vscode/
