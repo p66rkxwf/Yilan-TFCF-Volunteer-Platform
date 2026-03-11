@@ -96,6 +96,13 @@ export default function ProfilePage() {
     setForm((prev) => ({ ...prev, region: value as YilanRegion | "" }));
   };
 
+  const handleBirthdayBlur = () => {
+    setForm((prev) => ({
+      ...prev,
+      birthday: normalizeBirthdayForSubmit(prev.birthday),
+    }));
+  };
+
   const handleSave = async () => {
     const birthdayError = getBirthdayValidationError(form.birthday);
     if (birthdayError) {
@@ -230,6 +237,7 @@ export default function ProfilePage() {
                       name="birthday"
                       value={form.birthday}
                       onChange={handleChange}
+                      onBlur={handleBirthdayBlur}
                     />
                   </div>
                 </div>
