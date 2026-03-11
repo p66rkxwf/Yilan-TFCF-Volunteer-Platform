@@ -105,12 +105,7 @@ export default function AdminUsersPage() {
       <header className="bg-white border-b border-slate-200 p-6 flex-shrink-0">
         <div>
           <h2 className="text-2xl font-bold">使用者管理</h2>
-          <p className="text-sm text-slate-500">
-            管理平台使用者帳號及權限。
-            {isSystemAdmin && (
-              <span className="ml-2 text-primary font-medium">（系統管理員：可調整角色與停權）</span>
-            )}
-          </p>
+          <p className="text-sm text-slate-500">管理平台使用者帳號及權限。</p>
         </div>
       </header>
 
