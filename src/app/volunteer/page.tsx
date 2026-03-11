@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Activity } from "@/lib/types/database";
@@ -163,7 +164,15 @@ function EventDetailModal({
               )}
             </button>
             <p className="text-xs text-slate-400 mt-4 text-center md:text-left">
-              報名即表示您同意本平台的服務條款與隱私權政策。
+              報名即表示您同意本平台的{" "}
+              <Link href="/terms" className="text-primary hover:underline">
+                服務條款
+              </Link>
+              {" "}與{" "}
+              <Link href="/privacy" className="text-primary hover:underline">
+                隱私政策
+              </Link>
+              。
             </p>
           </div>
         </div>
