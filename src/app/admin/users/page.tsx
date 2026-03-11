@@ -68,6 +68,11 @@ export default function AdminUsersPage() {
   }, [actionMsg, toast]);
 
   const handleToggleStatus = async (user: UserRow) => {
+    if (user.id === adminProfile.id) {
+      setActionMsg({ type: "error", text: "不可停權目前登入的管理員帳號。" });
+      return;
+    }
+
     const newStatus = user.status === "active" ? "blacklisted" : "active";
     const label = newStatus === "blacklisted" ? "停權" : "恢復";
     if (!confirm(`確定要${label}「${user.full_name}」嗎？`)) return;
@@ -169,6 +174,7 @@ export default function AdminUsersPage() {
                     filtered.map((u) => {
                       const initials = u.full_name.slice(0, 2).toUpperCase();
                       const st = STATUS_STYLES[u.status] || STATUS_STYLES.active;
+                      const isCurrentAdmin = u.id === adminProfile.id;
 
                       return (
                         <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
@@ -202,20 +208,40 @@ export default function AdminUsersPage() {
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-1">
                                 <button
-                                  onClick={() => setEditingUser(u)}
-                                  className="p-1.5 text-slate-400 hover:text-primary transition-colors"
-                                  title="設定角色"
+                                  onClick={() => {
+                                    if (isCurrentAdmin) {
+                                      setActionMsg({ type: "error", text: "不可修改自己目前的管理員角色。" });
+                                      return;
+                                    }
+                                    setEditingUser(u);
+                                  }}
+                                  className={`p-1.5 transition-colors ${
+                                    isCurrentAdmin
+                                      ? "cursor-not-allowed text-slate-300"
+                                      : "text-slate-400 hover:text-primary"
+                                  }`}
+                                  disabled={isCurrentAdmin}
+                                  title={isCurrentAdmin ? "不可修改自己的角色" : "設定角色"}
                                 >
                                   <span className="material-symbols-outlined text-[20px]">manage_accounts</span>
                                 </button>
                                 <button
                                   onClick={() => handleToggleStatus(u)}
                                   className={`p-1.5 transition-colors ${
-                                    u.status === "active"
+                                    isCurrentAdmin
+                                      ? "cursor-not-allowed text-slate-300"
+                                      : u.status === "active"
                                       ? "text-slate-400 hover:text-red-500"
                                       : "text-red-400 hover:text-emerald-500"
                                   }`}
-                                  title={u.status === "active" ? "停權" : "恢復"}
+                                  disabled={isCurrentAdmin}
+                                  title={
+                                    isCurrentAdmin
+                                      ? "不可停權自己的帳號"
+                                      : u.status === "active"
+                                        ? "停權"
+                                        : "恢復"
+                                  }
                                 >
                                   <span className="material-symbols-outlined text-[20px]">
                                     {u.status === "active" ? "block" : "check_circle"}
@@ -301,10 +327,11 @@ function RoleEditModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="flex min-h-full items-start justify-center p-4 sm:p-6 md:p-8">
       <div
-        className="relative bg-white rounded-xl shadow-xl max-w-md w-full z-10"
+        className="relative z-10 w-full max-w-md overflow-y-auto rounded-xl bg-white shadow-xl max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
@@ -374,6 +401,7 @@ function RoleEditModal({
             </button>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

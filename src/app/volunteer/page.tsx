@@ -69,17 +69,18 @@ function EventDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] overflow-y-auto"
       onClick={onClose}
     >
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="flex min-h-full items-start justify-center p-4 sm:p-6 md:p-8">
       <div
-        className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto z-10"
+        className="relative z-10 w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-xl max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-8 md:p-12 border-b border-slate-100 flex justify-between items-start">
+        <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-start sm:p-8 md:p-12">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            <h1 className="mb-2 text-2xl font-bold text-slate-900 sm:text-3xl">
               {event.title}
             </h1>
             <p className="text-slate-500 flex items-center gap-2">
@@ -103,7 +104,7 @@ function EventDetailModal({
           </div>
         </div>
 
-        <div className="p-8 md:p-12 space-y-8">
+        <div className="space-y-8 p-5 sm:p-8 md:p-12">
           <section>
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-4">
               活動內容
@@ -113,7 +114,7 @@ function EventDetailModal({
             </p>
           </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
+          <div className="grid grid-cols-1 gap-x-12 gap-y-8 md:grid-cols-2">
             <div>
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-2">
                 活動日期
@@ -185,6 +186,7 @@ function EventDetailModal({
             </p>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
