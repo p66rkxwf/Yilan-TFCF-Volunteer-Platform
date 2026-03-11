@@ -1,9 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminProfile } from "../admin-context";
 import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  AdminMetricCard,
+  AdminPageHeader,
+  AdminPanel,
+} from "@/components/shells/admin-page-shell";
 
 interface UserRow {
   id: string;
@@ -26,10 +33,22 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLE_ORDER = ["system_admin", "unit_admin", "internal_staff", "volunteer", "guest"];
 
-const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
-  active: { label: "啟用", cls: "bg-emerald-100 text-emerald-700" },
-  blacklisted: { label: "停權", cls: "bg-red-100 text-red-700" },
+const STATUS_STYLES: Record<string, { label: string; dot: string; text: string }> = {
+  active: { label: "啟用", dot: "bg-emerald-500", text: "text-emerald-700" },
+  blacklisted: { label: "停權", dot: "bg-red-500", text: "text-red-700" },
 };
+
+const ROLE_BADGE_STYLES: Record<string, string> = {
+  system_admin: "bg-primary text-white",
+  unit_admin: "bg-primary/10 text-primary",
+  internal_staff: "bg-sky-100 text-sky-700",
+  volunteer: "bg-slate-100 text-slate-700",
+  guest: "bg-slate-100 text-slate-500",
+};
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
+  dateStyle: "medium",
+});
 
 export default function AdminUsersPage() {
   const supabase = createClient();
@@ -41,41 +60,59 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
-  const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [confirmState, setConfirmState] = useState<{
+    user: UserRow;
+    newStatus: string;
+    label: string;
+    isDanger: boolean;
+  } | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   const loadUsers = useCallback(async () => {
-    let query = supabase.from("profiles").select("*");
-    if (roleFilter !== "all") query = query.eq("role", roleFilter);
-    const { data } = await query.order("created_at", { ascending: false });
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setUsers([]);
+      toast.error(`使用者載入失敗：${error.message}`);
+      setIsLoading(false);
+      return;
+    }
+
     setUsers((data as UserRow[]) || []);
     setIsLoading(false);
-  }, [supabase, roleFilter]);
+  }, [supabase]);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
 
-  useEffect(() => {
-    if (actionMsg) {
-      if (actionMsg.type === "success") {
-        toast.success(actionMsg.text);
-      } else {
-        toast.error(actionMsg.text);
-      }
-      setActionMsg(null);
-    }
-  }, [actionMsg, toast]);
-
   const handleToggleStatus = async (user: UserRow) => {
     if (user.id === adminProfile.id) {
-      setActionMsg({ type: "error", text: "不可停權目前登入的管理員帳號。" });
+      toast.error("不可停權目前登入的管理員帳號。");
       return;
     }
 
     const newStatus = user.status === "active" ? "blacklisted" : "active";
     const label = newStatus === "blacklisted" ? "停權" : "恢復";
-    if (!confirm(`確定要${label}「${user.full_name}」嗎？`)) return;
+    setConfirmState({
+      user,
+      newStatus,
+      label,
+      isDanger: newStatus === "blacklisted",
+    });
+  };
+
+  const confirmToggleStatus = async () => {
+    if (!confirmState) return;
+    setIsTogglingStatus(true);
+
+    const { user, newStatus, label } = confirmState;
 
     const { error } = await supabase
       .from("profiles")
@@ -83,65 +120,173 @@ export default function AdminUsersPage() {
       .eq("id", user.id);
 
     if (error) {
-      setActionMsg({ type: "error", text: `操作失敗：${error.message}` });
+      toast.error(`操作失敗：${error.message}`);
     } else {
-      setActionMsg({ type: "success", text: `已${label}「${user.full_name}」` });
-      loadUsers();
+      toast.success(`已${label}「${user.full_name}」`);
+      await loadUsers();
     }
+
+    setIsTogglingStatus(false);
+    setConfirmState(null);
   };
 
   const filtered = users.filter((u) => {
+    if (roleFilter !== "all" && u.role !== roleFilter) return false;
+    if (statusFilter !== "all" && u.status !== statusFilter) return false;
+
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
       u.full_name.toLowerCase().includes(q) ||
       u.account.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q)
+      u.email.toLowerCase().includes(q) ||
+      (u.region || "").toLowerCase().includes(q)
     );
   });
 
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const totalUsers = users.length;
+  const newUsersThisMonth = users.filter((u) => new Date(u.created_at) >= monthStart).length;
+  const activeUsers = users.filter((u) => u.status === "active").length;
+  const managedUsers = users.filter((u) =>
+    ["system_admin", "unit_admin", "internal_staff"].includes(u.role)
+  ).length;
+  const filtersApplied =
+    searchQuery.trim().length > 0 || roleFilter !== "all" || statusFilter !== "all";
+
+  const metricCards = [
+    {
+      label: "總使用者數",
+      value: totalUsers.toLocaleString(),
+      description: "平台帳號總量",
+      icon: "groups",
+      accent: "bg-primary/10 text-primary",
+    },
+    {
+      label: "本月新增",
+      value: newUsersThisMonth.toLocaleString(),
+      description: "本月完成註冊",
+      icon: "person_add",
+      accent: "bg-sky-100 text-sky-700",
+    },
+    {
+      label: "啟用帳號",
+      value: activeUsers.toLocaleString(),
+      description: "目前可正常使用",
+      icon: "verified_user",
+      accent: "bg-emerald-100 text-emerald-700",
+    },
+    {
+      label: "管理帳號",
+      value: managedUsers.toLocaleString(),
+      description: "具後台存取權限",
+      icon: "shield_person",
+      accent: "bg-amber-100 text-amber-700",
+    },
+  ];
+
   return (
     <>
-      <header className="bg-white border-b border-slate-200 p-6 flex-shrink-0">
-        <div>
-          <h2 className="text-2xl font-bold">使用者管理</h2>
-          <p className="text-sm text-slate-500">管理平台使用者帳號及權限。</p>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-auto p-6 space-y-6">
-        {/* Search & Filters */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-wrap items-center gap-4">
-          <div className="flex-1 min-w-[300px]">
-            <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                search
+      <AdminPageHeader
+        eyebrow="User Management"
+        title="使用者管理"
+        description="管理平台使用者帳號、角色與狀態。"
+        right={
+          <>
+            <label className="relative block flex-1">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                <span className="material-symbols-outlined text-[20px]">search</span>
               </span>
               <input
-                className="w-full pl-10 pr-4 py-2 bg-background-light border-none rounded-lg focus:ring-2 focus:ring-primary/50 text-sm"
-                placeholder="搜尋姓名、帳號、Email..."
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10"
+                placeholder="搜尋姓名、帳號、Email、地區..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
+            </label>
+            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600">
+              <span className="material-symbols-outlined text-[18px] text-primary">
+                admin_panel_settings
+              </span>
+              {ROLE_LABELS[adminProfile.role] || adminProfile.role}
             </div>
-          </div>
-          <select
-            className="bg-background-light border-none rounded-lg text-sm px-4 py-2 focus:ring-2 focus:ring-primary/50"
-            value={roleFilter}
-            onChange={(e) => {
-              setRoleFilter(e.target.value);
-              setIsLoading(true);
-            }}
-          >
-            <option value="all">全部角色</option>
-            {ROLE_ORDER.map((r) => (
-              <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-            ))}
-          </select>
+          </>
+        }
+      />
+
+      <div className="flex-1 overflow-auto p-6 space-y-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {metricCards.map((card) => (
+            <AdminMetricCard key={card.label} {...card} />
+          ))}
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <AdminPanel
+          title="使用者列表"
+          description="搜尋、篩選並管理平台使用者。"
+          action={
+            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-600">
+              <span className="material-symbols-outlined text-[18px] text-slate-400">
+                groups
+              </span>
+              顯示 {filtered.length} / {users.length} 位使用者
+            </div>
+          }
+          bodyClassName="p-0"
+        >
+          <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+                <span className="material-symbols-outlined text-[18px] text-slate-400">
+                  filter_list
+                </span>
+                <span>角色</span>
+                <select
+                  className="border-none bg-transparent pr-7 text-sm font-semibold text-slate-700 focus:ring-0"
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                >
+                  <option value="all">全部</option>
+                  {ROLE_ORDER.map((r) => (
+                    <option key={r} value={r}>
+                      {ROLE_LABELS[r]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+                <span className="material-symbols-outlined text-[18px] text-slate-400">
+                  check_circle
+                </span>
+                <span>狀態</span>
+                <select
+                  className="border-none bg-transparent pr-7 text-sm font-semibold text-slate-700 focus:ring-0"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="all">全部</option>
+                  <option value="active">啟用</option>
+                  <option value="blacklisted">停權</option>
+                </select>
+              </label>
+
+              {filtersApplied && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setRoleFilter("all");
+                    setStatusFilter("all");
+                  }}
+                  className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 transition-colors hover:text-primary"
+                >
+                  清除篩選
+                </button>
+              )}
+            </div>
+          </div>
+
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <span className="material-symbols-outlined animate-spin text-4xl text-primary">
@@ -153,15 +298,24 @@ export default function AdminUsersPage() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">使用者</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">帳號</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">角色</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">地區</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">狀態</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">註冊日期</th>
-                    {isSystemAdmin && (
-                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">操作</th>
-                    )}
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      使用者
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Email
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      角色
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      註冊日期
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      狀態
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">
+                      操作
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -175,82 +329,111 @@ export default function AdminUsersPage() {
                         <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-primary">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 font-bold text-xs text-primary">
                                 {initials}
                               </div>
-                              <div>
-                                <p className="font-semibold">{u.full_name}</p>
-                                <p className="text-xs text-slate-500">{u.email}</p>
+                              <div className="min-w-0">
+                                <Link
+                                  href={`/admin/users/${u.id}`}
+                                  className="block truncate text-sm font-semibold text-slate-900 transition-colors hover:text-primary"
+                                >
+                                  {u.full_name}
+                                </Link>
+                                <p className="truncate text-xs text-slate-500">
+                                  帳號：{u.account}
+                                </p>
+                                <p className="truncate text-[11px] text-slate-400">
+                                  {u.region || "未填寫地區"}
+                                </p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{u.account}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{u.email}</td>
                           <td className="px-6 py-4">
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                                ROLE_BADGE_STYLES[u.role] || "bg-slate-100 text-slate-700"
+                              }`}
+                            >
                               {ROLE_LABELS[u.role] || u.role}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{u.region || "—"}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${st.cls}`}>
-                              {st.label}
-                            </span>
-                          </td>
                           <td className="px-6 py-4 text-sm text-slate-500">
-                            {new Date(u.created_at).toLocaleDateString("zh-TW")}
+                            {DATE_FORMATTER.format(new Date(u.created_at))}
                           </td>
-                          {isSystemAdmin && (
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                <button
-                                  onClick={() => {
-                                    if (isCurrentAdmin) {
-                                      setActionMsg({ type: "error", text: "不可修改自己目前的管理員角色。" });
-                                      return;
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`h-2 w-2 rounded-full ${st.dot}`} />
+                              <span className={`text-sm font-medium ${st.text}`}>
+                                {st.label}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Link
+                                href={`/admin/users/${u.id}`}
+                                className="p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary rounded-lg"
+                                title="查看檔案"
+                              >
+                                <span className="material-symbols-outlined text-[20px]">
+                                  contact_page
+                                </span>
+                              </Link>
+                              {isSystemAdmin && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      if (isCurrentAdmin) {
+                                        toast.error("不可修改自己目前的管理員角色。");
+                                        return;
+                                      }
+                                      setEditingUser(u);
+                                    }}
+                                    className={`p-1.5 transition-colors ${
+                                      isCurrentAdmin
+                                        ? "cursor-not-allowed text-slate-300"
+                                        : "text-slate-400 hover:text-primary"
+                                    }`}
+                                    disabled={isCurrentAdmin}
+                                    title={isCurrentAdmin ? "不可修改自己的角色" : "設定角色"}
+                                  >
+                                    <span className="material-symbols-outlined text-[20px]">
+                                      manage_accounts
+                                    </span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleStatus(u)}
+                                    className={`p-1.5 transition-colors ${
+                                      isCurrentAdmin
+                                        ? "cursor-not-allowed text-slate-300"
+                                        : u.status === "active"
+                                          ? "text-slate-400 hover:text-red-500"
+                                          : "text-red-400 hover:text-emerald-500"
+                                    }`}
+                                    disabled={isCurrentAdmin}
+                                    title={
+                                      isCurrentAdmin
+                                        ? "不可停權自己的帳號"
+                                        : u.status === "active"
+                                          ? "停權"
+                                          : "恢復"
                                     }
-                                    setEditingUser(u);
-                                  }}
-                                  className={`p-1.5 transition-colors ${
-                                    isCurrentAdmin
-                                      ? "cursor-not-allowed text-slate-300"
-                                      : "text-slate-400 hover:text-primary"
-                                  }`}
-                                  disabled={isCurrentAdmin}
-                                  title={isCurrentAdmin ? "不可修改自己的角色" : "設定角色"}
-                                >
-                                  <span className="material-symbols-outlined text-[20px]">manage_accounts</span>
-                                </button>
-                                <button
-                                  onClick={() => handleToggleStatus(u)}
-                                  className={`p-1.5 transition-colors ${
-                                    isCurrentAdmin
-                                      ? "cursor-not-allowed text-slate-300"
-                                      : u.status === "active"
-                                      ? "text-slate-400 hover:text-red-500"
-                                      : "text-red-400 hover:text-emerald-500"
-                                  }`}
-                                  disabled={isCurrentAdmin}
-                                  title={
-                                    isCurrentAdmin
-                                      ? "不可停權自己的帳號"
-                                      : u.status === "active"
-                                        ? "停權"
-                                        : "恢復"
-                                  }
-                                >
-                                  <span className="material-symbols-outlined text-[20px]">
-                                    {u.status === "active" ? "block" : "check_circle"}
-                                  </span>
-                                </button>
-                              </div>
-                            </td>
-                          )}
+                                  >
+                                    <span className="material-symbols-outlined text-[20px]">
+                                      {u.status === "active" ? "block" : "check_circle"}
+                                    </span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={isSystemAdmin ? 7 : 6} className="px-6 py-16 text-center text-slate-400">
+                      <td colSpan={6} className="px-6 py-16 text-center text-slate-400">
                         <span className="material-symbols-outlined text-4xl mb-2 block">search_off</span>
                         {users.length === 0 ? "目前沒有使用者" : "找不到符合條件的使用者"}
                       </td>
@@ -262,11 +445,18 @@ export default function AdminUsersPage() {
           )}
 
           {!isLoading && filtered.length > 0 && (
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50">
-              <p className="text-sm text-slate-500">共 {filtered.length} 位使用者</p>
+            <div className="border-t border-slate-100 bg-slate-50/50 px-6 py-4">
+              <div className="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  顯示 <span className="font-semibold text-slate-700">{filtered.length}</span> 位使用者
+                </p>
+                <p>
+                  全部共 <span className="font-semibold text-slate-700">{users.length}</span> 位
+                </p>
+              </div>
             </div>
           )}
-        </div>
+        </AdminPanel>
       </div>
 
       {/* Role Edit Modal */}
@@ -278,9 +468,31 @@ export default function AdminUsersPage() {
             setEditingUser(null);
             loadUsers();
           }}
-          onMsg={setActionMsg}
+          onMsg={(msg) => {
+            if (msg.type === "success") toast.success(msg.text);
+            else toast.error(msg.text);
+          }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmState}
+        title={confirmState ? `確定要${confirmState.label}「${confirmState.user.full_name}」嗎？` : ""}
+        description={
+          confirmState?.isDanger
+            ? "停權後，該帳號將無法正常使用平台功能。"
+            : "恢復後，該帳號將可正常使用平台功能。"
+        }
+        confirmText={confirmState?.label || "確定"}
+        cancelText="取消"
+        isConfirmDanger={!!confirmState?.isDanger}
+        isLoading={isTogglingStatus}
+        onClose={() => {
+          if (isTogglingStatus) return;
+          setConfirmState(null);
+        }}
+        onConfirm={confirmToggleStatus}
+      />
     </>
   );
 }

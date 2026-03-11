@@ -58,6 +58,10 @@ export default function SettingsPage() {
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!pwForm.password.trim() || !pwForm.confirm.trim()) {
+      toast.error("請輸入新密碼並再次確認。");
+      return;
+    }
     if (pwForm.password !== pwForm.confirm) {
       toast.error("兩次密碼輸入不一致。");
       return;
@@ -81,6 +85,10 @@ export default function SettingsPage() {
   const handleEmailUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!emailForm.email.trim()) {
+      toast.error("請輸入 Email。");
+      return;
+    }
     setEmailLoading(true);
     const result = await updateEmail(emailForm.email);
     if (result.error) {
@@ -140,7 +148,6 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setPwForm((p) => ({ ...p, password: e.target.value }))
                   }
-                  required
                   minLength={8}
                 />
               </div>
@@ -156,7 +163,6 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setPwForm((p) => ({ ...p, confirm: e.target.value }))
                   }
-                  required
                   minLength={8}
                 />
               </div>
@@ -196,7 +202,6 @@ export default function SettingsPage() {
                   onChange={(e) =>
                     setEmailForm({ email: e.target.value })
                   }
-                  required
                 />
               </div>
               <div className="flex justify-end">

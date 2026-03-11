@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { InfoPageShell } from "@/components/information/page-shell";
+import { InfoPageShell } from "@/components/shells/info-page-shell";
 
 const TERMS_SECTIONS = [
   {

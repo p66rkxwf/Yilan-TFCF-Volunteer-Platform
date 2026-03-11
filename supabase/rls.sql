@@ -25,6 +25,46 @@ begin
 end
 $$;
 
+create or replace function public.is_admin_profile(user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.profiles
+    where id = user_id
+      and role = any (
+        array[
+          'system_admin'::user_role,
+          'unit_admin'::user_role,
+          'internal_staff'::user_role
+        ]
+      )
+  );
+$$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'profiles'
+      and policyname = 'Admins can manage all profiles'
+  ) then
+    create policy "Admins can manage all profiles"
+      on public.profiles
+      for all
+      to authenticated
+      using (public.is_admin_profile(auth.uid()))
+      with check (public.is_admin_profile(auth.uid()));
+  end if;
+end
+$$;
+
 do $$
 begin
   if not exists (

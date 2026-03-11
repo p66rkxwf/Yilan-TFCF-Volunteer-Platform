@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { toastSupabaseError } from "@/lib/ui/toast-actions";
 
 interface RegistrationRow {
   id: string;
@@ -37,7 +39,8 @@ export default function RegistrationsPage() {
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("all");
-  const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [confirmCancelReg, setConfirmCancelReg] = useState<RegistrationRow | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   const loadRegistrations = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -68,37 +71,33 @@ export default function RegistrationsPage() {
     loadRegistrations();
   }, [loadRegistrations]);
 
-  useEffect(() => {
-    if (actionMsg) {
-      if (actionMsg.type === "success") {
-        toast.success(actionMsg.text);
-      } else {
-        toast.error(actionMsg.text);
-      }
-      setActionMsg(null);
-    }
-  }, [actionMsg, toast]);
-
   const handleCancel = async (reg: RegistrationRow) => {
     const today = new Date().toISOString().split("T")[0];
     if (reg.cancel_deadline && today > reg.cancel_deadline) {
-      setActionMsg({ type: "error", text: `已超過最晚取消日（${reg.cancel_deadline}），無法取消。` });
+      toast.error(`已超過最晚取消日（${reg.cancel_deadline}），無法取消。`);
       return;
     }
+    setConfirmCancelReg(reg);
+  };
 
-    if (!confirm(`確定要取消「${reg.activity_title}」的報名嗎？`)) return;
+  const confirmCancel = async () => {
+    if (!confirmCancelReg) return;
+    setIsCancelling(true);
 
     const { error } = await supabase
       .from("registrations")
       .update({ status: "cancelled" })
-      .eq("id", reg.id);
+      .eq("id", confirmCancelReg.id);
 
     if (error) {
-      setActionMsg({ type: "error", text: `取消失敗：${error.message}` });
+      toastSupabaseError(toast, "取消失敗", error);
     } else {
-      setActionMsg({ type: "success", text: `已取消「${reg.activity_title}」的報名` });
-      loadRegistrations();
+      toast.success(`已取消「${confirmCancelReg.activity_title}」的報名`);
+      await loadRegistrations();
     }
+
+    setIsCancelling(false);
+    setConfirmCancelReg(null);
   };
 
   const filtered = filter === "all"
@@ -228,6 +227,21 @@ export default function RegistrationsPage() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirmCancelReg}
+        title={confirmCancelReg ? `確定要取消「${confirmCancelReg.activity_title}」的報名嗎？` : ""}
+        description="取消後可再重新報名，但仍需依名額與審核流程為準。"
+        confirmText="取消報名"
+        cancelText="返回"
+        isConfirmDanger
+        isLoading={isCancelling}
+        onClose={() => {
+          if (isCancelling) return;
+          setConfirmCancelReg(null);
+        }}
+        onConfirm={confirmCancel}
+      />
     </>
   );
 }
