@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
@@ -34,6 +35,11 @@ const REG_STATUS: Record<string, { label: string; dot: string; text: string }> =
   rejected: { label: "未通過", dot: "bg-rose-500", text: "text-rose-600" },
   cancelled: { label: "已取消", dot: "bg-slate-400", text: "text-slate-500" },
 };
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export default function AdminActivitiesPage() {
   const supabase = createClient();
@@ -487,13 +493,14 @@ function RegistrationsModal({
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
   const loadRegistrations = useCallback(async () => {
     const { data } = await supabase
       .from("registrations")
       .select("id, volunteer_id, status, created_at, profiles:volunteer_id(full_name, email)")
       .eq("activity_id", activity.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: sortOrder === "oldest" });
 
     const mapped: RegistrationRow[] = (data || []).map((r: any) => ({
       id: r.id,
@@ -506,7 +513,7 @@ function RegistrationsModal({
 
     setRegistrations(mapped);
     setIsLoading(false);
-  }, [supabase, activity.id]);
+  }, [supabase, activity.id, sortOrder]);
 
   useEffect(() => {
     loadRegistrations();
@@ -615,6 +622,23 @@ function RegistrationsModal({
               未通過 {statusCounts.rejected}
             </span>
           )}
+          <div className="sm:ml-auto flex items-center gap-2">
+            <label htmlFor="registration-sort" className="text-xs font-semibold text-slate-500">
+              排序
+            </label>
+            <select
+              id="registration-sort"
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none"
+              value={sortOrder}
+              onChange={(e) => {
+                setSortOrder(e.target.value as "newest" | "oldest");
+                setIsLoading(true);
+              }}
+            >
+              <option value="newest">最新報名</option>
+              <option value="oldest">最早報名</option>
+            </select>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -646,13 +670,19 @@ function RegistrationsModal({
                       <p className="text-xs text-slate-500 truncate">{r.volunteer_email}</p>
                     </div>
                     <div className="text-xs text-slate-400 flex-shrink-0">
-                      {new Date(r.created_at).toLocaleDateString("zh-TW")}
+                      報名於 {DATE_TIME_FORMATTER.format(new Date(r.created_at))}
                     </div>
                     <span className={`flex items-center gap-1.5 font-bold text-xs flex-shrink-0 ${s.text}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
                       {s.label}
                     </span>
                     <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
+                      <Link
+                        href={`/admin/users/${r.volunteer_id}`}
+                        className="px-3 py-1.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-lg transition-colors"
+                      > 
+                        查看檔案
+                      </Link>
                       {isPending ? (
                         <>
                           <button

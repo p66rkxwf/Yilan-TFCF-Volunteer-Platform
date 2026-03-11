@@ -68,18 +68,23 @@ export default async function AdminDashboardPage() {
 
   return (
     <>
-      <header className="h-16 flex-shrink-0 border-b border-slate-200 bg-white/80 backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-10">
-        <h2 className="text-lg font-bold">儀表板</h2>
-        <Link
-          href="/admin/activities"
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow-md transition-all"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          管理活動
-        </Link>
+      <header className="bg-white border-b border-slate-200 p-6 flex-shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">儀表板</h2>
+            <p className="text-sm text-slate-500">查看平台整體報名與活動概況。</p>
+          </div>
+          <Link
+            href="/admin/activities"
+            className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-all shadow-sm"
+          >
+            <span className="material-symbols-outlined text-lg">add_circle</span>
+            管理活動
+          </Link>
+        </div>
       </header>
 
-      <div className="p-8 space-y-8">
+      <div className="flex-1 overflow-auto p-6 space-y-6">
         {/* Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {metrics.map((m) => (
