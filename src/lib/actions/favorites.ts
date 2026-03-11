@@ -6,6 +6,7 @@ import type { Activity } from "@/lib/types/database";
 interface ActionResult {
   error?: string;
   success?: boolean;
+  favorited?: boolean;
 }
 
 export async function toggleFavorite(activityId: string): Promise<ActionResult> {
@@ -21,7 +22,7 @@ export async function toggleFavorite(activityId: string): Promise<ActionResult> 
     .select("id")
     .eq("user_id", user.id)
     .eq("activity_id", activityId)
-    .single();
+    .maybeSingle();
 
   if (existing) {
     const { error } = await supabase
@@ -29,15 +30,21 @@ export async function toggleFavorite(activityId: string): Promise<ActionResult> 
       .delete()
       .eq("id", existing.id);
     if (error) return { error: `取消收藏失敗：${error.message}` };
+    return { success: true, favorited: false };
   } else {
-    const { error } = await supabase.from("favorites").insert({
-      user_id: user.id,
-      activity_id: activityId,
-    });
+    const { error } = await supabase.from("favorites").upsert(
+      {
+        user_id: user.id,
+        activity_id: activityId,
+      },
+      {
+        onConflict: "user_id,activity_id",
+        ignoreDuplicates: true,
+      }
+    );
     if (error) return { error: `收藏失敗：${error.message}` };
+    return { success: true, favorited: true };
   }
-
-  return { success: true };
 }
 
 export async function getFavorites(): Promise<

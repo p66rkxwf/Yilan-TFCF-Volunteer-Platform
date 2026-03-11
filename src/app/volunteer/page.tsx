@@ -15,24 +15,28 @@ function FavoriteButton({
   activityId,
   favoriteIds,
   onToggle,
+  disabled = false,
 }: {
   activityId: string;
   favoriteIds: Set<string>;
   onToggle: (id: string) => void;
+  disabled?: boolean;
 }) {
   const isFav = favoriteIds.has(activityId);
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         onToggle(activityId);
       }}
+      disabled={disabled}
       className={`p-1.5 rounded-lg transition-colors ${
         isFav
           ? "text-red-500 hover:text-red-600"
           : "text-slate-300 hover:text-red-400"
-      }`}
-      title={isFav ? "取消收藏" : "加入收藏"}
+      } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
+      title={disabled ? "處理中" : isFav ? "取消收藏" : "加入收藏"}
     >
       <span
         className="material-symbols-outlined text-[22px]"
@@ -51,6 +55,7 @@ function EventDetailModal({
   isRegistering,
   favoriteIds,
   onToggleFavorite,
+  favoritePendingIds,
 }: {
   event: ActivityWithSlots;
   onClose: () => void;
@@ -58,7 +63,10 @@ function EventDetailModal({
   isRegistering: boolean;
   favoriteIds: Set<string>;
   onToggleFavorite: (id: string) => void;
+  favoritePendingIds: Set<string>;
 }) {
+  const isFavoritePending = favoritePendingIds.has(event.id);
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
@@ -84,6 +92,7 @@ function EventDetailModal({
               activityId={event.id}
               favoriteIds={favoriteIds}
               onToggle={onToggleFavorite}
+              disabled={isFavoritePending}
             />
             <button
               className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
@@ -188,6 +197,7 @@ function EventCard({
   isRegistering,
   favoriteIds,
   onToggleFavorite,
+  favoritePendingIds,
 }: {
   event: ActivityWithSlots;
   onViewDetail: () => void;
@@ -195,7 +205,10 @@ function EventCard({
   isRegistering: boolean;
   favoriteIds: Set<string>;
   onToggleFavorite: (id: string) => void;
+  favoritePendingIds: Set<string>;
 }) {
+  const isFavoritePending = favoritePendingIds.has(event.id);
+
   return (
     <div className="flex flex-col md:flex-row items-stretch bg-white border border-slate-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow">
       <div className="w-full md:w-48 bg-slate-100 flex items-center justify-center p-6">
@@ -214,6 +227,7 @@ function EventCard({
                 activityId={event.id}
                 favoriteIds={favoriteIds}
                 onToggle={onToggleFavorite}
+                disabled={isFavoritePending}
               />
               {event.spots_left <= 0 && (
                 <span className="px-2 py-1 bg-red-100 text-[10px] font-bold uppercase tracking-widest text-red-600 rounded">
@@ -290,7 +304,7 @@ function EventCard({
 }
 
 export default function VolunteerPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const toast = useToast();
   const [activities, setActivities] = useState<ActivityWithSlots[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -298,13 +312,17 @@ export default function VolunteerPage() {
   const [selectedEvent, setSelectedEvent] = useState<ActivityWithSlots | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [favoritePendingIds, setFavoritePendingIds] = useState<Set<string>>(new Set());
 
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadFavorites() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setFavoriteIds(new Set());
+        return;
+      }
       const { data } = await supabase
         .from("favorites")
         .select("activity_id")
@@ -321,6 +339,8 @@ export default function VolunteerPage() {
   }, [fetchError, toast]);
 
   const handleToggleFavorite = async (activityId: string) => {
+    if (favoritePendingIds.has(activityId)) return;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast.info("請先登入後再使用收藏功能。");
@@ -328,30 +348,40 @@ export default function VolunteerPage() {
     }
 
     const isFav = favoriteIds.has(activityId);
+    setFavoritePendingIds((prev) => new Set(prev).add(activityId));
 
-    if (isFav) {
-      const { error } = await supabase
-        .from("favorites")
-        .delete()
-        .eq("user_id", user.id)
-        .eq("activity_id", activityId);
+    try {
+      if (isFav) {
+        const { error } = await supabase
+          .from("favorites")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("activity_id", activityId);
 
-      if (error) {
-        toast.error(`取消收藏失敗：${error.message}`);
+        if (error) {
+          toast.error(`取消收藏失敗：${error.message}`);
+          return;
+        }
+
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          next.delete(activityId);
+          return next;
+        });
+        toast.success("已取消收藏活動。");
         return;
       }
 
-      setFavoriteIds((prev) => {
-        const next = new Set(prev);
-        next.delete(activityId);
-        return next;
-      });
-      toast.success("已取消收藏活動。");
-    } else {
-      const { error } = await supabase.from("favorites").insert({
-        user_id: user.id,
-        activity_id: activityId,
-      });
+      const { error } = await supabase.from("favorites").upsert(
+        {
+          user_id: user.id,
+          activity_id: activityId,
+        },
+        {
+          onConflict: "user_id,activity_id",
+          ignoreDuplicates: true,
+        }
+      );
 
       if (error) {
         toast.error(`加入收藏失敗：${error.message}`);
@@ -360,6 +390,12 @@ export default function VolunteerPage() {
 
       setFavoriteIds((prev) => new Set(prev).add(activityId));
       toast.success("活動已加入收藏。");
+    } finally {
+      setFavoritePendingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(activityId);
+        return next;
+      });
     }
   };
 
@@ -521,6 +557,7 @@ export default function VolunteerPage() {
                   isRegistering={isRegistering}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={handleToggleFavorite}
+                  favoritePendingIds={favoritePendingIds}
                 />
               ))
             ) : (
@@ -547,6 +584,7 @@ export default function VolunteerPage() {
           isRegistering={isRegistering}
           favoriteIds={favoriteIds}
           onToggleFavorite={handleToggleFavorite}
+          favoritePendingIds={favoritePendingIds}
         />
       )}
     </>
