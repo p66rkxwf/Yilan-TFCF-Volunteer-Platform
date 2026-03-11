@@ -303,7 +303,7 @@ export default function AdminActivitiesPage() {
                             </p>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="min-w-[13rem]">
+                            <div className="min-w-52">
                               <p className="text-sm font-medium text-slate-700">
                                 {activity.activity_date} {activity.activity_time}
                               </p>
@@ -311,7 +311,7 @@ export default function AdminActivitiesPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="min-w-[12rem]">
+                            <div className="min-w-48">
                               <div className="flex items-center gap-2">
                                 <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
                                   <div
@@ -789,7 +789,7 @@ function RegistrationsModal({
           className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex flex-shrink-0 items-center justify-between border-b border-slate-100 p-6">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-100 p-6">
             <div>
               <h3 className="text-lg font-bold">{activity.title}</h3>
               <p className="text-sm text-slate-500">
@@ -804,7 +804,7 @@ function RegistrationsModal({
             </button>
           </div>
 
-          <div className="flex flex-shrink-0 flex-wrap items-center gap-4 border-b border-slate-100 px-6 py-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-slate-100 px-6 py-3">
             <span className="text-sm text-slate-500">
               共 <span className="font-bold text-slate-700">{registrations.length}</span> 筆報名
             </span>
@@ -846,21 +846,21 @@ function RegistrationsModal({
                       key={registration.id}
                       className="flex flex-col items-start gap-3 rounded-lg border border-slate-200 p-4 transition-colors hover:border-slate-300 sm:flex-row sm:items-center sm:gap-4"
                     >
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-primary">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-primary">
                         {registration.volunteer_name.slice(0, 2)}
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-semibold">{registration.volunteer_name}</p>
                         <p className="truncate text-xs text-slate-500">{registration.volunteer_email}</p>
                       </div>
-                      <div className="flex-shrink-0 text-xs text-slate-400">
+                      <div className="shrink-0 text-xs text-slate-400">
                         報名於 {DATE_TIME_FORMATTER.format(new Date(registration.created_at))}
                       </div>
-                      <span className={`flex flex-shrink-0 items-center gap-1.5 text-xs font-bold ${status.text}`}>
+                      <span className={`flex shrink-0 items-center gap-1.5 text-xs font-bold ${status.text}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
                         {status.label}
                       </span>
-                      <div className="flex flex-shrink-0 flex-wrap items-center gap-1">
+                      <div className="flex shrink-0 flex-wrap items-center gap-1">
                         <Link
                           href={`/admin/users/${registration.volunteer_id}`}
                           className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"

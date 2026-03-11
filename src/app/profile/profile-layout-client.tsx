@@ -60,7 +60,7 @@ export function ProfileLayoutClient({
         </nav>
         <div className="p-4 border-t border-slate-200">
           <div className="flex items-center gap-3 p-2">
-            <div className="w-10 h-10 rounded-full bg-slate-200 flex-shrink-0 flex items-center justify-center">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200">
               <span className="material-symbols-outlined text-slate-500">
                 person
               </span>
