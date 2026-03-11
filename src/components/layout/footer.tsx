@@ -22,19 +22,19 @@ export function Footer() {
             關於我們
           </Link>
           <Link
-            href="#"
+            href="/privacy"
             className="text-slate-500 text-xs hover:underline"
           >
             隱私政策
           </Link>
           <Link
-            href="#"
+            href="/terms"
             className="text-slate-500 text-xs hover:underline"
           >
             服務條款
           </Link>
           <Link
-            href="#"
+            href="/support"
             className="text-slate-500 text-xs hover:underline"
           >
             聯絡支援
