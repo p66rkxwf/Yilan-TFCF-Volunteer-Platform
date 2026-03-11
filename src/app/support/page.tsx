@@ -3,7 +3,7 @@ import { InfoPageShell } from "@/components/shells/info-page-shell";
 import { SupportContent } from "@/components/support/support-content";
 
 export const metadata: Metadata = {
-  title: "聯絡支援 | 宜蘭TFCF志工平台",
+  title: "聯絡支援 | 宜蘭家扶中心志工平台",
   description: "提交帳號、活動報名或資料異常等問題，聯絡宜蘭家扶中心志工平台支援團隊。",
 };
 
