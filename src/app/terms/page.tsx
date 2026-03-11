@@ -66,7 +66,7 @@ const RELATED_DOCUMENTS = [
 ] as const;
 
 export const metadata: Metadata = {
-  title: "服務條款 | 宜蘭TFCF志工平台",
+  title: "服務條款 | 宜蘭家扶中心志工平台",
   description: "查看宜蘭家扶中心志工平台的使用條款、報名規範與帳號責任說明。",
 };
 
