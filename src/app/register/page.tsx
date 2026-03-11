@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
 import { getSocialWorkers } from "@/lib/actions/profiles";
+import { Select } from "@/components/ui/select";
 import {
   getBirthdayValidationError,
   normalizeBirthdayForSubmit,
@@ -86,7 +87,7 @@ export default function RegisterPage() {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const { name, value } = e.target;
     const nextValue =
@@ -96,6 +97,10 @@ export default function RegisterPage() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+  };
+
+  const handleSelectChange = (name: "region" | "socialWorkerId", value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -261,20 +266,22 @@ export default function RegisterPage() {
                 <span className="text-slate-400 font-normal ml-1">（選填）</span>
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                   location_on
                 </span>
-                <select
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all appearance-none"
+                <Select
+                  className="w-full"
+                  triggerClassName="w-full rounded-lg border border-slate-200 bg-background-light py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary"
+                  menuClassName="bg-background-light"
                   name="region"
                   value={formData.region}
-                  onChange={handleChange}
-                >
-                  <option value="">請選擇區域</option>
-                  {REGIONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+                  ariaLabel="區域"
+                  onValueChange={(value) => handleSelectChange("region", value)}
+                  options={[
+                    { value: "", label: "請選擇區域" },
+                    ...REGIONS.map((region) => ({ value: region, label: region })),
+                  ]}
+                />
               </div>
             </div>
             <div className="flex flex-col gap-2">
@@ -283,20 +290,25 @@ export default function RegisterPage() {
                 <span className="text-slate-400 font-normal ml-1">（選填）</span>
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                   support_agent
                 </span>
-                <select
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-slate-200 bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all appearance-none"
+                <Select
+                  className="w-full"
+                  triggerClassName="w-full rounded-lg border border-slate-200 bg-background-light py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary"
+                  menuClassName="bg-background-light"
                   name="socialWorkerId"
                   value={formData.socialWorkerId}
-                  onChange={handleChange}
-                >
-                  <option value="">請選擇負責社工</option>
-                  {socialWorkers.map((sw) => (
-                    <option key={sw.id} value={sw.id}>{sw.full_name}</option>
-                  ))}
-                </select>
+                  ariaLabel="負責社工"
+                  onValueChange={(value) => handleSelectChange("socialWorkerId", value)}
+                  options={[
+                    { value: "", label: "請選擇負責社工" },
+                    ...socialWorkers.map((worker) => ({
+                      value: worker.id,
+                      label: worker.full_name,
+                    })),
+                  ]}
+                />
               </div>
             </div>
           </div>

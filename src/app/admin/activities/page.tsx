@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toastSupabaseError } from "@/lib/ui/toast-actions";
@@ -225,19 +226,23 @@ export default function AdminActivitiesPage() {
 
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
               <span className="material-symbols-outlined text-[18px] text-slate-400">filter_list</span>
               <span>狀態</span>
-              <select
-                className="border-none bg-transparent pr-7 text-sm font-semibold text-slate-700 focus:ring-0"
+              <Select
+                className="w-auto min-w-[6.5rem]"
+                triggerClassName="min-h-0 border-none bg-transparent px-0 py-0 text-sm font-semibold text-slate-700 shadow-none focus:ring-0"
+                menuClassName="left-auto right-0 w-max min-w-full"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">全部</option>
-                <option value="active">進行中</option>
-                <option value="cancelled">已取消</option>
-              </select>
-            </label>
+                ariaLabel="活動狀態篩選"
+                onValueChange={setStatusFilter}
+                options={[
+                  { value: "all", label: "全部" },
+                  { value: "active", label: "進行中" },
+                  { value: "cancelled", label: "已取消" },
+                ]}
+              />
+            </div>
             {filtersApplied ? (
               <button
                 type="button"
@@ -812,16 +817,20 @@ function RegistrationsModal({
             {statusCounts.approved ? <StatusCount label="已通過" count={statusCounts.approved} color="bg-emerald-500 text-emerald-600" /> : null}
             {statusCounts.rejected ? <StatusCount label="未通過" count={statusCounts.rejected} color="bg-rose-500 text-rose-600" /> : null}
             <div className="flex items-center gap-2 sm:ml-auto">
-              <label htmlFor="registration-sort" className="text-xs font-semibold text-slate-500">排序</label>
-              <select
+              <span className="text-xs font-semibold text-slate-500">排序</span>
+              <Select
                 id="registration-sort"
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                className="w-auto min-w-[6.75rem]"
+                triggerClassName="min-h-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                menuClassName="left-auto right-0 w-max min-w-full"
                 value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest")}
-              >
-                <option value="newest">最新報名</option>
-                <option value="oldest">最早報名</option>
-              </select>
+                ariaLabel="報名排序"
+                onValueChange={(value) => setSortOrder(value as "newest" | "oldest")}
+                options={[
+                  { value: "newest", label: "最新報名" },
+                  { value: "oldest", label: "最早報名" },
+                ]}
+              />
             </div>
           </div>
 
