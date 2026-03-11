@@ -30,7 +30,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${publicSans.className} antialiased bg-[#f6f7f8] text-slate-900 min-h-screen flex flex-col`}
+        className={`${publicSans.className} flex min-h-screen flex-col bg-background-light text-slate-900 antialiased`}
       >
         <RootLayoutClient>{children}</RootLayoutClient>
       </body>

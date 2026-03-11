@@ -36,7 +36,7 @@ export function AdminPageHeader({
   right,
 }: AdminPageHeaderProps) {
   return (
-    <header className="border-b border-slate-200 bg-white p-6 flex-shrink-0">
+    <header className="shrink-0 border-b border-slate-200 bg-white p-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
@@ -111,4 +111,3 @@ export function AdminPanel({
     </section>
   );
 }
-

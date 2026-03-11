@@ -198,7 +198,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="pointer-events-none fixed inset-x-0 top-4 z-[120] flex flex-col gap-3 px-4 sm:inset-x-auto sm:right-4 sm:top-4 sm:w-full sm:max-w-sm"
+        className="pointer-events-none fixed inset-x-0 top-4 z-120 flex flex-col gap-3 px-4 sm:inset-x-auto sm:right-4 sm:top-4 sm:w-full sm:max-w-sm"
         aria-live="polite"
         aria-atomic="true"
       >

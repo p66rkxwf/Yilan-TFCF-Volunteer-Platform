@@ -50,7 +50,7 @@ export function AdminLayoutClient({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light">
-      <aside className="w-64 flex-shrink-0 border-r border-slate-200 bg-white flex flex-col">
+      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
         <div className="p-6 flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white">
             <span className="material-symbols-outlined">shield_person</span>
