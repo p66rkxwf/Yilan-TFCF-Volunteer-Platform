@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AdminProvider } from "./admin-context";
+import type { AdminProfile } from "./admin-context";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 
 const NAV_ITEMS = [
@@ -17,13 +18,6 @@ const ROLE_LABELS: Record<string, string> = {
   unit_admin: "單位管理員",
   internal_staff: "內部人員",
 };
-
-interface AdminProfile {
-  full_name: string;
-  email: string;
-  role: string;
-  position: string | null;
-}
 
 export function AdminLayoutClient({
   profile,

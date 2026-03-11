@@ -399,10 +399,11 @@ function ActivityFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="flex min-h-full items-start justify-center p-4 sm:p-6 md:p-8">
       <div
-        className="relative bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto z-10"
+        className="relative z-10 w-full max-w-2xl overflow-y-auto rounded-xl bg-white shadow-xl max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
@@ -423,7 +424,7 @@ function ActivityFormModal({
             <textarea name="content" required rows={3} value={form.content} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all resize-none" />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">活動日期</label>
               <input name="activity_date" type="date" required value={form.activity_date} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
@@ -434,7 +435,7 @@ function ActivityFormModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">活動地點</label>
               <input name="location" required value={form.location} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
@@ -445,7 +446,7 @@ function ActivityFormModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">負責人</label>
               <input name="manager_name" required value={form.manager_name} onChange={handleChange} className="w-full px-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all" />
@@ -466,6 +467,7 @@ function ActivityFormModal({
             </button>
           </div>
         </form>
+      </div>
       </div>
     </div>
   );
@@ -521,17 +523,43 @@ function RegistrationsModal({
     }
   }, [actionMsg, toast]);
 
-  const updateStatus = async (regId: string, newStatus: string, name: string) => {
+  const updateStatus = async (registration: RegistrationRow, newStatus: string) => {
+    const isOccupyingBefore = ["pending", "approved"].includes(registration.status);
+    const isOccupyingAfter = ["pending", "approved"].includes(newStatus);
+
+    if (activity.is_cancelled && newStatus === "approved") {
+      setActionMsg({ type: "error", text: "活動已取消，無法通過報名。" });
+      return;
+    }
+
+    if (!isOccupyingBefore && isOccupyingAfter) {
+      const { count, error: countError } = await supabase
+        .from("registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("activity_id", activity.id)
+        .in("status", ["pending", "approved"]);
+
+      if (countError) {
+        setActionMsg({ type: "error", text: `檢查名額失敗：${countError.message}` });
+        return;
+      }
+
+      if ((count ?? 0) >= activity.capacity) {
+        setActionMsg({ type: "error", text: "此活動名額已滿，無法再通過報名。" });
+        return;
+      }
+    }
+
     const label = newStatus === "approved" ? "通過" : "拒絕";
     const { error } = await supabase
       .from("registrations")
       .update({ status: newStatus })
-      .eq("id", regId);
+      .eq("id", registration.id);
 
     if (error) {
       setActionMsg({ type: "error", text: `操作失敗：${error.message}` });
     } else {
-      setActionMsg({ type: "success", text: `已${label}「${name}」的報名` });
+      setActionMsg({ type: "success", text: `已${label}「${registration.volunteer_name}」的報名` });
       loadRegistrations();
     }
   };
@@ -545,10 +573,11 @@ function RegistrationsModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto" onClick={onClose}>
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="flex min-h-full items-start justify-center p-4 sm:p-6 md:p-8">
       <div
-        className="relative bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] flex flex-col z-10"
+        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-6 border-b border-slate-100 flex justify-between items-center flex-shrink-0">
@@ -607,7 +636,7 @@ function RegistrationsModal({
                 return (
                   <div
                     key={r.id}
-                    className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+                    className="flex flex-col items-start gap-3 rounded-lg border border-slate-200 p-4 transition-colors hover:border-slate-300 sm:flex-row sm:items-center sm:gap-4"
                   >
                     <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-sm text-primary flex-shrink-0">
                       {r.volunteer_name.slice(0, 2)}
@@ -623,17 +652,17 @@ function RegistrationsModal({
                       <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
                       {s.label}
                     </span>
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-1 flex-shrink-0">
                       {isPending ? (
                         <>
                           <button
-                            onClick={() => updateStatus(r.id, "approved", r.volunteer_name)}
+                            onClick={() => updateStatus(r, "approved")}
                             className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold rounded-lg transition-colors"
                           >
                             通過
                           </button>
                           <button
-                            onClick={() => updateStatus(r.id, "rejected", r.volunteer_name)}
+                            onClick={() => updateStatus(r, "rejected")}
                             className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 text-xs font-semibold rounded-lg transition-colors"
                           >
                             拒絕
@@ -641,14 +670,14 @@ function RegistrationsModal({
                         </>
                       ) : r.status === "approved" ? (
                         <button
-                          onClick={() => updateStatus(r.id, "rejected", r.volunteer_name)}
+                          onClick={() => updateStatus(r, "rejected")}
                           className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 text-xs font-semibold rounded-lg transition-colors"
                         >
                           改為拒絕
                         </button>
                       ) : r.status === "rejected" ? (
                         <button
-                          onClick={() => updateStatus(r.id, "approved", r.volunteer_name)}
+                          onClick={() => updateStatus(r, "approved")}
                           className="px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold rounded-lg transition-colors"
                         >
                           改為通過
@@ -661,6 +690,7 @@ function RegistrationsModal({
             </div>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

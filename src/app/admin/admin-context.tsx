@@ -2,7 +2,8 @@
 
 import { createContext, useContext } from "react";
 
-interface AdminProfile {
+export interface AdminProfile {
+  id: string;
   full_name: string;
   email: string;
   role: string;
