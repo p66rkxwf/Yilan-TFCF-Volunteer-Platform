@@ -1,6 +1,15 @@
+"use client";
+
 import Link from "next/link";
+import { useToast } from "@/components/ui/toast";
 
 export default function Home() {
+  const toast = useToast();
+
+  const handleScholarshipBlocked = () => {
+    toast.info("獎學金專區目前暫未開放，開放時間將另行通知。", "尚未開放");
+  };
+
   return (
     <main className="flex-grow flex flex-col md:flex-row">
       {/* 獎學金專區 */}
@@ -26,12 +35,13 @@ export default function Home() {
             Empowering academic excellence through financial support. Apply for
             our diverse range of merit and need-based scholarships.
           </p> */}
-          <Link
-            href="/scholarship"
-            className="bg-white text-slate-900 font-bold py-4 px-8 rounded-xl hover:bg-primary hover:text-white transition-all transform hover:scale-105 inline-block text-center"
+          <button
+            type="button"
+            onClick={handleScholarshipBlocked}
+            className="bg-white text-slate-900 font-bold py-4 px-8 rounded-xl hover:bg-primary hover:text-white transition-all transform hover:scale-105 inline-block text-center cursor-pointer"
           >
-            Start Application
-          </Link>
+            即將開放
+          </button>
         </div>
       </section>
 
@@ -64,7 +74,7 @@ export default function Home() {
             href="/volunteer"
             className="bg-transparent border-2 border-white text-white font-bold py-4 px-8 rounded-xl hover:bg-white hover:text-slate-900 transition-all transform hover:scale-105 inline-block text-center"
           >
-            Register as Volunteer
+            立即報名
           </Link>
         </div>
       </section>

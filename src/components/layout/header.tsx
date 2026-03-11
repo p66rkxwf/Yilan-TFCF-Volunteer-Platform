@@ -78,6 +78,11 @@ export function Header() {
     router.refresh();
   };
 
+  const handleScholarshipBlocked = () => {
+    toast.info("獎學金專區目前暫未開放，開放時間將另行通知。", "尚未開放");
+    setMobileMenuOpen(false);
+  };
+
   const authLink = isLoading ? null : user ? (
     <div className="flex items-center gap-10">
       {isAdmin && (
@@ -155,12 +160,13 @@ export function Header() {
       </Link>
 
       <nav className="hidden md:flex items-center gap-10">
-        <Link
-          href="#"
-          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+        <button
+          type="button"
+          onClick={handleScholarshipBlocked}
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors cursor-pointer"
         >
           獎學金專區
-        </Link>
+        </button>
         <Link
           href="/volunteer"
           className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
@@ -184,13 +190,13 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-lg md:hidden z-40">
           <nav className="flex flex-col p-6 gap-4">
-            <Link
-              href="/scholarship"
-              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
+            <button
+              type="button"
+              onClick={handleScholarshipBlocked}
+              className="text-left text-slate-700 text-base font-medium hover:text-primary transition-colors py-2 cursor-pointer"
             >
               獎學金專區
-            </Link>
+            </button>
             <Link
               href="#"
               className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
