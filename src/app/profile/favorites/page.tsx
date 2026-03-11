@@ -20,15 +20,26 @@ interface FavoriteActivity {
 }
 
 export default function FavoritesPage() {
-  const supabase = createClient();
+  const [supabase] = useState(() => createClient());
   const toast = useToast();
   const [favorites, setFavorites] = useState<FavoriteActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(new Set());
 
   const loadFavorites = useCallback(async () => {
+    setIsLoading(true);
+
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      setIsAuthenticated(false);
+      setFavorites([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsAuthenticated(true);
 
     const { data } = await supabase
       .from("favorites")
@@ -81,16 +92,29 @@ export default function FavoritesPage() {
   }, [actionMsg, toast]);
 
   const handleRemoveFavorite = async (fav: FavoriteActivity) => {
-    const { error } = await supabase
-      .from("favorites")
-      .delete()
-      .eq("id", fav.favorite_id);
+    if (pendingFavoriteIds.has(fav.favorite_id)) return;
 
-    if (error) {
-      setActionMsg({ type: "error", text: `取消收藏失敗：${error.message}` });
-    } else {
+    setPendingFavoriteIds((prev) => new Set(prev).add(fav.favorite_id));
+
+    try {
+      const { error } = await supabase
+        .from("favorites")
+        .delete()
+        .eq("id", fav.favorite_id);
+
+      if (error) {
+        setActionMsg({ type: "error", text: `取消收藏失敗：${error.message}` });
+        return;
+      }
+
       setActionMsg({ type: "success", text: `已取消收藏「${fav.title}」` });
       setFavorites((prev) => prev.filter((f) => f.favorite_id !== fav.favorite_id));
+    } finally {
+      setPendingFavoriteIds((prev) => {
+        const next = new Set(prev);
+        next.delete(fav.favorite_id);
+        return next;
+      });
     }
   };
 
@@ -114,6 +138,19 @@ export default function FavoritesPage() {
               <span className="material-symbols-outlined animate-spin text-4xl text-primary">
                 progress_activity
               </span>
+            </div>
+          ) : !isAuthenticated ? (
+            <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+              <span className="material-symbols-outlined text-5xl text-slate-300 block mb-3">
+                lock
+              </span>
+              <p className="text-slate-500 mb-4">請先登入後查看收藏活動</p>
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors"
+              >
+                前往登入
+              </Link>
             </div>
           ) : favorites.length === 0 ? (
             <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
@@ -143,9 +180,11 @@ export default function FavoritesPage() {
                     <div className="flex justify-between items-start mb-3">
                       <h3 className="font-bold text-slate-900">{fav.title}</h3>
                       <button
+                        type="button"
                         onClick={() => handleRemoveFavorite(fav)}
-                        className="p-1 text-red-400 hover:text-red-600 transition-colors shrink-0"
-                        title="取消收藏"
+                        disabled={pendingFavoriteIds.has(fav.favorite_id)}
+                        className="p-1 text-red-400 hover:text-red-600 transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-60"
+                        title={pendingFavoriteIds.has(fav.favorite_id) ? "處理中" : "取消收藏"}
                       >
                         <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                           favorite
