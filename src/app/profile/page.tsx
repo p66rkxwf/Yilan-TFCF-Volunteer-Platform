@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import {
+  getBirthdayValidationError,
+  normalizeBirthdayForSubmit,
+  normalizeBirthdayInput,
+} from "@/lib/birthday";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, YilanRegion } from "@/lib/types/database";
 import { useToast } from "@/components/ui/toast";
@@ -80,10 +85,21 @@ export default function ProfilePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const nextValue =
+      name === "birthday" ? normalizeBirthdayInput(value) : value;
+
+    setForm((prev) => ({ ...prev, [name]: nextValue }));
   };
 
   const handleSave = async () => {
+    const birthdayError = getBirthdayValidationError(form.birthday);
+    if (birthdayError) {
+      toast.error(birthdayError);
+      return;
+    }
+
+    const normalizedBirthday = normalizeBirthdayForSubmit(form.birthday);
+
     setIsSaving(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -98,7 +114,7 @@ export default function ProfilePage() {
       .update({
         full_name: form.full_name,
         email: form.email,
-        birthday: form.birthday || null,
+        birthday: normalizedBirthday || null,
         region: (form.region as YilanRegion) || null,
       })
       .eq("id", user.id);
@@ -112,11 +128,12 @@ export default function ProfilePage() {
               ...prev,
               full_name: form.full_name,
               email: form.email,
-              birthday: form.birthday || null,
+              birthday: normalizedBirthday || null,
               region: (form.region as YilanRegion) || null,
             }
           : prev
       );
+      setForm((prev) => ({ ...prev, birthday: normalizedBirthday }));
       toast.success("個人資料已更新！");
     }
     setIsSaving(false);
@@ -198,8 +215,13 @@ export default function ProfilePage() {
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700">生日</label>
                     <input
-                      className="w-full px-4 py-2 rounded-lg border border-slate-200 bg-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                      type="date"
+                      className="date-input w-full min-w-0 px-4 py-2 rounded-lg border border-slate-200 bg-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="bday"
+                      maxLength={10}
+                      placeholder="YYYY-MM-DD"
+                      pattern="\d{4}-\d{2}-\d{2}"
                       name="birthday"
                       value={form.birthday}
                       onChange={handleChange}

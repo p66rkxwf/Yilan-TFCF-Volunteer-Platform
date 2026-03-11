@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
 import { getSocialWorkers } from "@/lib/actions/profiles";
+import {
+  getBirthdayValidationError,
+  normalizeBirthdayForSubmit,
+  normalizeBirthdayInput,
+} from "@/lib/birthday";
 import type { YilanRegion } from "@/lib/types/database";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 
@@ -71,7 +76,10 @@ export default function RegisterPage() {
       newErrors.email = "請輸入有效的 Email 格式";
     }
 
-    if (!formData.birthday) newErrors.birthday = "生日為必填欄位";
+    const birthdayError = getBirthdayValidationError(formData.birthday, {
+      required: true,
+    });
+    if (birthdayError) newErrors.birthday = birthdayError;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -81,7 +89,10 @@ export default function RegisterPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const nextValue =
+      name === "birthday" ? normalizeBirthdayInput(value) : value;
+
+    setFormData((prev) => ({ ...prev, [name]: nextValue }));
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
@@ -100,7 +111,7 @@ export default function RegisterPage() {
       email: formData.email,
       region: formData.region || undefined,
       socialWorkerId: formData.socialWorkerId || undefined,
-      birthday: formData.birthday,
+      birthday: normalizeBirthdayForSubmit(formData.birthday),
     });
 
     if (result.error) {
@@ -227,9 +238,14 @@ export default function RegisterPage() {
                 cake
               </span>
               <input
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.birthday ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                className={`date-input w-full min-w-0 pl-10 pr-4 py-3 rounded-lg border ${errors.birthday ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                 name="birthday"
-                type="date"
+                type="text"
+                inputMode="numeric"
+                autoComplete="bday"
+                maxLength={10}
+                placeholder="YYYY-MM-DD"
+                pattern="\d{4}-\d{2}-\d{2}"
                 value={formData.birthday}
                 onChange={handleChange}
               />

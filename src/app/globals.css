@@ -31,6 +31,19 @@
 	font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
+.date-input {
+	display: block;
+	min-width: 0;
+	max-width: 100%;
+	field-sizing: fixed;
+}
+
+.date-input::-webkit-date-and-time-value,
+.date-input::-webkit-datetime-edit,
+.date-input::-webkit-datetime-edit-fields-wrapper {
+	min-width: 0;
+}
+
 @keyframes toast-enter {
 	from {
 		opacity: 0;
