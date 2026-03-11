@@ -11,7 +11,7 @@ export default function Home() {
   };
 
   return (
-    <main className="flex-grow flex flex-col md:flex-row">
+    <main className="grow flex flex-col md:flex-row">
       {/* 獎學金專區 */}
       <section className="relative flex-1 group overflow-hidden border-b md:border-b-0 md:border-r border-slate-200">
         <div

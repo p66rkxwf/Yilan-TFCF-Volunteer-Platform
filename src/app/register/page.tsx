@@ -133,7 +133,7 @@ export default function RegisterPage() {
 
   return (
     <main className="flex-1 flex flex-col items-center py-10 px-4">
-      <div className="w-full max-w-[640px] flex flex-col gap-8">
+      <div className="flex w-full max-w-160 flex-col gap-8">
         <div className="flex flex-col gap-2">
           <h1 className="text-slate-900 text-4xl font-black tracking-tight">
             建立帳號
