@@ -155,7 +155,7 @@ export function Header() {
       <Link href="/" className="flex items-center gap-3">
         <LogoIcon />
         <h2 className="text-slate-900 text-xl font-bold tracking-tight">
-          宜蘭家扶志工平台
+          宜蘭家扶中心志工平台
         </h2>
       </Link>
 

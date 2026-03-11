@@ -4,7 +4,7 @@ import { FaqContent } from "@/components/resource/faq-content";
 
 export const metadata: Metadata = {
   title: "常見問題 | 宜蘭TFCF志工平台",
-  description: "查看宜蘭家扶志工平台的帳號、報名、收藏與通知常見問題。",
+  description: "查看宜蘭家扶中心志工平台的帳號、報名、收藏與通知常見問題。",
 };
 
 export default function ResourcePage() {
