@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { InfoPageShell } from "@/components/information/page-shell";
+import { InfoPageShell } from "@/components/shells/info-page-shell";
 import { FaqContent } from "@/components/resource/faq-content";
 
 export const metadata: Metadata = {
