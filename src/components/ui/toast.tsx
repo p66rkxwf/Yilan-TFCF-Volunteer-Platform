@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 type ToastVariant = "success" | "error" | "info";
 
@@ -140,7 +140,6 @@ function ToastItem({
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [toasts, setToasts] = useState<ToastRecord[]>([]);
 
   const dismiss = useCallback((id: string) => {
@@ -180,7 +179,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     consumeFlashToast();
-  }, [consumeFlashToast, pathname, searchParams]);
+  }, [consumeFlashToast, pathname]);
 
   const value = useMemo<ToastContextValue>(
     () => ({
