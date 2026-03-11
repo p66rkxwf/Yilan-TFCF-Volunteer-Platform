@@ -1,6 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  getBirthdayValidationError,
+  normalizeBirthdayForSubmit,
+} from "@/lib/birthday";
 import { redirect } from "next/navigation";
 import type { YilanRegion } from "@/lib/types/database";
 
@@ -56,6 +60,14 @@ export async function signUp(formData: {
   birthday: string;
 }): Promise<AuthResult> {
   const supabase = await createClient();
+  const normalizedBirthday = normalizeBirthdayForSubmit(formData.birthday);
+  const birthdayError = getBirthdayValidationError(normalizedBirthday, {
+    required: true,
+  });
+
+  if (birthdayError) {
+    return { error: birthdayError };
+  }
 
   const { data: existing } = await supabase
     .from("profiles")
@@ -74,7 +86,7 @@ export async function signUp(formData: {
       data: {
         account: formData.account,
         full_name: formData.name,
-        birthday: formData.birthday,
+        birthday: normalizedBirthday,
         ...(formData.region ? { region: formData.region } : {}),
         assigned_worker_id: formData.socialWorkerId || "",
       },

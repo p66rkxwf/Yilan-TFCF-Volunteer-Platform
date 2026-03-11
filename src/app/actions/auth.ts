@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { getBirthdayValidationError, normalizeBirthdayForSubmit } from '@/lib/birthday'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -38,9 +39,17 @@ export async function register(formData: FormData) {
   const birthday = formData.get('birthday') as string
   const region = formData.get('region') as string
   const socialWorkerId = formData.get('socialWorkerId') as string
+  const normalizedBirthday = normalizeBirthdayForSubmit(birthday)
+  const birthdayError = getBirthdayValidationError(normalizedBirthday, {
+    required: true,
+  })
 
   if (!account || !email || !password || !name || !birthday) {
     return { error: '請填寫所有必填欄位' }
+  }
+
+  if (birthdayError) {
+    return { error: birthdayError }
   }
 
   const supabase = await createClient()
@@ -52,7 +61,7 @@ export async function register(formData: FormData) {
       data: {
         account: account,
         full_name: name,
-        birthday: birthday,
+        birthday: normalizedBirthday,
         region: region || null, // 若為空字串，將轉換為 null 寫入
         assigned_worker_id: socialWorkerId || null, // 若為空字串，將轉換為 null 寫入
       },
