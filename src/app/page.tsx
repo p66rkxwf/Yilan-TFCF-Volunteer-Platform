@@ -18,7 +18,7 @@ export default function Home() {
           className="absolute inset-0 grayscale group-hover:grayscale-0 transition-all duration-700 brightness-[0.3] group-hover:brightness-[0.4] bg-center bg-cover"
           style={{
             backgroundImage:
-              'url("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRpITbl0iVMLYF8phTBMrvDmmDYIlUrIdEISA&s")',
+              'url("https://media.vogue.com.tw/photos/5fe5947d4663bf91fe312500/master/w_1600%2Cc_limit/%25E7%25B4%2585%25E9%2581%258D%25E5%2585%25A8%25E7%2590%2583%25E7%259A%2584%25E7%25B6%2593%25E5%2585%25B8%25E9%2589%2585%25E4%25BD%259C%25E3%2580%258A%25E9%25BE%258D%25E8%25B2%2593%25E3%2580%258B%25E5%25B0%2587%25E9%2587%258D%25E8%25BF%2594%25E5%25A4%25A7%25E9%258A%2580%25E5%25B9%2595.jpg")',
           }}
         />
         <div className="relative h-full flex flex-col justify-center items-center text-center p-8 md:p-16 z-10 min-h-[50vh] md:min-h-0">
