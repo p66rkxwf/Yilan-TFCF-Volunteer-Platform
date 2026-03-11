@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminProfile } from "../admin-context";
+import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -236,40 +237,47 @@ export default function AdminUsersPage() {
         >
           <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap items-center gap-3">
-              <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
                 <span className="material-symbols-outlined text-[18px] text-slate-400">
                   filter_list
                 </span>
                 <span>角色</span>
-                <select
-                  className="border-none bg-transparent pr-7 text-sm font-semibold text-slate-700 focus:ring-0"
+                <Select
+                  className="w-auto min-w-[7.5rem]"
+                  triggerClassName="min-h-0 border-none bg-transparent px-0 py-0 text-sm font-semibold text-slate-700 shadow-none focus:ring-0"
+                  menuClassName="left-auto right-0 w-max min-w-full"
                   value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                >
-                  <option value="all">全部</option>
-                  {ROLE_ORDER.map((r) => (
-                    <option key={r} value={r}>
-                      {ROLE_LABELS[r]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  ariaLabel="角色篩選"
+                  onValueChange={setRoleFilter}
+                  options={[
+                    { value: "all", label: "全部" },
+                    ...ROLE_ORDER.map((role) => ({
+                      value: role,
+                      label: ROLE_LABELS[role],
+                    })),
+                  ]}
+                />
+              </div>
 
-              <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
                 <span className="material-symbols-outlined text-[18px] text-slate-400">
                   check_circle
                 </span>
                 <span>狀態</span>
-                <select
-                  className="border-none bg-transparent pr-7 text-sm font-semibold text-slate-700 focus:ring-0"
+                <Select
+                  className="w-auto min-w-[6rem]"
+                  triggerClassName="min-h-0 border-none bg-transparent px-0 py-0 text-sm font-semibold text-slate-700 shadow-none focus:ring-0"
+                  menuClassName="left-auto right-0 w-max min-w-full"
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="all">全部</option>
-                  <option value="active">啟用</option>
-                  <option value="blacklisted">停權</option>
-                </select>
-              </label>
+                  ariaLabel="狀態篩選"
+                  onValueChange={setStatusFilter}
+                  options={[
+                    { value: "all", label: "全部" },
+                    { value: "active", label: "啟用" },
+                    { value: "blacklisted", label: "停權" },
+                  ]}
+                />
+              </div>
 
               {filtersApplied && (
                 <button
