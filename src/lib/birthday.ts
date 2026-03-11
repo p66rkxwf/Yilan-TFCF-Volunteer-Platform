@@ -21,21 +21,12 @@ function normalizeBirthdayWithSeparators(value: string) {
   }
 
   const segments = sanitized.split("-");
-  const [yearText = "", monthText = "", dayText = ""] = segments;
+  const [yearText = "", rawMonthText = "", rawDayText = ""] = segments;
+  const overflowDayText =
+    segments.length === 2 && rawMonthText.length > 2 ? rawMonthText.slice(2) : "";
   const year = yearText.slice(0, 4);
-  const month = monthText.slice(0, 2);
-  const day = dayText.slice(0, 2);
-  const autoAdvanceToDay =
-    year.length === 4 &&
-    month.length === 1 &&
-    Number(month) >= 2 &&
-    segments.length === 2 &&
-    !sanitized.endsWith("-");
-  const monthDisplay =
-    month.length === 1 &&
-    (segments.length > 2 || sanitized.endsWith("-") || autoAdvanceToDay)
-      ? month.padStart(2, "0")
-      : month;
+  const month = rawMonthText.slice(0, 2);
+  const day = `${overflowDayText}${rawDayText}`.slice(0, 2);
 
   let normalized = year;
 
@@ -43,9 +34,9 @@ function normalizeBirthdayWithSeparators(value: string) {
     normalized += "-";
   }
 
-  normalized += monthDisplay;
+  normalized += month;
 
-  if (segments.length > 2 || sanitized.endsWith("-") || autoAdvanceToDay) {
+  if (day.length > 0 || segments.length > 2 || (sanitized.endsWith("-") && month.length > 0)) {
     normalized += "-";
   }
 
@@ -53,85 +44,18 @@ function normalizeBirthdayWithSeparators(value: string) {
   return normalized.slice(0, 10);
 }
 
-function parseMonthAndDayFromDigits(rest: string) {
-  const first = rest[0];
-
-  if (!first) {
-    return { month: "", day: "", isMonthComplete: false, autoAdvanceToDay: false };
-  }
-
-  if (first === "0") {
-    if (rest.length === 1) {
-      return { month: "0", day: "", isMonthComplete: false, autoAdvanceToDay: false };
-    }
-
-    return {
-      month: `0${rest[1]}`,
-      day: rest.slice(2, 4),
-      isMonthComplete: true,
-      autoAdvanceToDay: false,
-    };
-  }
-
-  if (Number(first) >= 2) {
-    return {
-      month: `0${first}`,
-      day: rest.slice(1, 3),
-      isMonthComplete: true,
-      autoAdvanceToDay: true,
-    };
-  }
-
-  if (rest.length === 1) {
-    return { month: "1", day: "", isMonthComplete: false, autoAdvanceToDay: false };
-  }
-
-  const second = rest[1];
-
-  if (Number(second) <= 2) {
-    return {
-      month: `1${second}`,
-      day: rest.slice(2, 4),
-      isMonthComplete: true,
-      autoAdvanceToDay: false,
-    };
-  }
-
-  return {
-    month: "01",
-    day: rest.slice(1, 3),
-    isMonthComplete: true,
-    autoAdvanceToDay: true,
-  };
-}
-
-function formatBirthdayDigits(digits: string, value: string) {
-  const hasTrailingSeparator = /[-/]$/.test(value.trim());
+function normalizeBirthdayFromDigits(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
 
   if (digits.length <= 4) {
-    return digits.length === 4 && hasTrailingSeparator ? `${digits}-` : digits;
+    return digits;
   }
 
-  const year = digits.slice(0, 4);
-  const { month, day, isMonthComplete, autoAdvanceToDay } = parseMonthAndDayFromDigits(
-    digits.slice(4)
-  );
-
-  if (!isMonthComplete) {
-    if (hasTrailingSeparator && month.length === 1 && Number(month) >= 1) {
-      return `${year}-${month.padStart(2, "0")}-`;
-    }
-
-    return `${year}-${month}`;
+  if (digits.length <= 6) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
   }
 
-  let formatted = `${year}-${month}`;
-
-  if (day.length > 0 || autoAdvanceToDay || hasTrailingSeparator) {
-    formatted += `-${day}`;
-  }
-
-  return formatted;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
 }
 
 export function normalizeBirthdayInput(value: string) {
@@ -141,20 +65,19 @@ export function normalizeBirthdayInput(value: string) {
     return normalizedWithSeparators;
   }
 
-  const digits = value.replace(/\D/g, "").slice(0, 8);
-  return formatBirthdayDigits(digits, value);
+  return normalizeBirthdayFromDigits(value);
 }
 
 export function normalizeBirthdayForSubmit(value: string) {
-  const trimmed = value.trim().replace(/\//g, "-");
-  const looseMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const normalized = normalizeBirthdayInput(value.trim());
+  const looseMatch = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
 
   if (looseMatch) {
     const [, year, month, day] = looseMatch;
     return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
   }
 
-  return normalizeBirthdayInput(trimmed);
+  return normalized;
 }
 
 export function getBirthdayValidationError(
