@@ -86,7 +86,7 @@ const RELATED_LINKS = [
 ] as const;
 
 export const metadata: Metadata = {
-  title: "隱私政策 | 宜蘭TFCF志工平台",
+  title: "隱私政策 | 宜蘭家扶中心志工平台",
   description: "了解宜蘭家扶中心志工平台如何蒐集、使用、保存與保護個人資料。",
 };
 

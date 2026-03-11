@@ -63,8 +63,8 @@ export function Sidebar({ userRole = "volunteer" }: SidebarProps) {
       >
         <div className="p-6 border-b border-gray-700">
           <Link href="/" className="flex items-center gap-3 font-bold text-lg md:text-xl hover:opacity-80 transition-opacity">
-            <div className="w-10 h-10 md:w-11 md:h-11 bg-linear-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">
-              TFCF
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-linear-to-br from-blue-500 to-blue-600 p-1 text-center text-[11px] font-bold leading-tight text-white md:h-11 md:w-11">
+              家扶中心
             </div>
             <span className="hidden md:inline text-base font-semibold">志工平台</span>
           </Link>
