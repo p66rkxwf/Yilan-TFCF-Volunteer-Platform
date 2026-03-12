@@ -1,124 +1,153 @@
 # 宜蘭家扶中心志工平台
 
-宜蘭家扶中心志工管理與報名平台。
+宜蘭家扶中心的志工招募、活動報名與後台管理平台。
 
-## 📋 專案介紹
+本專案使用 `Next.js App Router` 搭配 `Supabase` 建置，提供志工端報名流程、個人中心，以及管理端活動與使用者管理功能。首頁保留了獎學金入口，但目前仍為未開放狀態。
 
-這是一個為宜蘭家扶中心開發的志工平台，用於管理志工招募、活動報名、時數統計和志工資料。
+> [!IMPORTANT]
+> 這個 repo 目前只收錄 `favorites` 相關的 SQL migration 與 RLS 設定。
+> 前端程式已依賴 `profiles`、`activities`、`registrations` 等核心資料表，但這些表的完整 migration 並未一併提交。
+> 如果要從零建立 Supabase 專案，請先準備既有 schema，或自行補齊相對應資料表與 enum。
 
-### 主要功能
+## 功能總覽
 
-**志工端:**
-- 📱 個人檔案管理（基本資料、聯絡方式、技能）
-- 📋 活動報名與報名管理
-- ✅ 確認服務時數
-- 📊 查看個人計時數統計
-- 🔔 活動通知提醒
+### 志工端
 
-**管理端:**
-- 👥 志工人員管理
-- 📅 活動創建與管理
-- 📝 報名管理與審核
-- ⏱️ 服務時數統計與報表
-- 🔧 系統設定與通知管理
+- 帳號註冊、登入、忘記密碼
+- 瀏覽與搜尋志工活動
+- 查看活動詳情、收藏活動、送出報名
+- 查看與取消個人報名紀錄
+- 編輯個人資料與停用帳號
+- 查閱 FAQ、服務條款、隱私政策與支援頁
 
-## 🚀 技術棧
+### 管理端
 
-- **前端:** Next.js 14 (App Router)、TypeScript、React
-- **樣式:** Tailwind CSS、Shadcn UI
-- **後端:** Next.js API Routes
-- **資料庫:** Supabase (PostgreSQL)
-- **認證:** Supabase Auth
-- **通知:** LINE Notify、Email 服務
-- **部署:** Vercel
+- 後台儀表板與報名概況
+- 建立、編輯、取消與恢復活動
+- 審核活動報名狀態
+- 搜尋、篩選與管理平台使用者
+- 查看個別志工資料與近期報名紀錄
 
-## 📦 安裝與設定
+## 技術棧
 
-### 必要環境
-- Node.js 18+ 
-- npm 或 yarn
-- Supabase 帳號
+- `Next.js 16`
+- `React 19`
+- `TypeScript`
+- `Tailwind CSS 4`
+- `Supabase Auth / Database / SSR`
 
-### 步驟
+## 核心資料概念
 
-1. **複製專案**
-   ```bash
-   git clone https://github.com/p66rkxwf/Yilan-TFCF-Volunteer-Platform.git
-   cd yilan-tfcf-volunteer-platform
-   ```
+目前程式碼中已使用的核心資料表與欄位型別定義可參考 [src/lib/types/database.ts](src/lib/types/database.ts)。
 
-2. **安裝依賴**
-   ```bash
-   npm install
-   ```
+- `profiles`: 使用者基本資料、角色、狀態、社工指派資訊
+- `activities`: 志工活動主檔
+- `registrations`: 志工活動報名紀錄
+- `favorites`: 志工收藏活動清單
 
-3. **環境變數設定**
-   建立 `.env.local` 檔案：
-   ```bash
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-   LINE_NOTIFY_TOKEN=your_line_notify_token
-   SMTP_SERVER=your_smtp_server
-   SMTP_USER=your_smtp_user
-   SMTP_PASSWORD=your_smtp_password
-   ```
+角色列舉：
 
-4. **初始化資料庫**
-   ```bash
-   # 在 Supabase 執行 supabase/schema.sql
-   ```
+- `system_admin`
+- `unit_admin`
+- `internal_staff`
+- `volunteer`
+- `guest`
 
-5. **啟動開發伺服器**
-   ```bash
-   npm run dev
-   ```
-   
-   訪問 `http://localhost:3000`
+報名狀態列舉：
 
-## 📁 專案結構
+- `pending`
+- `approved`
+- `rejected`
+- `cancelled`
 
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── api/               # API 路由
-│   ├── auth/              # 認證相關頁面
-│   ├── manage/            # 管理員面板
-│   └── volunteer/         # 志工面板
-├── components/            # React 元件
-│   ├── admin/            # 管理員元件
-│   ├── volunteer/        # 志工元件
-│   ├── layout/           # 佈局元件
-│   └── ui/               # UI 元件庫
-├── hooks/                 # 自定義 React Hooks
-├── lib/                   # 工具函式
-│   ├── supabase/         # Supabase 設定
-│   ├── email.ts          # Email 服務
-│   └── line.ts           # LINE 通知服務
-├── modules/               # 業務邏輯模組
-│   ├── activity/         # 活動模組
-│   ├── auth/             # 認證模組
-│   ├── registration/    # 報名模組
-│   └── user/            # 使用者模組
-├── types/                 # TypeScript 型別定義
-└── utils/                 # 工具函式
+## 快速開始
+
+### 需求
+
+- Node.js `20+`
+- `npm`
+- 一個可用的 Supabase 專案
+
+### 安裝
+
+```bash
+git clone https://github.com/p66rkxwf/Yilan-TFCF-Volunteer-Platform.git
+cd Yilan-TFCF-Volunteer-Platform
+npm install
 ```
 
-## 🔐 行列級安全性 (RLS)
+### 環境變數
 
-專案使用 Supabase RLS 實現安全性：
-- `supabase/rls.sql` 定義各表的存取規則
-- 志工只能存取自己的資料
-- 管理員擁有完整控制權限
+在專案根目錄建立 `.env.local`：
 
-## 🔄 API 端點
+```bash
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+```
 
-- `POST /api/auth/register` - 使用者註冊
-- `POST /api/auth/login` - 使用者登入
-- `GET /api/activities` - 取得活動列表
-- `POST /api/registration` - 報名活動
-- `POST /api/notification/send` - 發送通知
+變數用途：
 
----
+- `NEXT_PUBLIC_SUPABASE_URL`: 前後端共用的 Supabase 專案 URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: 前端登入、查詢與一般使用者操作所需
+- `SUPABASE_SERVICE_ROLE_KEY`: 後台與特定 server-side 管理操作所需，不能暴露到 Client Component
 
-**最後更新:** 2026年2月12日
+### Supabase 設定
+
+本 repo 內可直接執行的 SQL 檔位於 [supabase/README.md](supabase/README.md)。
+
+建議順序：
+
+1. 先確認 Supabase 專案中已存在 `profiles`、`activities`、`registrations` 與對應 enum。
+2. 執行 [supabase/schema.sql](supabase/schema.sql) 建立 `favorites` 表與索引。
+3. 執行 [supabase/rls.sql](supabase/rls.sql) 套用 `favorites` 與 `profiles` 相關 RLS / policy。
+4. [supabase/seed.sql](supabase/seed.sql) 目前為空，可視需求自行補資料。
+
+### 啟動開發環境
+
+```bash
+npm run dev
+```
+
+啟動後開啟 `http://localhost:3000`。
+
+## 可用腳本
+
+- `npm run dev`: 啟動開發伺服器
+- `npm run build`: 建立 production build
+- `npm run start`: 啟動 production server
+- `npm run lint`: 目前 `package.json` 仍保留此腳本，但在現有 `Next.js 16` 設定下會失敗，若要啟用需改成新的 ESLint 執行方式
+
+## 專案結構
+
+```text
+.
+├─ public/                # 靜態資源
+├─ src/
+│  ├─ app/                # App Router 頁面與 layout
+│  │  ├─ admin/           # 後台管理頁面
+│  │  ├─ profile/         # 志工個人中心
+│  │  ├─ volunteer/       # 志工活動瀏覽與報名
+│  │  ├─ actions/         # Server Actions
+│  │  ├─ login/
+│  │  ├─ register/
+│  │  ├─ forgot-password/
+│  │  ├─ resource/
+│  │  ├─ support/
+│  │  ├─ terms/
+│  │  └─ privacy/
+│  ├─ components/         # 介面元件、layout 與功能區塊
+│  ├─ lib/                # Supabase client、server actions、共用邏輯
+│  ├─ modules/            # 業務模組，目前含 activity
+│  ├─ types/              # TypeScript 型別
+│  └─ utils/              # 共用工具函式
+├─ supabase/              # 手動執行的 SQL 檔案
+├─ middleware.ts          # Next.js middleware 入口
+└─ package.json
+```
+
+## 開發備註
+
+- 這個專案目前不是以 REST API 為主，而是透過 `Supabase` 查詢與 `Server Actions` 實作主要資料流。
+- 志工活動頁面使用 client-side Supabase 查詢；管理端與敏感操作則會透過 server-side client 或 service role key。
+- 若要補齊從零建置能力，建議下一步先整理 `profiles`、`activities`、`registrations` 的 migration 與 seed。
