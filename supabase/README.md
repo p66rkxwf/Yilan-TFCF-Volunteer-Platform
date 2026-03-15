@@ -8,7 +8,13 @@
   - 建立 `public.favorites`
   - 建立必要的 extension / index / constraint
 
-### 2) 權限與 RLS
+### 2) 補充欄位與同步
+
+- 執行 `last-login.sql`
+  - 在 `public.profiles` 新增 `last_login_at`
+  - 將 `auth.users.last_sign_in_at` 回填並同步到 `public.profiles.last_login_at`
+
+### 3) 權限與 RLS
 
 - 執行 `rls.sql`
   - `favorites` 的 `select/insert/delete` RLS policy（僅限本人）
@@ -18,4 +24,3 @@
 
 - 以上假設你的專案已有 `public.activities` 與 `public.profiles`（本 repo 的前端已使用這些表）。
 - 若你在 Supabase 儀表板有啟用/調整 Table Editor 的欄位，請以 DB 實際 schema 為準，再回來同步調整 SQL。
-

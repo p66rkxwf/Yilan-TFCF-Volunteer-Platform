@@ -40,7 +40,7 @@
 
 目前程式碼中已使用的核心資料表與欄位型別定義可參考 [src/lib/types/database.ts](src/lib/types/database.ts)。
 
-- `profiles`: 使用者基本資料、角色、狀態、社工指派資訊
+- `profiles`: 使用者基本資料、角色、狀態、社工指派資訊、最後登入時間
 - `activities`: 志工活動主檔
 - `registrations`: 志工活動報名紀錄
 - `favorites`: 志工收藏活動清單
@@ -100,8 +100,9 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 1. 先確認 Supabase 專案中已存在 `profiles`、`activities`、`registrations` 與對應 enum。
 2. 執行 [supabase/schema.sql](supabase/schema.sql) 建立 `favorites` 表與索引。
-3. 執行 [supabase/rls.sql](supabase/rls.sql) 套用 `favorites` 與 `profiles` 相關 RLS / policy。
-4. [supabase/seed.sql](supabase/seed.sql) 目前為空，可視需求自行補資料。
+3. 執行 [supabase/last-login.sql](supabase/last-login.sql) 新增 `profiles.last_login_at` 並同步 `auth.users.last_sign_in_at`。
+4. 執行 [supabase/rls.sql](supabase/rls.sql) 套用 `favorites` 與 `profiles` 相關 RLS / policy。
+5. [supabase/seed.sql](supabase/seed.sql) 目前為空，可視需求自行補資料。
 
 ### 啟動開發環境
 
