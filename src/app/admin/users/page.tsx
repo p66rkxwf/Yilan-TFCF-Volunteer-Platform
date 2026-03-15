@@ -22,6 +22,7 @@ interface UserRow {
   status: string;
   region: string | null;
   created_at: string;
+  last_login_at: string | null;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -49,6 +50,11 @@ const ROLE_BADGE_STYLES: Record<string, string> = {
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   dateStyle: "medium",
+});
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
+  dateStyle: "medium",
+  timeStyle: "short",
 });
 
 export default function AdminUsersPage() {
@@ -319,6 +325,9 @@ export default function AdminUsersPage() {
                       註冊日期
                     </th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                      最後登入
+                    </th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">
                       狀態
                     </th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">
@@ -368,6 +377,11 @@ export default function AdminUsersPage() {
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-500">
                             {DATE_FORMATTER.format(new Date(u.created_at))}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-500">
+                            {u.last_login_at
+                              ? DATE_TIME_FORMATTER.format(new Date(u.last_login_at))
+                              : "尚未登入"}
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-1.5">
@@ -441,7 +455,7 @@ export default function AdminUsersPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-16 text-center text-slate-400">
+                      <td colSpan={7} className="px-6 py-16 text-center text-slate-400">
                         <span className="material-symbols-outlined text-4xl mb-2 block">search_off</span>
                         {users.length === 0 ? "目前沒有使用者" : "找不到符合條件的使用者"}
                       </td>

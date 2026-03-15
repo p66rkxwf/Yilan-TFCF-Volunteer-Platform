@@ -48,6 +48,7 @@ interface AdminUserProfile {
   position: string | null;
   assigned_worker_id: string | null;
   created_at: string;
+  last_login_at: string | null;
 }
 
 interface AdminUserRegistration {
@@ -76,9 +77,7 @@ export default async function AdminUserFilePage({
 
   const { data: profileData, error: profileError } = await supabase
     .from("profiles")
-    .select(
-      "id, full_name, account, email, birthday, region, role, status, position, assigned_worker_id, created_at"
-    )
+    .select("*")
     .eq("id", userId)
     .single();
   const profile = profileData as AdminUserProfile | null;
@@ -234,6 +233,14 @@ export default async function AdminUserFilePage({
               <InfoField
                 label="指派社工"
                 value={workerName}
+              />
+              <InfoField
+                label="最後登入"
+                value={
+                  profile.last_login_at
+                    ? DATE_TIME_FORMATTER.format(new Date(profile.last_login_at))
+                    : "尚無資料"
+                }
               />
             </div>
           </AdminPanel>

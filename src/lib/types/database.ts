@@ -40,6 +40,7 @@ export interface Profile {
   status: AccountStatus;
   created_at: string;
   updated_at: string;
+  last_login_at: string | null;
   position: StaffPosition | null;
   account: string;
 }
@@ -79,7 +80,9 @@ export interface Database {
     Tables: {
       profiles: {
         Row: Profile;
-        Insert: Omit<Profile, "created_at" | "updated_at">;
+        Insert: Omit<Profile, "created_at" | "updated_at" | "last_login_at"> & {
+          last_login_at?: string | null;
+        };
         Update: Partial<Omit<Profile, "id" | "created_at" | "updated_at">>;
         Relationships: [];
       };
