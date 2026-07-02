@@ -3,7 +3,8 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "@/lib/actions/auth";
+import { resolveLoginEmail } from "@/lib/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 
 export default function LoginPage() {
@@ -20,6 +21,7 @@ function LoginForm() {
   const redirectTo = searchParams.get("redirect") || "/";
   const registered = searchParams.get("registered");
   const toast = useToast();
+  const supabase = createClient();
 
   const [formData, setFormData] = useState({
     account: "",
@@ -58,10 +60,25 @@ function LoginForm() {
 
     setIsLoading(true);
 
-    const result = await signIn(formData);
+    const { email, error: resolveError } = await resolveLoginEmail(
+      formData.account
+    );
 
-    if (result.error) {
-      toast.error(result.error);
+    if (resolveError || !email) {
+      toast.error(resolveError ?? "帳號不存在，請確認後再試。");
+      setIsLoading(false);
+      return;
+    }
+
+    // 刻意用瀏覽器端的 client 呼叫，讓 Header 等元件的
+    // onAuthStateChange 立即收到登入事件，不用整頁重新整理。
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password: formData.password,
+    });
+
+    if (error) {
+      toast.error("帳號或密碼錯誤，請重新輸入。");
       setIsLoading(false);
       return;
     }

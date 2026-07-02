@@ -13,41 +13,33 @@ export interface AuthResult {
   success?: boolean;
 }
 
-export async function signIn(formData: {
-  account: string;
-  password: string;
-}): Promise<AuthResult> {
-  const supabase = await createClient();
-  const input = formData.account.trim();
+// 將帳號/Email 輸入解析為實際登入用的 Email。
+// 實際的 signInWithPassword 呼叫刻意留給前端用瀏覽器端的 Supabase client
+// 執行（見 src/app/login/page.tsx），這樣登入後 onAuthStateChange 才會
+// 立即通知同一個 client 實例（例如 Header），不需要整頁重新整理才會反映
+// 登入狀態——透過 Server Action 登入的話，瀏覽器端的 client 完全不會知道。
+export async function resolveLoginEmail(
+  account: string
+): Promise<{ email?: string; error?: string }> {
+  const input = account.trim();
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
 
-  let email: string;
-
   if (isEmail) {
-    email = input;
-  } else {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("account", input)
-      .single();
-
-    if (!profile) {
-      return { error: "帳號不存在，請確認後再試。" };
-    }
-    email = profile.email;
+    return { email: input };
   }
 
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password: formData.password,
-  });
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email")
+    .eq("account", input)
+    .single();
 
-  if (error) {
-    return { error: "帳號或密碼錯誤，請重新輸入。" };
+  if (!profile) {
+    return { error: "帳號不存在，請確認後再試。" };
   }
 
-  return { success: true };
+  return { email: profile.email };
 }
 
 export async function signUp(formData: {
