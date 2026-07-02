@@ -26,6 +26,20 @@
 	background: #a0aec0;
 }
 
+/* ===== Horizontal scroll strip ===== */
+/* Single-row toolbars/tab strips that scroll horizontally instead of wrapping. */
+.scroll-x {
+	overflow-x: auto;
+	overflow-y: hidden;
+	flex-wrap: nowrap;
+	scrollbar-width: thin;
+	-webkit-overflow-scrolling: touch;
+}
+
+.scroll-x > * {
+	flex-shrink: 0;
+}
+
 /* ===== Material Symbols baseline fix ===== */
 .material-symbols-outlined {
 	font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;

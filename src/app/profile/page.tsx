@@ -11,6 +11,8 @@ import { Select } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, YilanRegion } from "@/lib/types/database";
 import { useToast } from "@/components/ui/toast";
+import { getMyHoursSummary, type HoursSummary } from "@/lib/actions/registrations";
+import { NotificationBell } from "@/components/notification-bell";
 
 const REGIONS: YilanRegion[] = [
   "宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉",
@@ -37,6 +39,7 @@ export default function ProfilePage() {
   const toast = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [registrations, setRegistrations] = useState<RegistrationWithActivity[]>([]);
+  const [hoursSummary, setHoursSummary] = useState<HoursSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -78,6 +81,9 @@ export default function ProfilePage() {
       if (regData) {
         setRegistrations(regData as unknown as RegistrationWithActivity[]);
       }
+
+      const summary = await getMyHoursSummary();
+      setHoursSummary(summary);
 
       setIsLoading(false);
     }
@@ -165,12 +171,15 @@ export default function ProfilePage() {
     <>
       <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
         <h1 className="text-lg font-bold">個人資料管理</h1>
-        <Link
-          href="/"
-          className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/20 transition-colors"
-        >
-          返回首頁
-        </Link>
+        <div className="flex items-center gap-2">
+          <NotificationBell className="lg:hidden" />
+          <Link
+            href="/"
+            className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/20 transition-colors"
+          >
+            返回首頁
+          </Link>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
@@ -281,6 +290,31 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-6">
+              <section className="bg-white p-6 rounded-xl border border-slate-200">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary">timer</span>
+                  服務時數
+                </h3>
+                <div className="flex items-end gap-2">
+                  <span className="text-4xl font-black text-slate-900">
+                    {hoursSummary?.totalHours ?? 0}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-500 mb-1.5">小時</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">
+                  累計出席 {hoursSummary?.attendedCount ?? 0} 場活動
+                </p>
+                {hoursSummary && hoursSummary.totalHours > 0 ? (
+                  <Link
+                    href="/profile/certificate"
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary/10 py-2 text-sm font-bold text-primary transition-colors hover:bg-primary/20"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+                    下載服務證明
+                  </Link>
+                ) : null}
+              </section>
+
               <section className="bg-white p-6 rounded-xl border border-slate-200">
                 <h3 className="text-lg font-bold mb-4">近期報名</h3>
                 {registrations.length === 0 ? (

@@ -14,6 +14,26 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toastSupabaseError } from "@/lib/ui/toast-actions";
+import { batchCheckIn, markAttendance } from "@/lib/actions/registrations";
+import {
+  createNotification,
+  notifyActivityRegistrants,
+} from "@/lib/actions/notifications";
+import { toCsv, downloadCsv } from "@/utils/csv";
+import type { AttendanceStatus } from "@/lib/types/database";
+
+const REG_STATUS_LABEL: Record<string, string> = {
+  pending: "待審核",
+  approved: "已通過",
+  rejected: "未通過",
+  cancelled: "已取消",
+};
+
+const ATTENDANCE_LABEL: Record<string, string> = {
+  present: "出席",
+  absent: "請假",
+  no_show: "未到",
+};
 import {
   AdminMetricCard,
   AdminPageHeader,
@@ -42,6 +62,9 @@ interface RegistrationRow {
   created_at: string;
   volunteer_name: string;
   volunteer_email: string;
+  attendance: AttendanceStatus | null;
+  checked_in_at: string | null;
+  hours: number | null;
 }
 
 const REG_STATUS: Record<string, { label: string; dot: string; text: string }> = {
@@ -111,6 +134,7 @@ export default function AdminActivitiesPage() {
   const confirmCancelActivity = async () => {
     if (!confirmCancelId) return;
     setIsCancelling(true);
+    const cancelledActivity = activities.find((a) => a.id === confirmCancelId);
     const { error } = await supabase
       .from("activities")
       .update({ is_cancelled: true })
@@ -120,6 +144,16 @@ export default function AdminActivitiesPage() {
       setIsCancelling(false);
       return;
     }
+
+    await notifyActivityRegistrants(confirmCancelId, {
+      type: "activity_cancelled",
+      title: "活動已取消",
+      body: cancelledActivity
+        ? `您報名的「${cancelledActivity.title}」已被取消，造成不便敬請見諒。`
+        : "您報名的活動已被取消，造成不便敬請見諒。",
+      link: "/profile/registrations",
+    });
+
     toast.success("活動已取消");
     await loadActivities();
     setIsCancelling(false);
@@ -274,7 +308,7 @@ export default function AdminActivitiesPage() {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">活動</th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">負責人</th>
+                    <th className="whitespace-nowrap px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">負責人</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">時間與地點</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">報名進度</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">狀態</th>
@@ -294,18 +328,13 @@ export default function AdminActivitiesPage() {
                       return (
                         <tr key={activity.id} className="transition-colors hover:bg-slate-50/60">
                           <td className="px-6 py-4">
-                            <div className="min-w-[16rem]">
-                              <p className="text-sm font-semibold text-slate-900">{activity.title}</p>
-                              <p className="mt-1 text-xs text-slate-500">
-                                {activity.content.length > 80 ? `${activity.content.slice(0, 80)}...` : activity.content}
-                              </p>
+                            <div className="max-w-[18rem]">
+                              <p className="truncate text-sm font-semibold text-slate-900">{activity.title}</p>
+                              <p className="mt-1 truncate text-xs text-slate-500">{activity.content}</p>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="whitespace-nowrap px-6 py-4">
                             <p className="text-sm font-medium text-slate-700">{activity.manager_name}</p>
-                            <p className="mt-1 text-xs text-slate-400">
-                              建立於 {new Date(activity.created_at).toLocaleDateString("zh-TW")}
-                            </p>
                           </td>
                           <td className="px-6 py-4">
                             <div className="min-w-52">
@@ -333,51 +362,26 @@ export default function AdminActivitiesPage() {
                               </p>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 whitespace-nowrap">
                             {isCancelled ? (
-                              <span className="inline-flex rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
+                              <span className="inline-flex whitespace-nowrap rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
                                 已取消
                               </span>
                             ) : (
-                              <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+                              <span className="inline-flex whitespace-nowrap rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
                                 進行中
                               </span>
                             )}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => setViewingRegistrations(activity)}
-                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
-                                title="查看報名清單"
-                              >
-                                <span className="material-symbols-outlined text-[20px]">list_alt</span>
-                              </button>
-                              <button
-                                onClick={() => setEditingActivity(activity)}
-                                className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-primary"
-                                title="編輯活動"
-                              >
-                                <span className="material-symbols-outlined text-[20px]">edit</span>
-                              </button>
-                              {isCancelled ? (
-                                <button
-                                  onClick={() => handleRestoreActivity(activity.id)}
-                                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-emerald-50 hover:text-emerald-500"
-                                  title="恢復活動"
-                                >
-                                  <span className="material-symbols-outlined text-[20px]">undo</span>
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleCancelActivity(activity.id)}
-                                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500"
-                                  title="取消活動"
-                                >
-                                  <span className="material-symbols-outlined text-[20px]">cancel</span>
-                                </button>
-                              )}
-                            </div>
+                            <button
+                              onClick={() => setViewingRegistrations(activity)}
+                              className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
+                              title="管理活動"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">tune</span>
+                              管理
+                            </button>
                           </td>
                         </tr>
                       );
@@ -432,6 +436,18 @@ export default function AdminActivitiesPage() {
         <RegistrationsModal
           activity={viewingRegistrations}
           onClose={() => setViewingRegistrations(null)}
+          onEdit={(activity) => {
+            setViewingRegistrations(null);
+            setEditingActivity(activity);
+          }}
+          onCancel={(activity) => {
+            setViewingRegistrations(null);
+            handleCancelActivity(activity.id);
+          }}
+          onRestore={(activity) => {
+            setViewingRegistrations(null);
+            handleRestoreActivity(activity.id);
+          }}
         />
       ) : null}
 
@@ -701,21 +717,29 @@ function ActivityFormModal({
 function RegistrationsModal({
   activity,
   onClose,
+  onEdit,
+  onCancel,
+  onRestore,
 }: {
   activity: ActivityRow;
   onClose: () => void;
+  onEdit: (activity: ActivityRow) => void;
+  onCancel: (activity: ActivityRow) => void;
+  onRestore: (activity: ActivityRow) => void;
 }) {
   const supabase = createClient();
   const toast = useToast();
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [isBatchSaving, setIsBatchSaving] = useState(false);
 
   const loadRegistrations = useCallback(async () => {
     setIsLoading(true);
     const { data } = await supabase
       .from("registrations")
-      .select("id, volunteer_id, status, created_at, profiles:volunteer_id(full_name, email)")
+      .select("id, volunteer_id, status, created_at, attendance, checked_in_at, hours, profiles:volunteer_id(full_name, email)")
       .eq("activity_id", activity.id)
       .order("created_at", { ascending: sortOrder === "oldest" });
 
@@ -727,6 +751,9 @@ function RegistrationsModal({
         created_at: registration.created_at,
         volunteer_name: registration.profiles?.full_name || "未知",
         volunteer_email: registration.profiles?.email || "",
+        attendance: registration.attendance ?? null,
+        checked_in_at: registration.checked_in_at ?? null,
+        hours: registration.hours == null ? null : Number(registration.hours),
       }))
     );
     setIsLoading(false);
@@ -775,7 +802,86 @@ function RegistrationsModal({
     }
 
     toast.success(`已${label}「${registration.volunteer_name}」的報名`);
+
+    if (newStatus === "approved" || newStatus === "rejected") {
+      const approved = newStatus === "approved";
+      await createNotification({
+        user_id: registration.volunteer_id,
+        type: approved ? "registration_approved" : "registration_rejected",
+        title: approved ? "報名已通過" : "報名未通過",
+        body: approved
+          ? `您報名的「${activity.title}」已通過審核。`
+          : `很抱歉，您報名的「${activity.title}」未通過審核。`,
+        link: "/profile/registrations",
+      });
+    }
+
     loadRegistrations();
+  };
+
+  const handleMarkAttendance = async (
+    registration: RegistrationRow,
+    attendance: AttendanceStatus | null,
+    hours: number | null
+  ) => {
+    setSavingId(registration.id);
+    const result = await markAttendance(registration.id, attendance, hours);
+    setSavingId(null);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    await loadRegistrations();
+  };
+
+  const handleBatchCheckIn = async () => {
+    const approvedIds = registrations
+      .filter((r) => r.status === "approved")
+      .map((r) => r.id);
+
+    if (approvedIds.length === 0) {
+      toast.error("沒有已通過的報名可標記出席。");
+      return;
+    }
+
+    setIsBatchSaving(true);
+    const result = await batchCheckIn(activity.id, approvedIds);
+    setIsBatchSaving(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success(`已將 ${approvedIds.length} 位已通過志工標記為出席`);
+    await loadRegistrations();
+  };
+
+  const approvedCount = registrations.filter((r) => r.status === "approved").length;
+  const totalHours = registrations.reduce(
+    (sum, r) => sum + (r.attendance === "present" ? Number(r.hours ?? 0) : 0),
+    0
+  );
+
+  const handleExportCsv = () => {
+    const headers = [
+      "姓名",
+      "電子郵件",
+      "報名狀態",
+      "出席",
+      "服務時數",
+      "報名時間",
+    ];
+    const rows = registrations.map((r) => [
+      r.volunteer_name,
+      r.volunteer_email,
+      REG_STATUS_LABEL[r.status] ?? r.status,
+      r.attendance ? ATTENDANCE_LABEL[r.attendance] ?? r.attendance : "",
+      r.attendance === "present" && r.hours != null ? r.hours : "",
+      new Date(r.created_at).toLocaleString("zh-TW"),
+    ]);
+    const safeTitle = activity.title.replace(/[\\/:*?"<>|]/g, "_");
+    downloadCsv(`報名名單_${safeTitle}_${activity.activity_date}`, toCsv(headers, rows));
   };
 
   const statusCounts = registrations.reduce(
@@ -794,30 +900,98 @@ function RegistrationsModal({
           className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-3xl flex-col rounded-xl bg-white shadow-xl sm:max-h-[calc(100dvh-3rem)]"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-slate-100 p-6">
-            <div>
-              <h3 className="text-lg font-bold">{activity.title}</h3>
-              <p className="text-sm text-slate-500">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 p-6">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="truncate text-lg font-bold">{activity.title}</h3>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    activity.is_cancelled
+                      ? "bg-rose-100 text-rose-700"
+                      : "bg-emerald-100 text-emerald-700"
+                  }`}
+                >
+                  {activity.is_cancelled ? "已取消" : "進行中"}
+                </span>
+              </div>
+              <p className="mt-0.5 text-sm text-slate-500">
                 {activity.activity_date} · {activity.location} · 上限 {activity.capacity} 人
               </p>
             </div>
-            <button
-              onClick={onClose}
-              className="rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={() => onEdit(activity)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                <span className="material-symbols-outlined text-[18px]">edit</span>
+                <span className="hidden sm:inline">編輯</span>
+              </button>
+              {activity.is_cancelled ? (
+                <button
+                  onClick={() => onRestore(activity)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-sm font-semibold text-emerald-600 transition-colors hover:bg-emerald-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">undo</span>
+                  <span className="hidden sm:inline">恢復活動</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => onCancel(activity)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
+                >
+                  <span className="material-symbols-outlined text-[18px]">cancel</span>
+                  <span className="hidden sm:inline">取消活動</span>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-4 border-b border-slate-100 px-6 py-3">
-            <span className="text-sm text-slate-500">
-              共 <span className="font-bold text-slate-700">{registrations.length}</span> 筆報名
-            </span>
-            {statusCounts.pending ? <StatusCount label="待審核" count={statusCounts.pending} color="bg-amber-500 text-amber-600" /> : null}
-            {statusCounts.approved ? <StatusCount label="已通過" count={statusCounts.approved} color="bg-emerald-500 text-emerald-600" /> : null}
-            {statusCounts.rejected ? <StatusCount label="未通過" count={statusCounts.rejected} color="bg-rose-500 text-rose-600" /> : null}
-            <div className="flex items-center gap-2 sm:ml-auto">
-              <span className="text-xs font-semibold text-slate-500">排序</span>
+          <div className="flex shrink-0 items-center gap-3 border-b border-slate-100 px-6 py-3">
+            <div className="scroll-x flex min-w-0 flex-1 items-center gap-4">
+              <span className="text-sm text-slate-500 whitespace-nowrap">
+                共 <span className="font-bold text-slate-700">{registrations.length}</span> 筆報名
+              </span>
+              {statusCounts.pending ? <StatusCount label="待審核" count={statusCounts.pending} color="bg-amber-500 text-amber-600" /> : null}
+              {statusCounts.approved ? <StatusCount label="已通過" count={statusCounts.approved} color="bg-emerald-500 text-emerald-600" /> : null}
+              {statusCounts.rejected ? <StatusCount label="未通過" count={statusCounts.rejected} color="bg-rose-500 text-rose-600" /> : null}
+              {totalHours > 0 ? (
+                <span className="flex items-center gap-1 whitespace-nowrap text-xs font-semibold text-primary">
+                  <span className="material-symbols-outlined text-[14px]">schedule</span>
+                  累計時數 {totalHours}
+                </span>
+              ) : null}
+              {approvedCount > 0 ? (
+                <button
+                  onClick={handleBatchCheckIn}
+                  disabled={isBatchSaving}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-60"
+                >
+                  {isBatchSaving ? (
+                    <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>
+                  ) : (
+                    <span className="material-symbols-outlined text-[14px]">how_to_reg</span>
+                  )}
+                  批次標記出席
+                </button>
+              ) : null}
+              {registrations.length > 0 ? (
+                <button
+                  onClick={handleExportCsv}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                  <span className="material-symbols-outlined text-[14px]">download</span>
+                  匯出 CSV
+                </button>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="hidden text-xs font-semibold text-slate-500 sm:inline">排序</span>
               <Select
                 id="registration-sort"
                 className="w-auto min-w-[6.75rem]"
@@ -853,8 +1027,9 @@ function RegistrationsModal({
                   return (
                     <div
                       key={registration.id}
-                      className="flex flex-col items-start gap-3 rounded-lg border border-slate-200 p-4 transition-colors hover:border-slate-300 sm:flex-row sm:items-center sm:gap-4"
+                      className="rounded-lg border border-slate-200 transition-colors hover:border-slate-300"
                     >
+                    <div className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:gap-4">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-primary">
                         {registration.volunteer_name.slice(0, 2)}
                       </div>
@@ -908,6 +1083,15 @@ function RegistrationsModal({
                         ) : null}
                       </div>
                     </div>
+                    {registration.status === "approved" ? (
+                      <AttendanceControls
+                        key={`${registration.id}-${registration.attendance ?? "none"}-${registration.hours ?? "x"}`}
+                        registration={registration}
+                        isSaving={savingId === registration.id}
+                        onMark={handleMarkAttendance}
+                      />
+                    ) : null}
+                    </div>
                   );
                 })}
               </div>
@@ -915,6 +1099,100 @@ function RegistrationsModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+const ATTENDANCE_OPTIONS: {
+  value: AttendanceStatus;
+  label: string;
+  active: string;
+}[] = [
+  { value: "present", label: "出席", active: "bg-emerald-600 text-white" },
+  { value: "absent", label: "請假", active: "bg-amber-500 text-white" },
+  { value: "no_show", label: "未到", active: "bg-rose-500 text-white" },
+];
+
+function AttendanceControls({
+  registration,
+  isSaving,
+  onMark,
+}: {
+  registration: RegistrationRow;
+  isSaving: boolean;
+  onMark: (
+    registration: RegistrationRow,
+    attendance: AttendanceStatus | null,
+    hours: number | null
+  ) => void;
+}) {
+  const [hoursInput, setHoursInput] = useState(
+    registration.hours == null ? "" : String(registration.hours)
+  );
+
+  const handleSelect = (value: AttendanceStatus) => {
+    if (registration.attendance === value) {
+      onMark(registration, null, null);
+      return;
+    }
+    const parsed = value === "present" ? Number(hoursInput) : null;
+    onMark(registration, value, parsed != null && !Number.isNaN(parsed) ? parsed : null);
+  };
+
+  const handleSaveHours = () => {
+    const parsed = hoursInput === "" ? null : Number(hoursInput);
+    if (parsed != null && (Number.isNaN(parsed) || parsed < 0)) return;
+    onMark(registration, "present", parsed);
+  };
+
+  return (
+    <div className="scroll-x flex items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-2.5">
+      <span className="text-xs font-semibold text-slate-500">出席</span>
+      {ATTENDANCE_OPTIONS.map((option) => {
+        const isActive = registration.attendance === option.value;
+        return (
+          <button
+            key={option.value}
+            onClick={() => handleSelect(option.value)}
+            disabled={isSaving}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60 ${
+              isActive
+                ? option.active
+                : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-100"
+            }`}
+          >
+            {option.label}
+          </button>
+        );
+      })}
+
+      {registration.attendance === "present" ? (
+        <div className="ml-1 flex items-center gap-1.5">
+          <span className="text-xs font-semibold text-slate-500">時數</span>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            value={hoursInput}
+            onChange={(e) => setHoursInput(e.target.value)}
+            className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="0"
+          />
+          <button
+            onClick={handleSaveHours}
+            disabled={isSaving}
+            className="rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
+          >
+            {isSaving ? "..." : "存"}
+          </button>
+        </div>
+      ) : null}
+
+      {registration.checked_in_at ? (
+        <span className="ml-auto text-[11px] text-slate-400">
+          簽到於 {DATE_TIME_FORMATTER.format(new Date(registration.checked_in_at))}
+        </span>
+      ) : null}
     </div>
   );
 }

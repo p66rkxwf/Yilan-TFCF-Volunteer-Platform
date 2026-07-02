@@ -6,6 +6,8 @@ export type RegistrationStatus =
   | "rejected"
   | "cancelled";
 
+export type AttendanceStatus = "present" | "absent" | "no_show";
+
 export type StaffPosition = "social_worker" | "general_staff";
 
 export type UserRole =
@@ -65,6 +67,9 @@ export interface Registration {
   activity_id: string;
   volunteer_id: string;
   status: RegistrationStatus;
+  attendance: AttendanceStatus | null;
+  checked_in_at: string | null;
+  hours: number | null;
   created_at: string;
 }
 
@@ -72,6 +77,17 @@ export interface Favorite {
   id: string;
   user_id: string;
   activity_id: string;
+  created_at: string;
+}
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  read_at: string | null;
   created_at: string;
 }
 
@@ -104,12 +120,19 @@ export interface Database {
         Update: Partial<Omit<Favorite, "id" | "created_at">>;
         Relationships: [];
       };
+      notifications: {
+        Row: Notification;
+        Insert: Omit<Notification, "id" | "created_at">;
+        Update: Partial<Omit<Notification, "id" | "created_at">>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
     Enums: {
       account_status: AccountStatus;
       registration_status: RegistrationStatus;
+      attendance_status: AttendanceStatus;
       staff_position: StaffPosition;
       user_role: UserRole;
       yilan_region: YilanRegion;

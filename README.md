@@ -4,10 +4,9 @@
 
 本專案使用 `Next.js App Router` 搭配 `Supabase` 建置，提供志工端報名流程、個人中心，以及管理端活動與使用者管理功能。首頁保留了獎學金入口，但目前仍為未開放狀態。
 
-> [!IMPORTANT]
-> 這個 repo 目前只收錄 `favorites` 相關的 SQL migration 與 RLS 設定。
-> 前端程式已依賴 `profiles`、`activities`、`registrations` 等核心資料表，但這些表的完整 migration 並未一併提交。
-> 如果要從零建立 Supabase 專案，請先準備既有 schema，或自行補齊相對應資料表與 enum。
+> [!NOTE]
+> `supabase/` 內已收錄可從零建置的完整 SQL（核心資料表、enum、RLS 與收藏功能）。
+> 依 [supabase/README.md](supabase/README.md) 的順序執行即可建立 `profiles`、`activities`、`registrations`、`favorites` 與相關 enum / trigger / policy。
 
 ## 功能總覽
 
@@ -17,6 +16,8 @@
 - 瀏覽與搜尋志工活動
 - 查看活動詳情、收藏活動、送出報名
 - 查看與取消個人報名紀錄
+- 查看服務時數與出席紀錄，產出可列印的服務證明
+- 接收站內通知（報名審核結果、活動異動）
 - 編輯個人資料與停用帳號
 - 查閱 FAQ、服務條款、隱私政策與支援頁
 
@@ -25,6 +26,9 @@
 - 後台儀表板與報名概況
 - 建立、編輯、取消與恢復活動
 - 審核活動報名狀態
+- 活動當天簽到、登記出席與服務時數（含批次標記）
+- 匯出活動報名 / 簽到名單為 CSV
+- 儀表板呈現服務時數、出席率與各區志工分布
 - 搜尋、篩選與管理平台使用者
 - 查看個別志工資料與近期報名紀錄
 
@@ -42,8 +46,9 @@
 
 - `profiles`: 使用者基本資料、角色、狀態、社工指派資訊、最後登入時間
 - `activities`: 志工活動主檔
-- `registrations`: 志工活動報名紀錄
+- `registrations`: 志工活動報名紀錄，含出席狀態與服務時數
 - `favorites`: 志工收藏活動清單
+- `notifications`: 站內通知紀錄
 
 角色列舉：
 
@@ -94,15 +99,18 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 ### Supabase 設定
 
-本 repo 內可直接執行的 SQL 檔位於 [supabase/README.md](supabase/README.md)。
+本 repo 內可直接執行的 SQL 檔位於 [supabase/README.md](supabase/README.md)，皆為 idempotent，可從零建置。
 
-建議順序：
+執行順序：
 
-1. 先確認 Supabase 專案中已存在 `profiles`、`activities`、`registrations` 與對應 enum。
-2. 執行 [supabase/schema.sql](supabase/schema.sql) 建立 `favorites` 表與索引。
-3. 執行 [supabase/last-login.sql](supabase/last-login.sql) 新增 `profiles.last_login_at` 並同步 `auth.users.last_sign_in_at`。
-4. 執行 [supabase/rls.sql](supabase/rls.sql) 套用 `favorites` 與 `profiles` 相關 RLS / policy。
-5. [supabase/seed.sql](supabase/seed.sql) 目前為空，可視需求自行補資料。
+1. 執行 [supabase/core-schema.sql](supabase/core-schema.sql) 建立 enum、`profiles`/`activities`/`registrations` 與 `handle_new_user` trigger。
+2. 執行 [supabase/core-rls.sql](supabase/core-rls.sql) 套用核心資料表的 RLS / policy 與 `is_admin_profile` helper。
+3. 執行 [supabase/schema.sql](supabase/schema.sql) 建立 `favorites` 表與索引。
+4. 執行 [supabase/last-login.sql](supabase/last-login.sql) 建立 `last_login_at` 同步 trigger 並回填 `auth.users.last_sign_in_at`。
+5. 執行 [supabase/rls.sql](supabase/rls.sql) 套用 `favorites` 相關 RLS / policy。
+6. 執行 [supabase/attendance.sql](supabase/attendance.sql) 為 `registrations` 新增出席與服務時數欄位。
+7. 執行 [supabase/notifications.sql](supabase/notifications.sql) 建立站內通知表與 RLS。
+8. [supabase/seed.sql](supabase/seed.sql) 目前為空，可視需求自行補資料。
 
 ### 啟動開發環境
 
@@ -117,7 +125,7 @@ npm run dev
 - `npm run dev`: 啟動開發伺服器
 - `npm run build`: 建立 production build
 - `npm run start`: 啟動 production server
-- `npm run lint`: 目前 `package.json` 仍保留此腳本，但在現有 `Next.js 16` 設定下會失敗，若要啟用需改成新的 ESLint 執行方式
+- `npm run lint`: 使用 ESLint flat config（`eslint.config.mjs`，沿用 `eslint-config-next`）執行 `eslint .`
 
 ## 專案結構
 
@@ -151,4 +159,4 @@ npm run dev
 
 - 這個專案目前不是以 REST API 為主，而是透過 `Supabase` 查詢與 `Server Actions` 實作主要資料流。
 - 志工活動頁面使用 client-side Supabase 查詢；管理端與敏感操作則會透過 server-side client 或 service role key。
-- 若要補齊從零建置能力，建議下一步先整理 `profiles`、`activities`、`registrations` 的 migration 與 seed。
+- 核心資料表（`profiles`、`activities`、`registrations`）的 migration 與 RLS 已收錄於 `supabase/`，可從零建置；`seed.sql` 仍為空，可視需求補資料。
