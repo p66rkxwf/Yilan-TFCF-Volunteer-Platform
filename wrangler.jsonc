@@ -1,6 +1,6 @@
 ﻿{
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "yilan-tfcf-volunteer-platform",
+  "name": "volunteer",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": [
@@ -15,7 +15,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "yilan-tfcf-volunteer-platform"
+      "service": "volunteer"
     }
   ]
 }
