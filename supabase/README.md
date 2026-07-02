@@ -58,6 +58,19 @@
   - 取代先前「每筆活動各發一個 count 請求」的 N+1 查詢模式
   - 此 view 為 owner-rights（繞過 `registrations` 的 RLS），僅暴露聚合數字、無個資
 
+### 9) 安全性強化（角色/狀態/報名保護）
+
+- 執行 `security-hardening.sql`（需在上述 1-8 全部執行過後，最後執行）
+  - `profiles_guard_protected_columns` trigger：非管理員無法透過任何直接寫入把自己的
+    `role`、`status`、`assigned_worker_id` 改掉（修補一般志工自我提權為 `system_admin` 的漏洞）
+  - `registrations_guard_protected_columns` trigger：非管理員無法自行核准報名或竄改
+    `attendance`/`hours`/`checked_in_at`，僅保留「取消自己 pending/approved 的報名」這一種
+    自助操作
+  - `registrations_guard_capacity` trigger：新增報名時在 DB 端重新檢查活動容量與是否已取消，
+    作為 Server Action 檢查之外的兜底
+  - 三個 function 都會放行 `service_role`（server action 的 admin client）與
+    `is_admin_profile()` 判定為管理員的呼叫者，不影響既有管理功能
+
 ### 常見注意事項
 
 - 以上 SQL 皆為 idempotent，可安全重複執行。

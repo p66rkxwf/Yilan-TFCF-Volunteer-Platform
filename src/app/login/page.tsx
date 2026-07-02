@@ -15,10 +15,26 @@ export default function LoginPage() {
   );
 }
 
+// Only allow same-origin relative paths as the post-login redirect target.
+// Resolves the value with the URL parser (the same normalization the router
+// applies), so absolute URLs, protocol-relative "//host", and backslash/tab
+// tricks like "/\\evil.com" that escape to another origin are rejected.
+function safeInternalPath(raw: string | null): string {
+  if (!raw) return "/";
+  try {
+    const base = "http://internal.invalid";
+    const url = new URL(raw, base);
+    if (url.origin === base) return url.pathname + url.search + url.hash;
+  } catch {
+    // fall through
+  }
+  return "/";
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/";
+  const redirectTo = safeInternalPath(searchParams.get("redirect"));
   const registered = searchParams.get("registered");
   const toast = useToast();
   const supabase = createClient();
