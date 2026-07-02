@@ -19,6 +19,8 @@ npm-debug.log*
 # env files
 .env.local
 
+.dev.vars
+
 # vercel
 .vercel
 
@@ -36,3 +38,9 @@ public/storage/attachments/*
 
 # backups
 /backups/
+
+# OpenNext build output
+/.open-next/
+
+# wrangler local dev cache
+/.wrangler/
