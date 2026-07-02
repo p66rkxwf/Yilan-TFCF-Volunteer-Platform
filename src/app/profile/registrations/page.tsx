@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toastSupabaseError } from "@/lib/ui/toast-actions";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface RegistrationRow {
   id: string;
@@ -16,7 +17,15 @@ interface RegistrationRow {
   activity_date: string;
   activity_location: string;
   cancel_deadline: string;
+  attendance: string | null;
+  hours: number | null;
 }
+
+const ATTENDANCE_MAP: Record<string, { label: string; color: string }> = {
+  present: { label: "已出席", color: "bg-emerald-100 text-emerald-700" },
+  absent: { label: "請假", color: "bg-amber-100 text-amber-700" },
+  no_show: { label: "未到", color: "bg-rose-100 text-rose-700" },
+};
 
 const STATUS_MAP: Record<string, { label: string; color: string; dot: string }> = {
   pending: { label: "待審核", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
@@ -48,7 +57,7 @@ export default function RegistrationsPage() {
 
     const { data } = await supabase
       .from("registrations")
-      .select("id, activity_id, status, created_at, activities(title, activity_date, location, cancel_deadline)")
+      .select("id, activity_id, status, created_at, attendance, hours, activities(title, activity_date, location, cancel_deadline)")
       .eq("volunteer_id", user.id)
       .order("created_at", { ascending: false });
 
@@ -61,6 +70,8 @@ export default function RegistrationsPage() {
       activity_date: r.activities?.activity_date || "",
       activity_location: r.activities?.location || "",
       cancel_deadline: r.activities?.cancel_deadline || "",
+      attendance: r.attendance ?? null,
+      hours: r.hours == null ? null : Number(r.hours),
     }));
 
     setRegistrations(mapped);
@@ -112,23 +123,56 @@ export default function RegistrationsPage() {
     {} as Record<string, number>
   );
 
+  const attendedRegistrations = registrations.filter((r) => r.attendance === "present");
+  const totalHours = attendedRegistrations.reduce((sum, r) => sum + Number(r.hours ?? 0), 0);
+
   return (
     <>
       <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
         <h1 className="text-lg font-bold">我的報名</h1>
-        <Link
-          href="/volunteer"
-          className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/20 transition-colors"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          瀏覽活動
-        </Link>
+        <div className="flex items-center gap-2">
+          <NotificationBell className="lg:hidden" />
+          <Link
+            href="/volunteer"
+            className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/20 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            瀏覽活動
+          </Link>
+        </div>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* Hours summary */}
+          {!isLoading && totalHours > 0 ? (
+            <div className="flex flex-col gap-4 rounded-xl border border-primary/20 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <span className="material-symbols-outlined">timer</span>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-500">累計服務時數</p>
+                  <p className="text-2xl font-black text-slate-900">
+                    {totalHours} <span className="text-base font-bold text-slate-500">小時</span>
+                    <span className="ml-2 text-sm font-semibold text-slate-400">
+                      · {attendedRegistrations.length} 場活動
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/profile/certificate"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+              >
+                <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+                服務證明
+              </Link>
+            </div>
+          ) : null}
+
           {/* Filter Tabs */}
-          <div className="flex flex-wrap gap-2">
+          <div className="scroll-x flex gap-2 pb-1">
             {FILTER_TABS.map((tab) => {
               const count = tab.key === "all" ? registrations.length : (counts[tab.key] || 0);
               return (
@@ -191,6 +235,11 @@ export default function RegistrationsPage() {
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${s.color} shrink-0`}>
                           {s.label}
                         </span>
+                        {reg.attendance && ATTENDANCE_MAP[reg.attendance] ? (
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${ATTENDANCE_MAP[reg.attendance].color}`}>
+                            {ATTENDANCE_MAP[reg.attendance].label}
+                          </span>
+                        ) : null}
                       </div>
                       <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-500">
                         {reg.activity_date && (
@@ -209,6 +258,12 @@ export default function RegistrationsPage() {
                           <span className="material-symbols-outlined text-[14px]">schedule</span>
                           報名於 {new Date(reg.created_at).toLocaleDateString("zh-TW")}
                         </span>
+                        {reg.attendance === "present" && reg.hours != null ? (
+                          <span className="flex items-center gap-1 font-semibold text-primary">
+                            <span className="material-symbols-outlined text-[14px]">timer</span>
+                            服務 {reg.hours} 小時
+                          </span>
+                        ) : null}
                       </div>
                     </div>
 

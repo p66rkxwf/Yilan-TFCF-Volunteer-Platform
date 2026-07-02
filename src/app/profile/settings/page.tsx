@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updatePassword, updateEmail, deleteAccount } from "@/lib/actions/auth";
 import { setFlashToast, useToast } from "@/components/ui/toast";
+import { NotificationBell } from "@/components/notification-bell";
 
 function SettingsSection({
   icon,
@@ -123,8 +124,9 @@ export default function SettingsPage() {
 
   return (
     <>
-      <header className="h-16 border-b border-slate-200 bg-white flex items-center px-6 md:px-8 shrink-0">
+      <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
         <h1 className="text-lg font-bold">帳號設定</h1>
+        <NotificationBell className="lg:hidden" />
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">

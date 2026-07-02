@@ -22,6 +22,8 @@ export default async function AdminDashboardPage() {
     { count: volunteerCount },
     { count: monthlyRegistrations },
     { data: recentRegistrations },
+    { data: attendanceRows },
+    { data: regionRows },
   ] = await Promise.all([
     supabase.from("registrations").select("*", { count: "exact", head: true }),
     supabase
@@ -44,7 +46,36 @@ export default async function AdminDashboardPage() {
       .select("id, volunteer_id, status, created_at, activities(title), profiles:volunteer_id(full_name)")
       .order("created_at", { ascending: false })
       .limit(8),
+    supabase
+      .from("registrations")
+      .select("attendance, hours")
+      .not("attendance", "is", null),
+    supabase.from("profiles").select("region").eq("role", "volunteer"),
   ]);
+
+  const markedRows = (attendanceRows ?? []) as {
+    attendance: string | null;
+    hours: number | null;
+  }[];
+  const presentRows = markedRows.filter((r) => r.attendance === "present");
+  const totalHours = presentRows.reduce((sum, r) => sum + Number(r.hours ?? 0), 0);
+  const attendanceRate =
+    markedRows.length > 0
+      ? Math.round((presentRows.length / markedRows.length) * 100)
+      : 0;
+
+  const regionCounts = ((regionRows ?? []) as { region: string | null }[]).reduce(
+    (acc, r) => {
+      const key = r.region || "未填寫";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>
+  );
+  const regionDistribution = Object.entries(regionCounts).sort(
+    (a, b) => b[1] - a[1]
+  );
+  const maxRegionCount = regionDistribution.length > 0 ? regionDistribution[0][1] : 0;
 
   const metrics = [
     {
@@ -74,6 +105,20 @@ export default async function AdminDashboardPage() {
       description: "本月新增的報名紀錄",
       icon: "trending_up",
       accent: "bg-amber-100 text-amber-700",
+    },
+    {
+      label: "累計服務時數",
+      value: totalHours.toLocaleString(),
+      description: "已認列出席的服務時數合計",
+      icon: "timer",
+      accent: "bg-violet-100 text-violet-700",
+    },
+    {
+      label: "出席率",
+      value: `${attendanceRate}%`,
+      description: "已標記出席紀錄中實際出席比例",
+      icon: "how_to_reg",
+      accent: "bg-teal-100 text-teal-700",
     },
   ];
 
@@ -111,7 +156,7 @@ export default async function AdminDashboardPage() {
       />
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {metrics.map((metric) => (
             <AdminMetricCard key={metric.label} {...metric} />
           ))}
@@ -203,6 +248,34 @@ export default async function AdminDashboardPage() {
           </AdminPanel>
 
           <div className="space-y-6">
+            <AdminPanel
+              title="各區志工分布"
+              description="依志工填寫的所在地區統計。"
+            >
+              {regionDistribution.length === 0 ? (
+                <p className="py-4 text-center text-sm text-slate-400">尚無資料</p>
+              ) : (
+                <div className="space-y-3">
+                  {regionDistribution.map(([region, count]) => (
+                    <div key={region} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium text-slate-700">{region}</span>
+                        <span className="font-semibold text-slate-500">{count}</span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{
+                            width: `${maxRegionCount > 0 ? (count / maxRegionCount) * 100 : 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </AdminPanel>
+
             <AdminPanel title="管理捷徑" description="快速前往常用管理功能。">
               <div className="space-y-3">
                 <Link

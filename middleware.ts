@@ -1,9 +1,10 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server'; // 注意：這裡應改為 next/server
+import type { NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
 
-export function middleware(request: NextRequest) {
-  // 目前僅做轉發，不執行任何邏輯，確保編譯通過
-  return NextResponse.next();
+export async function middleware(request: NextRequest) {
+  // 每次導覽刷新 Supabase session（寫回 cookie），避免 access token 過期後
+  // 丟出 "Invalid Refresh Token"；同時處理保護頁/登入頁的導向。
+  return await updateSession(request);
 }
 
 // 設定哪些路徑要經過中間件處理
