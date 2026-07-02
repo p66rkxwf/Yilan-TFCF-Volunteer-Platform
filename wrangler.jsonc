@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "volunteer",
   "main": ".open-next/worker.js",
