@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/cached-auth";
 import type { Activity } from "@/lib/types/database";
 
 interface ActionResult {
@@ -11,9 +12,7 @@ interface ActionResult {
 
 export async function toggleFavorite(activityId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return { error: "請先登入。" };
 
@@ -51,9 +50,7 @@ export async function getFavorites(): Promise<
   (Activity & { favorite_id: string; favorite_created_at: string })[]
 > {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return [];
 
@@ -74,9 +71,7 @@ export async function getFavorites(): Promise<
 
 export async function getMyFavoriteIds(): Promise<string[]> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return [];
 

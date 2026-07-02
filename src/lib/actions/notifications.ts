@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCachedUser, requireAdmin } from "@/lib/supabase/cached-auth";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Notification } from "@/lib/types/database";
 
@@ -16,30 +17,12 @@ interface ActionResult {
   success?: boolean;
 }
 
-const ADMIN_ROLES = ["system_admin", "unit_admin", "internal_staff"] as const;
-
-async function getCurrentUserId() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return { supabase, userId: user?.id };
-}
-
-async function isAdmin(userId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userId)
-    .single();
-  return !!data && ADMIN_ROLES.includes(data.role as (typeof ADMIN_ROLES)[number]);
-}
-
 // 取得目前使用者的通知（預設最新 30 筆）
 export async function getMyNotifications(limit = 30): Promise<Notification[]> {
-  const { supabase, userId } = await getCurrentUserId();
-  if (!userId) return [];
+  const supabase = await createClient();
+  const user = await getCachedUser();
+  if (!user) return [];
+  const userId = user.id;
 
   const { data } = await supabase
     .from("notifications")
@@ -53,27 +36,29 @@ export async function getMyNotifications(limit = 30): Promise<Notification[]> {
 
 // 取得未讀通知數
 export async function getUnreadCount(): Promise<number> {
-  const { supabase, userId } = await getCurrentUserId();
-  if (!userId) return 0;
+  const supabase = await createClient();
+  const user = await getCachedUser();
+  if (!user) return 0;
 
   const { count } = await supabase
     .from("notifications")
     .select("*", { count: "exact", head: true })
-    .eq("user_id", userId)
+    .eq("user_id", user.id)
     .is("read_at", null);
 
   return count ?? 0;
 }
 
 export async function markRead(notificationId: string): Promise<ActionResult> {
-  const { supabase, userId } = await getCurrentUserId();
-  if (!userId) return { error: "請先登入。" };
+  const supabase = await createClient();
+  const user = await getCachedUser();
+  if (!user) return { error: "請先登入。" };
 
   const { error } = await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
     .eq("id", notificationId)
-    .eq("user_id", userId)
+    .eq("user_id", user.id)
     .is("read_at", null);
 
   if (error) return { error: error.message };
@@ -81,13 +66,14 @@ export async function markRead(notificationId: string): Promise<ActionResult> {
 }
 
 export async function markAllRead(): Promise<ActionResult> {
-  const { supabase, userId } = await getCurrentUserId();
-  if (!userId) return { error: "請先登入。" };
+  const supabase = await createClient();
+  const user = await getCachedUser();
+  if (!user) return { error: "請先登入。" };
 
   const { error } = await supabase
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
-    .eq("user_id", userId)
+    .eq("user_id", user.id)
     .is("read_at", null);
 
   if (error) return { error: error.message };
@@ -106,9 +92,8 @@ interface NewNotification {
 export async function createNotification(
   payload: NewNotification
 ): Promise<ActionResult> {
-  const { userId } = await getCurrentUserId();
-  if (!userId) return { error: "請先登入。" };
-  if (!(await isAdmin(userId))) return { error: "沒有權限建立通知。" };
+  const { error: authError } = await requireAdmin();
+  if (authError) return { error: authError };
 
   const admin = adminClient();
   const { error } = await admin.from("notifications").insert({
@@ -128,9 +113,8 @@ export async function notifyActivityRegistrants(
   activityId: string,
   payload: { type: string; title: string; body?: string | null; link?: string | null }
 ): Promise<ActionResult> {
-  const { userId } = await getCurrentUserId();
-  if (!userId) return { error: "請先登入。" };
-  if (!(await isAdmin(userId))) return { error: "沒有權限建立通知。" };
+  const { error: authError } = await requireAdmin();
+  if (authError) return { error: authError };
 
   const admin = adminClient();
   const { data: registrants } = await admin

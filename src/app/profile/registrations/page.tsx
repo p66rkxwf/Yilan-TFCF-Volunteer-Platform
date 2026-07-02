@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toastSupabaseError } from "@/lib/ui/toast-actions";
 import { NotificationBell } from "@/components/notification-bell";
+import { useAuth } from "@/components/auth-provider";
 
 interface RegistrationRow {
   id: string;
@@ -45,6 +46,7 @@ const FILTER_TABS = [
 export default function RegistrationsPage() {
   const supabase = createClient();
   const toast = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -52,7 +54,6 @@ export default function RegistrationsPage() {
   const [isCancelling, setIsCancelling] = useState(false);
 
   const loadRegistrations = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const { data } = await supabase
@@ -76,11 +77,16 @@ export default function RegistrationsPage() {
 
     setRegistrations(mapped);
     setIsLoading(false);
-  }, [supabase]);
+  }, [supabase, user]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
     loadRegistrations();
-  }, [loadRegistrations]);
+  }, [loadRegistrations, authLoading, user]);
 
   const handleCancel = async (reg: RegistrationRow) => {
     const today = new Date().toISOString().split("T")[0];

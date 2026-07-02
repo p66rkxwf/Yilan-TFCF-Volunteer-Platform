@@ -1,13 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/cached-auth";
 import type { Profile } from "@/lib/types/database";
 
 export async function getProfile(): Promise<Profile | null> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return null;
 
@@ -24,9 +23,7 @@ export async function updateProfile(
   updates: Partial<Pick<Profile, "full_name" | "email" | "birthday" | "region">>
 ): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return { error: "尚未登入。" };
 

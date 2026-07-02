@@ -51,6 +51,13 @@
   - 建立 `public.notifications` 表與索引
   - 套用 RLS：本人可讀取/標記已讀；寫入由 server action 以 service role 進行
 
+### 8) 活動報名數聚合 view（效能）
+
+- 執行 `registration-counts.sql`
+  - 建立 `public.activity_registration_counts` view，一次查詢即可取得所有活動的報名數
+  - 取代先前「每筆活動各發一個 count 請求」的 N+1 查詢模式
+  - 此 view 為 owner-rights（繞過 `registrations` 的 RLS），僅暴露聚合數字、無個資
+
 ### 常見注意事項
 
 - 以上 SQL 皆為 idempotent，可安全重複執行。

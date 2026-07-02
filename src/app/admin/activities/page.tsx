@@ -95,10 +95,10 @@ export default function AdminActivitiesPage() {
   const loadActivities = useCallback(async () => {
     setIsLoading(true);
 
-    const { data, error } = await supabase
-      .from("activities")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const [{ data, error }, { data: counts }] = await Promise.all([
+      supabase.from("activities").select("*").order("created_at", { ascending: false }),
+      supabase.from("activity_registration_counts").select("activity_id, registered_count"),
+    ]);
 
     if (error) {
       setActivities([]);
@@ -107,16 +107,16 @@ export default function AdminActivitiesPage() {
       return;
     }
 
-    const withCounts = await Promise.all(
-      (data || []).map(async (activity: any) => {
-        const { count } = await supabase
-          .from("registrations")
-          .select("*", { count: "exact", head: true })
-          .eq("activity_id", activity.id)
-          .in("status", ["pending", "approved"]);
+    const countByActivityId = new Map<string, number>(
+      (counts ?? []).map((c) => [c.activity_id, c.registered_count])
+    );
 
-        return { ...activity, registered_count: count ?? 0 } as ActivityRow;
-      })
+    const withCounts = (data || []).map(
+      (activity: any) =>
+        ({
+          ...activity,
+          registered_count: countByActivityId.get(activity.id) ?? 0,
+        }) as ActivityRow
     );
 
     setActivities(withCounts);

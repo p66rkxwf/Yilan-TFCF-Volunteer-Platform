@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Activity } from "@/lib/types/database";
 import { useToast } from "@/components/ui/toast";
+import { useAuth } from "@/components/auth-provider";
 
 interface ActivityWithSlots extends Activity {
   registered_count: number;
@@ -308,6 +309,7 @@ function EventCard({
 export default function VolunteerPage() {
   const [supabase] = useState(() => createClient());
   const toast = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const [activities, setActivities] = useState<ActivityWithSlots[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -319,20 +321,20 @@ export default function VolunteerPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadFavorites() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setFavoriteIds(new Set());
-        return;
-      }
+    if (authLoading) return;
+    if (!user) {
+      setFavoriteIds(new Set());
+      return;
+    }
+    async function loadFavorites(userId: string) {
       const { data } = await supabase
         .from("favorites")
         .select("activity_id")
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
       if (data) setFavoriteIds(new Set(data.map((f) => f.activity_id)));
     }
-    loadFavorites();
-  }, [supabase]);
+    loadFavorites(user.id);
+  }, [supabase, user, authLoading]);
 
   useEffect(() => {
     if (fetchError) {
@@ -343,7 +345,6 @@ export default function VolunteerPage() {
   const handleToggleFavorite = async (activityId: string) => {
     if (favoritePendingIds.has(activityId)) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast.info("請先登入後再使用收藏功能。");
       return;
@@ -404,11 +405,14 @@ export default function VolunteerPage() {
   const loadActivities = useCallback(async () => {
     setFetchError(null);
 
-    const { data: acts, error } = await supabase
-      .from("activities")
-      .select("*")
-      .or("is_cancelled.eq.false,is_cancelled.is.null")
-      .order("activity_date", { ascending: true });
+    const [{ data: acts, error }, { data: counts }] = await Promise.all([
+      supabase
+        .from("activities")
+        .select("*")
+        .or("is_cancelled.eq.false,is_cancelled.is.null")
+        .order("activity_date", { ascending: true }),
+      supabase.from("activity_registration_counts").select("activity_id, registered_count"),
+    ]);
 
     if (error) {
       setFetchError(`活動載入失敗：${error.message}（${error.code}）`);
@@ -422,22 +426,18 @@ export default function VolunteerPage() {
       return;
     }
 
-    const withSlots: ActivityWithSlots[] = await Promise.all(
-      acts.map(async (a) => {
-        const { count } = await supabase
-          .from("registrations")
-          .select("*", { count: "exact", head: true })
-          .eq("activity_id", a.id)
-          .in("status", ["pending", "approved"]);
-
-        const registered_count = count ?? 0;
-        return {
-          ...a,
-          registered_count,
-          spots_left: a.capacity - registered_count,
-        };
-      })
+    const countByActivityId = new Map<string, number>(
+      (counts ?? []).map((c) => [c.activity_id, c.registered_count])
     );
+
+    const withSlots: ActivityWithSlots[] = acts.map((a) => {
+      const registered_count = countByActivityId.get(a.id) ?? 0;
+      return {
+        ...a,
+        registered_count,
+        spots_left: a.capacity - registered_count,
+      };
+    });
 
     setActivities(withSlots);
     setIsLoading(false);
@@ -448,17 +448,12 @@ export default function VolunteerPage() {
   }, [loadActivities]);
 
   const handleRegister = async (activityId: string) => {
-    setIsRegistering(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
     if (!user) {
       toast.error("請先登入再進行報名。");
-      setIsRegistering(false);
       return;
     }
+
+    setIsRegistering(true);
 
     const { data: existing } = await supabase
       .from("registrations")

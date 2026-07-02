@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
 import { setFlashToast, useToast } from "@/components/ui/toast";
+import { useAuth } from "@/components/auth-provider";
 
 function LogoIcon() {
   return (
@@ -25,40 +25,12 @@ function LogoIcon() {
   );
 }
 
-const ADMIN_ROLES = ["system_admin", "unit_admin", "internal_staff"];
-
 export function Header() {
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user: u } }) => {
-      setUser(u);
-      if (u) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", u.id)
-          .single();
-        setIsAdmin(!!profile && ADMIN_ROLES.includes(profile.role));
-      }
-      setIsLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session?.user) setIsAdmin(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [supabase]);
+  const { user, isAdmin, isLoading } = useAuth();
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
