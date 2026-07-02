@@ -7,6 +7,8 @@ import { useAdminProfile } from "../admin-context";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { setUserStatus, setUserRole } from "@/lib/actions/admin-users";
+import type { AccountStatus, UserRole } from "@/lib/types/database";
 import {
   AdminMetricCard,
   AdminPageHeader,
@@ -121,13 +123,10 @@ export default function AdminUsersPage() {
 
     const { user, newStatus, label } = confirmState;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ status: newStatus })
-      .eq("id", user.id);
+    const { error } = await setUserStatus(user.id, newStatus as AccountStatus);
 
     if (error) {
-      toast.error(`操作失敗：${error.message}`);
+      toast.error(`操作失敗：${error}`);
     } else {
       toast.success(`已${label}「${user.full_name}」`);
       await loadUsers();
@@ -530,7 +529,6 @@ function RoleEditModal({
   onSaved: () => void;
   onMsg: (msg: { type: "success" | "error"; text: string }) => void;
 }) {
-  const supabase = createClient();
   const [selectedRole, setSelectedRole] = useState(user.role);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -541,13 +539,10 @@ function RoleEditModal({
     }
 
     setIsSubmitting(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role: selectedRole })
-      .eq("id", user.id);
+    const { error } = await setUserRole(user.id, selectedRole as UserRole);
 
     if (error) {
-      onMsg({ type: "error", text: `角色更新失敗：${error.message}` });
+      onMsg({ type: "error", text: `角色更新失敗：${error}` });
     } else {
       onMsg({ type: "success", text: `已將「${user.full_name}」的角色設為「${ROLE_LABELS[selectedRole]}」` });
       onSaved();

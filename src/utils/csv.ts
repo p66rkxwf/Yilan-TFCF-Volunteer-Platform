@@ -1,7 +1,15 @@
 // Lightweight CSV helpers (no external dependency).
 
 function escapeCell(value: string | number | null | undefined): string {
-  const str = value == null ? "" : String(value);
+  let str = value == null ? "" : String(value);
+
+  // Neutralize formula injection: if the cell starts with a character that
+  // spreadsheet apps interpret as a formula prefix, prepend a single quote
+  // so it's treated as literal text.
+  if (/^[=+\-@]/.test(str)) {
+    str = `'${str}`;
+  }
+
   if (/[",\n\r]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }

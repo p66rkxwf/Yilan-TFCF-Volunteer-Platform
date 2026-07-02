@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Activity } from "@/lib/types/database";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
+import { registerForActivity } from "@/lib/actions/registrations";
 
 interface ActivityWithSlots extends Activity {
   registered_count: number;
@@ -455,28 +456,10 @@ export default function VolunteerPage() {
 
     setIsRegistering(true);
 
-    const { data: existing } = await supabase
-      .from("registrations")
-      .select("id")
-      .eq("activity_id", activityId)
-      .eq("volunteer_id", user.id)
-      .in("status", ["pending", "approved"])
-      .single();
-
-    if (existing) {
-      toast.info("您已報名此活動。");
-      setIsRegistering(false);
-      return;
-    }
-
-    const { error } = await supabase.from("registrations").insert({
-      activity_id: activityId,
-      volunteer_id: user.id,
-      status: "pending",
-    });
+    const { error } = await registerForActivity(activityId);
 
     if (error) {
-      toast.error(`報名失敗：${error.message}`);
+      toast.error(error);
     } else {
       toast.success("報名成功！請等待審核。");
       await loadActivities();
