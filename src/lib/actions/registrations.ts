@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser, requireAdmin } from "@/lib/supabase/cached-auth";
 import type { AttendanceStatus, Registration } from "@/lib/types/database";
 
 interface ActionResult {
@@ -12,9 +13,7 @@ export async function registerForActivity(
   activityId: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return { error: "請先登入。" };
 
@@ -59,9 +58,7 @@ export async function cancelRegistration(
   activityId: string
 ): Promise<ActionResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return { error: "請先登入。" };
 
@@ -81,9 +78,7 @@ export async function getMyRegistrations(): Promise<
   (Registration & { activity_title?: string })[]
 > {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return [];
 
@@ -99,29 +94,6 @@ export async function getMyRegistrations(): Promise<
       activity_title: (r.activities as unknown as { title: string })?.title,
     })) ?? []
   );
-}
-
-const ADMIN_ROLES = ["system_admin", "unit_admin", "internal_staff"] as const;
-
-async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { supabase, error: "請先登入。" as const };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || !ADMIN_ROLES.includes(profile.role as (typeof ADMIN_ROLES)[number])) {
-    return { supabase, error: "沒有權限執行此操作。" as const };
-  }
-
-  return { supabase, error: undefined };
 }
 
 // 標記單筆報名的出席狀態與服務時數（僅管理員、僅限已通過的報名）
@@ -206,9 +178,7 @@ export async function getMyHoursSummary(): Promise<HoursSummary> {
   const empty: HoursSummary = { totalHours: 0, attendedCount: 0, entries: [] };
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) return empty;
 

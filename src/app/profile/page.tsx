@@ -13,6 +13,7 @@ import type { Profile, YilanRegion } from "@/lib/types/database";
 import { useToast } from "@/components/ui/toast";
 import { getMyHoursSummary, type HoursSummary } from "@/lib/actions/registrations";
 import { NotificationBell } from "@/components/notification-bell";
+import { useAuth } from "@/components/auth-provider";
 
 const REGIONS: YilanRegion[] = [
   "宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉",
@@ -37,6 +38,7 @@ interface RegistrationWithActivity {
 export default function ProfilePage() {
   const supabase = createClient();
   const toast = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [registrations, setRegistrations] = useState<RegistrationWithActivity[]>([]);
   const [hoursSummary, setHoursSummary] = useState<HoursSummary | null>(null);
@@ -51,15 +53,23 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    if (authLoading) return;
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
+    async function load(userId: string) {
+      const [{ data: profileData }, { data: regData }, summary] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", userId).single(),
+        supabase
+          .from("registrations")
+          .select("id, activity_id, status, created_at, activities(title)")
+          .eq("volunteer_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(5),
+        getMyHoursSummary(),
+      ]);
 
       if (profileData) {
         setProfile(profileData);
@@ -71,24 +81,15 @@ export default function ProfilePage() {
         });
       }
 
-      const { data: regData } = await supabase
-        .from("registrations")
-        .select("id, activity_id, status, created_at, activities(title)")
-        .eq("volunteer_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-
       if (regData) {
         setRegistrations(regData as unknown as RegistrationWithActivity[]);
       }
 
-      const summary = await getMyHoursSummary();
       setHoursSummary(summary);
-
       setIsLoading(false);
     }
-    load();
-  }, [supabase]);
+    load(user.id);
+  }, [supabase, user, authLoading]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -118,14 +119,12 @@ export default function ProfilePage() {
 
     const normalizedBirthday = normalizeBirthdayForSubmit(form.birthday);
 
-    setIsSaving(true);
-
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast.error("尚未登入。");
-      setIsSaving(false);
       return;
     }
+
+    setIsSaving(true);
 
     const { error } = await supabase
       .from("profiles")

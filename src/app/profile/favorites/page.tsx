@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { NotificationBell } from "@/components/notification-bell";
+import { useAuth } from "@/components/auth-provider";
 
 interface FavoriteActivity {
   id: string;
@@ -23,24 +24,15 @@ interface FavoriteActivity {
 export default function FavoritesPage() {
   const [supabase] = useState(() => createClient());
   const toast = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const [favorites, setFavorites] = useState<FavoriteActivity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [actionMsg, setActionMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [pendingFavoriteIds, setPendingFavoriteIds] = useState<Set<string>>(new Set());
 
   const loadFavorites = useCallback(async () => {
+    if (!user) return;
     setIsLoading(true);
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setIsAuthenticated(false);
-      setFavorites([]);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsAuthenticated(true);
 
     const { data } = await supabase
       .from("favorites")
@@ -54,32 +46,40 @@ export default function FavoritesPage() {
       return;
     }
 
-    const mapped: FavoriteActivity[] = await Promise.all(
-      data.map(async (f: any) => {
-        const act = f.activities;
-        const { count } = await supabase
-          .from("registrations")
-          .select("*", { count: "exact", head: true })
-          .eq("activity_id", f.activity_id)
-          .in("status", ["pending", "approved"]);
+    const activityIds = data.map((f: any) => f.activity_id);
+    const { data: counts } = await supabase
+      .from("activity_registration_counts")
+      .select("activity_id, registered_count")
+      .in("activity_id", activityIds);
 
-        const registered_count = count ?? 0;
-        return {
-          ...act,
-          favorite_id: f.id,
-          registered_count,
-          spots_left: (act?.capacity ?? 0) - registered_count,
-        };
-      })
+    const countByActivityId = new Map<string, number>(
+      (counts ?? []).map((c) => [c.activity_id, c.registered_count])
     );
+
+    const mapped: FavoriteActivity[] = data.map((f: any) => {
+      const act = f.activities;
+      const registered_count = countByActivityId.get(f.activity_id) ?? 0;
+      return {
+        ...act,
+        favorite_id: f.id,
+        registered_count,
+        spots_left: (act?.capacity ?? 0) - registered_count,
+      };
+    });
 
     setFavorites(mapped);
     setIsLoading(false);
-  }, [supabase]);
+  }, [supabase, user]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setFavorites([]);
+      setIsLoading(false);
+      return;
+    }
     loadFavorites();
-  }, [loadFavorites]);
+  }, [loadFavorites, authLoading, user]);
 
   useEffect(() => {
     if (actionMsg) {
@@ -143,7 +143,7 @@ export default function FavoritesPage() {
                 progress_activity
               </span>
             </div>
-          ) : !isAuthenticated ? (
+          ) : !user ? (
             <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
               <span className="material-symbols-outlined text-5xl text-slate-300 block mb-3">
                 lock
