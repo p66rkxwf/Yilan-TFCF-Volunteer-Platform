@@ -7,7 +7,6 @@ import {
   getMyHoursSummary,
   type HoursSummary,
 } from "@/lib/actions/registrations";
-import { NotificationBell } from "@/components/notification-bell";
 
 const PRINT_STYLE = `
 @media print {
@@ -67,7 +66,6 @@ export default function CertificatePage() {
       <header className="no-print h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
         <h1 className="text-lg font-bold">服務證明</h1>
         <div className="flex items-center gap-3">
-          <NotificationBell className="lg:hidden" />
           <Link
             href="/profile/registrations"
             className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
@@ -132,7 +130,9 @@ export default function CertificatePage() {
                   <tr key={entry.registration_id}>
                     <td className="py-3 text-sm text-slate-800">{entry.activity_title}</td>
                     <td className="py-3 text-sm text-slate-500 whitespace-nowrap">
-                      {entry.activity_date || "—"}
+                      {entry.session_start_at
+                        ? new Date(entry.session_start_at).toLocaleDateString("zh-TW", { timeZone: "Asia/Taipei" })
+                        : "—"}
                     </td>
                     <td className="py-3 text-sm text-slate-800 text-right font-semibold whitespace-nowrap">
                       {entry.hours} 小時

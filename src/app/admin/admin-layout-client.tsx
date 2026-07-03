@@ -16,7 +16,7 @@ const NAV_ITEMS = [
 const ROLE_LABELS: Record<string, string> = {
   system_admin: "系統管理員",
   unit_admin: "單位管理員",
-  internal_staff: "內部人員",
+  staff: "一般職員",
 };
 
 export function AdminLayoutClient({

@@ -4,18 +4,21 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
-import { NotificationBell } from "@/components/notification-bell";
 import { useAuth } from "@/components/auth-provider";
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
+  dateStyle: "medium",
+  timeZone: "Asia/Taipei",
+});
 
 interface FavoriteActivity {
   id: string;
   title: string;
-  activity_date: string;
-  activity_time: string;
+  status: string;
+  start_at: string | null;
   location: string;
   capacity: number;
-  manager_name: string;
-  is_cancelled: boolean | null;
+  session_cancelled: boolean;
   favorite_id: string;
   registered_count: number;
   spots_left: number;
@@ -36,8 +39,8 @@ export default function FavoritesPage() {
 
     const { data } = await supabase
       .from("favorites")
-      .select("id, activity_id, activities(*)")
-      .eq("user_id", user.id)
+      .select("id, activity_id, activities(id, title, status, activity_sessions(*))")
+      .eq("volunteer_id", user.id)
       .order("created_at", { ascending: false });
 
     if (!data || data.length === 0) {
@@ -46,24 +49,34 @@ export default function FavoritesPage() {
       return;
     }
 
-    const activityIds = data.map((f: any) => f.activity_id);
-    const { data: counts } = await supabase
-      .from("activity_registration_counts")
-      .select("activity_id, registered_count")
-      .in("activity_id", activityIds);
+    const sessionIds = data
+      .map((f: any) => f.activities?.activity_sessions?.[0]?.id)
+      .filter(Boolean);
 
-    const countByActivityId = new Map<string, number>(
-      (counts ?? []).map((c) => [c.activity_id, c.registered_count])
-    );
+    const { data: slots } = sessionIds.length
+      ? await supabase.from("v_session_open_slots").select("*").in("activity_session_id", sessionIds)
+      : { data: [] as any[] };
+
+    const slotBySessionId = new Map<string, any>((slots ?? []).map((s: any) => [s.activity_session_id, s]));
 
     const mapped: FavoriteActivity[] = data.map((f: any) => {
       const act = f.activities;
-      const registered_count = countByActivityId.get(f.activity_id) ?? 0;
+      const session = act?.activity_sessions?.[0] ?? null;
+      const slot = session ? slotBySessionId.get(session.id) : undefined;
+      const capacity = session?.capacity ?? 0;
+      const openSlots = slot?.open_slots ?? capacity;
+
       return {
-        ...act,
+        id: act?.id ?? f.activity_id,
+        title: act?.title ?? "未知活動",
+        status: act?.status ?? "cancelled",
+        start_at: session?.start_at ?? null,
+        location: act?.location ?? "",
+        capacity,
+        session_cancelled: !!session?.cancelled_at,
         favorite_id: f.id,
-        registered_count,
-        spots_left: (act?.capacity ?? 0) - registered_count,
+        registered_count: capacity - openSlots,
+        spots_left: openSlots,
       };
     });
 
@@ -123,16 +136,13 @@ export default function FavoritesPage() {
     <>
       <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
         <h1 className="text-lg font-bold">收藏項目</h1>
-        <div className="flex items-center gap-2">
-          <NotificationBell className="lg:hidden" />
-          <Link
-            href="/volunteer"
-            className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/20 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">add</span>
-            瀏覽活動
-          </Link>
-        </div>
+        <Link
+          href="/volunteer"
+          className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/20 transition-colors"
+        >
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          瀏覽活動
+        </Link>
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
@@ -172,7 +182,7 @@ export default function FavoritesPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {favorites.map((fav) => {
-                const isCancelled = fav.is_cancelled === true;
+                const isCancelled = fav.status === "cancelled" || fav.session_cancelled;
 
                 return (
                   <div
@@ -199,7 +209,7 @@ export default function FavoritesPage() {
                     <div className="space-y-1.5 text-sm text-slate-500 mb-4 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                        {fav.activity_date}
+                        {fav.start_at ? DATE_FORMATTER.format(new Date(fav.start_at)) : "尚未公告"}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[14px]">location_on</span>

@@ -14,11 +14,23 @@ export default async function ProfileLayout({
 
   if (!user) redirect("/login?redirect=/profile");
 
-  const { data: profile } = await supabase
-    .from("profiles")
+  // V2 沒有單一 profiles 表：先查志工（此頁面主要使用者），
+  // 查不到再查職員（V1 允許任何已登入使用者查看 /profile）。
+  const { data: volunteer } = await supabase
+    .from("volunteer_profiles")
     .select("full_name, email")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
+
+  const profile =
+    volunteer ??
+    (
+      await supabase
+        .from("staff_profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .maybeSingle()
+    ).data;
 
   return (
     <ProfileLayoutClient

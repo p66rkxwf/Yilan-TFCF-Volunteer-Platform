@@ -1,78 +1,39 @@
-## Supabase SQL（手動執行順序）
+## Supabase SQL（V2，手動執行順序）
 
-本資料夾的 SQL 以「可重複執行（idempotent）」為目標，適合在 Supabase 的 SQL Editor 依序貼上執行。
-依下列順序執行即可從零建立完整 schema。
+本資料夾對應資料庫的 **V2** 版本（活動→場次→報名三層模型、職員/志工分表、交易性寫入一律走 RPC）。
+實際 SQL 原始檔維護於 repo 根目錄的 `files/`，本資料夾僅記錄部署順序。V1（舊版單一 `profiles`
+表、無場次層）已封存於 `supabase/legacy-v1/`，僅供歷史對照，不再部署。
 
-### 1) 核心資料表與 enum
+### 部署順序（Supabase SQL Editor 依序貼上執行）
 
-- 執行 `core-schema.sql`
-  - 建立 enum：`user_role`、`account_status`、`registration_status`、`staff_position`、`yilan_region`
-  - 建立 `public.profiles`、`public.activities`、`public.registrations` 與索引
-  - 建立 `handle_new_user` trigger：使用者透過 `auth.signUp()` 註冊時，自 metadata
-    （`account`、`full_name`、`birthday`、`region`、`assigned_worker_id`）自動建立 profile
-  - 建立 `profiles.updated_at` 自動更新 trigger
+0. `files/00_reset_v1.sql` — 清除 V1 遺留的資料表／函式／trigger／ENUM（**破壞性操作，僅測試環境使用**；若資料庫是全新專案、從未跑過 V1，可跳過此步）
+1. `files/01_schema.sql` — extensions、ENUM、13 張資料表、約束、索引
+2. `files/02_triggers.sql` — 稽核/通知 helper、鏡像同步、時數帶入、欄位白名單、狀態機
+3. `files/03_rls_policies.sql` — 角色 helper、全表 RLS policy、6 個安全視圖
+4. `files/04_rpc_functions.sql` — 15 支交易性 RPC＋級聯共用函式
+5. `files/05_scheduled_jobs.sql` — 5 支排程函式（pg_cron 註冊語句預設註解，見下）
+6. `files/06_frontend_support.sql` — 本次前端改寫新增的輕量視圖（`v_session_open_slots`，志工前台剩餘名額用）
 
-### 2) 核心 RLS
+### 部署後手動步驟
 
-- 執行 `core-rls.sql`
-  - 定義 `public.is_admin_profile(uuid)` 管理員判斷 helper
-  - `profiles`：本人讀/改、管理員全權
-  - `activities`：公開可讀、管理員可寫
-  - `registrations`：本人讀/報名/取消、管理員全權
-
-### 3) 收藏功能建表與索引
-
-- 執行 `schema.sql`
-  - 建立 `public.favorites`
-  - 建立必要的 extension / index / constraint
-
-### 4) 補充欄位與同步
-
-- 執行 `last-login.sql`
-  - 在 `public.profiles` 同步 `last_login_at`
-  - 將 `auth.users.last_sign_in_at` 回填並同步到 `public.profiles.last_login_at`
-  - 註：`last_login_at` 欄位已於 `core-schema.sql` 建立，本檔負責建立同步 trigger 與回填
-
-### 5) 收藏功能 RLS
-
-- 執行 `rls.sql`
-  - `favorites` 的 `select/insert/delete` RLS policy（僅限本人）
-  - `profiles` 的管理員政策（與 `core-rls.sql` 等價，重複執行為 no-op）
-
-### 6) 志工時數 / 簽到
-
-- 執行 `attendance.sql`
-  - 建立 `attendance_status` enum
-  - 在 `public.registrations` 新增 `attendance`、`checked_in_at`、`hours` 欄位與索引
-
-### 7) 站內通知
-
-- 執行 `notifications.sql`
-  - 建立 `public.notifications` 表與索引
-  - 套用 RLS：本人可讀取/標記已讀；寫入由 server action 以 service role 進行
-
-### 8) 活動報名數聚合 view（效能）
-
-- 執行 `registration-counts.sql`
-  - 建立 `public.activity_registration_counts` view，一次查詢即可取得所有活動的報名數
-  - 取代先前「每筆活動各發一個 count 請求」的 N+1 查詢模式
-  - 此 view 為 owner-rights（繞過 `registrations` 的 RLS），僅暴露聚合數字、無個資
-
-### 9) 安全性強化（角色/狀態/報名保護）
-
-- 執行 `security-hardening.sql`（需在上述 1-8 全部執行過後，最後執行）
-  - `profiles_guard_protected_columns` trigger：非管理員無法透過任何直接寫入把自己的
-    `role`、`status`、`assigned_worker_id` 改掉（修補一般志工自我提權為 `system_admin` 的漏洞）
-  - `registrations_guard_protected_columns` trigger：非管理員無法自行核准報名或竄改
-    `attendance`/`hours`/`checked_in_at`，僅保留「取消自己 pending/approved 的報名」這一種
-    自助操作
-  - `registrations_guard_capacity` trigger：新增報名時在 DB 端重新檢查活動容量與是否已取消，
-    作為 Server Action 檢查之外的兜底
-  - 三個 function 都會放行 `service_role`（server action 的 admin client）與
-    `is_admin_profile()` 判定為管理員的呼叫者，不影響既有管理功能
+1. **啟用 pg_cron**：Supabase Dashboard → Database → Extensions → 啟用 `pg_cron`，再回 SQL Editor
+   解除 `files/05_scheduled_jobs.sql` 區塊 G 的 `cron.schedule(...)` 註解並執行（至少需啟用
+   `advance-activity-status`，否則活動狀態不會自動從 open → closed → completed）
+2. **種第一位系統管理員**：先在 Dashboard → Authentication 建立一個 auth 使用者，取得其 `id`，
+   再於 SQL Editor 執行：
+   ```sql
+   insert into public.staff_profiles (id, full_name, email, username, phone, role, job_title)
+   values ('<auth-user-id>', '系統管理員', '<email>', '<username>', '<phone>',
+           'system_admin', 'social_worker');
+   ```
+   沒有這一步後台無法登入使用（無人有權限審核其他職員/志工帳號）。
+3. `system_settings`、`grade_reference_ages` 已由 `01_schema.sql` 種好預設值，不需額外動作。
+4. **寄信 worker 尚未建置**：本次僅接資料庫與前端，通知會正常寫入 `notification_outbox` 佇列，
+   但不會真的寄出，屬預期行為（見專案 plan 文件「明確不做」段落）。
 
 ### 常見注意事項
 
-- 以上 SQL 皆為 idempotent，可安全重複執行。
-- 若你的 Supabase 專案已有部分資料表，執行時會自動略過已存在的物件。
-- 若你在 Supabase 儀表板手動調整過欄位，請以 DB 實際 schema 為準，再回來同步調整 SQL。
+- `01`～`06` 使用純 `CREATE TABLE`/`CREATE TYPE`（非 idempotent），設計為在乾淨 schema 上執行一次；
+  若需要重跑，請先重新執行 `00_reset_v1.sql`（它是 idempotent，可安全重跑）或整個重建 Supabase 專案。
+- anon（未登入）對所有資料表全面封鎖，本系統無未登入功能。
+- 完整業務規格見 `files/志工管理平台_功能需求文件_v2.md`。

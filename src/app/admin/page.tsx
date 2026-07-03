@@ -10,7 +10,9 @@ const STATUS_STYLES: Record<string, { label: string; dot: string; text: string }
   pending: { label: "待審核", dot: "bg-amber-500", text: "text-amber-600" },
   approved: { label: "已通過", dot: "bg-emerald-500", text: "text-emerald-600" },
   rejected: { label: "未通過", dot: "bg-rose-500", text: "text-rose-600" },
+  cancel_pending: { label: "取消審核中", dot: "bg-amber-500", text: "text-amber-600" },
   cancelled: { label: "已取消", dot: "bg-slate-400", text: "text-slate-500" },
+  expired: { label: "已過期", dot: "bg-slate-400", text: "text-slate-500" },
 };
 
 export default async function AdminDashboardPage() {
@@ -18,22 +20,21 @@ export default async function AdminDashboardPage() {
 
   const [
     { count: totalRegistrations },
-    { count: activeActivities },
+    { count: openActivities },
     { count: volunteerCount },
+    { count: pendingReviewCount },
     { count: monthlyRegistrations },
     { data: recentRegistrations },
     { data: attendanceRows },
     { data: regionRows },
   ] = await Promise.all([
     supabase.from("registrations").select("*", { count: "exact", head: true }),
+    supabase.from("activities").select("*", { count: "exact", head: true }).eq("status", "open"),
+    supabase.from("volunteer_profiles").select("*", { count: "exact", head: true }),
     supabase
-      .from("activities")
+      .from("volunteer_profiles")
       .select("*", { count: "exact", head: true })
-      .or("is_cancelled.eq.false,is_cancelled.is.null"),
-    supabase
-      .from("profiles")
-      .select("*", { count: "exact", head: true })
-      .eq("role", "volunteer"),
+      .eq("status", "pending_review"),
     supabase
       .from("registrations")
       .select("*", { count: "exact", head: true })
@@ -43,25 +44,29 @@ export default async function AdminDashboardPage() {
       ),
     supabase
       .from("registrations")
-      .select("id, volunteer_id, status, created_at, activities(title), profiles:volunteer_id(full_name)")
+      .select(
+        "id, volunteer_id, status, created_at, activity_sessions(activities(title)), volunteer_profiles:volunteer_id(full_name)"
+      )
       .order("created_at", { ascending: false })
       .limit(8),
     supabase
       .from("registrations")
-      .select("attendance, hours")
+      .select("attendance, service_hours")
       .not("attendance", "is", null),
-    supabase.from("profiles").select("region").eq("role", "volunteer"),
+    supabase.from("volunteer_profiles").select("region"),
   ]);
 
   const markedRows = (attendanceRows ?? []) as {
     attendance: string | null;
-    hours: number | null;
+    service_hours: number | null;
   }[];
-  const presentRows = markedRows.filter((r) => r.attendance === "present");
-  const totalHours = presentRows.reduce((sum, r) => sum + Number(r.hours ?? 0), 0);
+  const attendedRows = markedRows.filter(
+    (r) => r.attendance === "attended" || r.attendance === "makeup_attended"
+  );
+  const totalHours = attendedRows.reduce((sum, r) => sum + Number(r.service_hours ?? 0), 0);
   const attendanceRate =
     markedRows.length > 0
-      ? Math.round((presentRows.length / markedRows.length) * 100)
+      ? Math.round((attendedRows.length / markedRows.length) * 100)
       : 0;
 
   const regionCounts = ((regionRows ?? []) as { region: string | null }[]).reduce(
@@ -86,9 +91,9 @@ export default async function AdminDashboardPage() {
       accent: "bg-primary/10 text-primary",
     },
     {
-      label: "進行中活動",
-      value: (activeActivities ?? 0).toLocaleString(),
-      description: "目前可開放報名或執行中",
+      label: "開放報名中活動",
+      value: (openActivities ?? 0).toLocaleString(),
+      description: "目前開放報名的活動數",
       icon: "event_available",
       accent: "bg-sky-100 text-sky-700",
     },
@@ -100,22 +105,22 @@ export default async function AdminDashboardPage() {
       accent: "bg-emerald-100 text-emerald-700",
     },
     {
+      label: "待審核志工",
+      value: (pendingReviewCount ?? 0).toLocaleString(),
+      description: "需審核才能開放報名",
+      icon: "pending_actions",
+      accent: (pendingReviewCount ?? 0) > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-600",
+    },
+    {
       label: "本月新報名",
       value: (monthlyRegistrations ?? 0).toLocaleString(),
       description: "本月新增的報名紀錄",
       icon: "trending_up",
-      accent: "bg-amber-100 text-amber-700",
-    },
-    {
-      label: "累計服務時數",
-      value: totalHours.toLocaleString(),
-      description: "已認列出席的服務時數合計",
-      icon: "timer",
       accent: "bg-violet-100 text-violet-700",
     },
     {
       label: "出席率",
-      value: `${attendanceRate}%`,
+      value: `${attendanceRate}%（累計 ${totalHours.toLocaleString()} 小時）`,
       description: "已標記出席紀錄中實際出席比例",
       icon: "how_to_reg",
       accent: "bg-teal-100 text-teal-700",
@@ -198,8 +203,8 @@ export default async function AdminDashboardPage() {
                   {recentRegistrations && recentRegistrations.length > 0 ? (
                     recentRegistrations.map((registration: any) => {
                       const status = STATUS_STYLES[registration.status] || STATUS_STYLES.pending;
-                      const volunteerName = registration.profiles?.full_name || "未知";
-                      const activityTitle = registration.activities?.title || "未知活動";
+                      const volunteerName = registration.volunteer_profiles?.full_name || "未知";
+                      const activityTitle = registration.activity_sessions?.activities?.title || "未知活動";
 
                       return (
                         <tr key={registration.id} className="transition-colors hover:bg-slate-50/60">
@@ -294,7 +299,7 @@ export default async function AdminDashboardPage() {
                 >
                   <div>
                     <p className="text-sm font-semibold text-slate-900">使用者管理</p>
-                    <p className="text-xs text-slate-500">搜尋帳號、調整角色與查看檔案。</p>
+                    <p className="text-xs text-slate-500">審核志工帳號、調整職員角色。</p>
                   </div>
                   <span className="material-symbols-outlined text-slate-400">arrow_forward</span>
                 </Link>

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updatePassword, updateEmail, deleteAccount } from "@/lib/actions/auth";
 import { setFlashToast, useToast } from "@/components/ui/toast";
-import { NotificationBell } from "@/components/notification-bell";
 
 function SettingsSection({
   icon,
@@ -111,8 +110,8 @@ export default function SettingsPage() {
     } else {
       setFlashToast({
         variant: "success",
-        title: "帳號已停用",
-        description: "您的帳號已停用並完成登出。",
+        title: "已登出",
+        description: "帳號本身尚未停用，如需完全停用請聯絡管理員辦理。",
       });
       router.push("/login");
       router.refresh();
@@ -126,7 +125,6 @@ export default function SettingsPage() {
     <>
       <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
         <h1 className="text-lg font-bold">帳號設定</h1>
-        <NotificationBell className="lg:hidden" />
       </header>
 
       <div className="flex-1 overflow-y-auto p-6 md:p-8">
@@ -226,14 +224,14 @@ export default function SettingsPage() {
           {/* Delete Account */}
           <SettingsSection
             icon="warning"
-            title="刪除帳號"
-            description="此操作會停用您的帳號，將無法再登入使用。"
+            title="停用帳號"
+            description="帳號的實際停用需由管理員辦理；此按鈕僅會將您登出。"
             danger
           >
             <div className="space-y-4">
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-700 font-medium mb-3">
-                  請在下方輸入「刪除我的帳號」確認此操作：
+                  如需完全停用帳號，請於登出後聯絡管理員辦理。請在下方輸入「刪除我的帳號」確認登出：
                 </p>
                 <input
                   type="text"
@@ -254,7 +252,7 @@ export default function SettingsPage() {
                       progress_activity
                     </span>
                   )}
-                  確認刪除帳號
+                  登出並聯絡管理員
                 </button>
               </div>
             </div>
