@@ -14,45 +14,57 @@ import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toastSupabaseError } from "@/lib/ui/toast-actions";
-import { batchCheckIn, markAttendance } from "@/lib/actions/registrations";
 import {
-  createNotification,
-  notifyActivityRegistrants,
-} from "@/lib/actions/notifications";
+  batchCheckIn,
+  markAttendance,
+  reviewRegistration,
+} from "@/lib/actions/registrations";
 import { toCsv, downloadCsv } from "@/utils/csv";
-import type { AttendanceStatus } from "@/lib/types/database";
-
-const REG_STATUS_LABEL: Record<string, string> = {
-  pending: "待審核",
-  approved: "已通過",
-  rejected: "未通過",
-  cancelled: "已取消",
-};
-
-const ATTENDANCE_LABEL: Record<string, string> = {
-  present: "出席",
-  absent: "請假",
-  no_show: "未到",
-};
+import type { ActivityStatus, AttendanceStatus } from "@/lib/types/database";
 import {
   AdminMetricCard,
   AdminPageHeader,
   AdminPanel,
 } from "@/components/shells/admin-page-shell";
 
+const REG_STATUS_LABEL: Record<string, string> = {
+  pending: "待審核",
+  approved: "已通過",
+  rejected: "未通過",
+  cancel_pending: "取消審核中",
+  cancelled: "已取消",
+  expired: "已過期",
+};
+
+const ATTENDANCE_LABEL: Record<string, string> = {
+  attended: "出席",
+  absent: "缺席",
+  makeup_attended: "補登出席",
+};
+
+const ACTIVITY_STATUS_LABEL: Record<ActivityStatus, { label: string; color: string }> = {
+  draft: { label: "草稿", color: "bg-slate-200 text-slate-600" },
+  open: { label: "開放報名", color: "bg-emerald-100 text-emerald-700" },
+  closed: { label: "已截止", color: "bg-amber-100 text-amber-700" },
+  completed: { label: "已結束", color: "bg-slate-200 text-slate-600" },
+  cancelled: { label: "已取消", color: "bg-rose-100 text-rose-700" },
+};
+
 interface ActivityRow {
   id: string;
   title: string;
-  content: string;
-  activity_date: string;
-  activity_time: string;
+  content: string | null;
   location: string;
-  capacity: number;
-  manager_name: string;
-  cancel_deadline: string;
-  is_cancelled: boolean | null;
+  status: ActivityStatus;
+  cancel_review_window_days: number;
   created_at: string;
+  session_id: string | null;
+  start_at: string | null;
+  end_at: string | null;
+  capacity: number;
+  session_cancelled: boolean;
   registered_count: number;
+  organizer_name: string;
 }
 
 interface RegistrationRow {
@@ -64,20 +76,37 @@ interface RegistrationRow {
   volunteer_email: string;
   attendance: AttendanceStatus | null;
   checked_in_at: string | null;
-  hours: number | null;
+  service_hours: number | null;
 }
 
 const REG_STATUS: Record<string, { label: string; dot: string; text: string }> = {
   pending: { label: "待審核", dot: "bg-amber-500", text: "text-amber-600" },
   approved: { label: "已通過", dot: "bg-emerald-500", text: "text-emerald-600" },
   rejected: { label: "未通過", dot: "bg-rose-500", text: "text-rose-600" },
+  cancel_pending: { label: "取消審核中", dot: "bg-amber-500", text: "text-amber-600" },
   cancelled: { label: "已取消", dot: "bg-slate-400", text: "text-slate-500" },
+  expired: { label: "已過期", dot: "bg-slate-400", text: "text-slate-500" },
 };
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   dateStyle: "medium",
   timeStyle: "short",
+  timeZone: "Asia/Taipei",
 });
+
+// V2 的 activities/activity_sessions 是一對多模型，本次「一活動一場次」
+// 簡化：建立活動時同時建立唯一一筆場次，前台/後台皆以此場次代表整個活動。
+function toTaipeiISOString(date: string, time: string) {
+  return new Date(`${date}T${time}:00+08:00`).toISOString();
+}
+
+function toTaipeiDateTimeParts(iso: string) {
+  const shifted = new Date(new Date(iso).getTime() + 8 * 60 * 60 * 1000);
+  return {
+    date: shifted.toISOString().slice(0, 10),
+    time: shifted.toISOString().slice(11, 16),
+  };
+}
 
 export default function AdminActivitiesPage() {
   const supabase = createClient();
@@ -95,9 +124,13 @@ export default function AdminActivitiesPage() {
   const loadActivities = useCallback(async () => {
     setIsLoading(true);
 
-    const [{ data, error }, { data: counts }] = await Promise.all([
-      supabase.from("activities").select("*").order("created_at", { ascending: false }),
-      supabase.from("activity_registration_counts").select("activity_id, registered_count"),
+    const [{ data, error }, { data: slots }, { data: organizers }] = await Promise.all([
+      supabase
+        .from("activities")
+        .select("*, activity_sessions(*)")
+        .order("created_at", { ascending: false }),
+      supabase.from("v_session_open_slots").select("*"),
+      supabase.from("activity_organizers").select("activity_id, staff_profiles(full_name)"),
     ]);
 
     if (error) {
@@ -107,17 +140,36 @@ export default function AdminActivitiesPage() {
       return;
     }
 
-    const countByActivityId = new Map<string, number>(
-      (counts ?? []).map((c) => [c.activity_id, c.registered_count])
+    const slotBySessionId = new Map<string, any>(
+      (slots ?? []).map((s: any) => [s.activity_session_id, s])
+    );
+    const organizerByActivityId = new Map<string, string>(
+      (organizers ?? []).map((o: any) => [o.activity_id, o.staff_profiles?.full_name ?? ""])
     );
 
-    const withCounts = (data || []).map(
-      (activity: any) =>
-        ({
-          ...activity,
-          registered_count: countByActivityId.get(activity.id) ?? 0,
-        }) as ActivityRow
-    );
+    const withCounts: ActivityRow[] = (data || []).map((activity: any) => {
+      const session = activity.activity_sessions?.[0] ?? null;
+      const slot = session ? slotBySessionId.get(session.id) : undefined;
+      const capacity = session?.capacity ?? 0;
+      const openSlots = slot?.open_slots ?? capacity;
+
+      return {
+        id: activity.id,
+        title: activity.title,
+        content: activity.content,
+        location: activity.location,
+        status: activity.status,
+        cancel_review_window_days: activity.cancel_review_window_days,
+        created_at: activity.created_at,
+        session_id: session?.id ?? null,
+        start_at: session?.start_at ?? null,
+        end_at: session?.end_at ?? null,
+        capacity,
+        session_cancelled: !!session?.cancelled_at,
+        registered_count: capacity - openSlots,
+        organizer_name: organizerByActivityId.get(activity.id) ?? "",
+      };
+    });
 
     setActivities(withCounts);
     setIsLoading(false);
@@ -131,28 +183,23 @@ export default function AdminActivitiesPage() {
     setConfirmCancelId(id);
   };
 
+  // V2 沒有「恢復活動」路徑：cancelled 為活動狀態機的終態
+  // （fn_activity_transition_guard 不允許離開 cancelled）。
   const confirmCancelActivity = async () => {
     if (!confirmCancelId) return;
     setIsCancelling(true);
-    const cancelledActivity = activities.find((a) => a.id === confirmCancelId);
-    const { error } = await supabase
-      .from("activities")
-      .update({ is_cancelled: true })
-      .eq("id", confirmCancelId);
+
+    // rpc_cancel_activity 內建級聯取消所有尚未開始場次的有效報名並逐筆
+    // 通知志工（寫入 notification_outbox），前端不需再自行處理通知。
+    const { error } = await supabase.rpc("rpc_cancel_activity", {
+      p_activity_id: confirmCancelId,
+    });
+
     if (error) {
       toastSupabaseError(toast, "取消失敗", error);
       setIsCancelling(false);
       return;
     }
-
-    await notifyActivityRegistrants(confirmCancelId, {
-      type: "activity_cancelled",
-      title: "活動已取消",
-      body: cancelledActivity
-        ? `您報名的「${cancelledActivity.title}」已被取消，造成不便敬請見諒。`
-        : "您報名的活動已被取消，造成不便敬請見諒。",
-      link: "/profile/registrations",
-    });
 
     toast.success("活動已取消");
     await loadActivities();
@@ -160,28 +207,13 @@ export default function AdminActivitiesPage() {
     setConfirmCancelId(null);
   };
 
-  const handleRestoreActivity = async (id: string) => {
-    const { error } = await supabase
-      .from("activities")
-      .update({ is_cancelled: false })
-      .eq("id", id);
-    if (error) {
-      toastSupabaseError(toast, "恢復失敗", error);
-      return;
-    }
-    toast.success("活動已恢復");
-    loadActivities();
-  };
-
   const filteredActivities = activities.filter((activity) => {
-    const isCancelled = activity.is_cancelled === true;
-    if (statusFilter === "active" && isCancelled) return false;
-    if (statusFilter === "cancelled" && !isCancelled) return false;
+    if (statusFilter !== "all" && activity.status !== statusFilter) return false;
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
       activity.title.toLowerCase().includes(query) ||
-      activity.manager_name.toLowerCase().includes(query) ||
+      activity.organizer_name.toLowerCase().includes(query) ||
       activity.location.toLowerCase().includes(query)
     );
   });
@@ -197,15 +229,15 @@ export default function AdminActivitiesPage() {
       accent: "bg-primary/10 text-primary",
     },
     {
-      label: "進行中活動",
-      value: activities.filter((activity) => activity.is_cancelled !== true).length.toLocaleString(),
+      label: "開放報名中",
+      value: activities.filter((activity) => activity.status === "open").length.toLocaleString(),
       description: "可持續管理與查看報名",
       icon: "event_available",
       accent: "bg-sky-100 text-sky-700",
     },
     {
       label: "已取消活動",
-      value: activities.filter((activity) => activity.is_cancelled === true).length.toLocaleString(),
+      value: activities.filter((activity) => activity.status === "cancelled").length.toLocaleString(),
       description: "目前已停止的活動",
       icon: "event_busy",
       accent: "bg-rose-100 text-rose-700",
@@ -235,7 +267,7 @@ export default function AdminActivitiesPage() {
               </span>
               <input
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/10"
-                placeholder="搜尋活動名稱、負責人、地點..."
+                placeholder="搜尋活動名稱、主辦人、地點..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -272,7 +304,9 @@ export default function AdminActivitiesPage() {
                 onValueChange={setStatusFilter}
                 options={[
                   { value: "all", label: "全部" },
-                  { value: "active", label: "進行中" },
+                  { value: "open", label: "開放報名" },
+                  { value: "closed", label: "已截止" },
+                  { value: "completed", label: "已結束" },
                   { value: "cancelled", label: "已取消" },
                 ]}
               />
@@ -308,7 +342,7 @@ export default function AdminActivitiesPage() {
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50">
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">活動</th>
-                    <th className="whitespace-nowrap px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">負責人</th>
+                    <th className="whitespace-nowrap px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">主辦人</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">時間與地點</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">報名進度</th>
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">狀態</th>
@@ -322,8 +356,8 @@ export default function AdminActivitiesPage() {
                         activity.capacity > 0
                           ? Math.round((activity.registered_count / activity.capacity) * 100)
                           : 0;
-                      const isCancelled = activity.is_cancelled === true;
                       const isFull = activity.capacity > 0 && activity.registered_count >= activity.capacity;
+                      const statusInfo = ACTIVITY_STATUS_LABEL[activity.status];
 
                       return (
                         <tr key={activity.id} className="transition-colors hover:bg-slate-50/60">
@@ -334,12 +368,14 @@ export default function AdminActivitiesPage() {
                             </div>
                           </td>
                           <td className="whitespace-nowrap px-6 py-4">
-                            <p className="text-sm font-medium text-slate-700">{activity.manager_name}</p>
+                            <p className="text-sm font-medium text-slate-700">{activity.organizer_name || "—"}</p>
                           </td>
                           <td className="px-6 py-4">
                             <div className="min-w-52">
                               <p className="text-sm font-medium text-slate-700">
-                                {activity.activity_date} {activity.activity_time}
+                                {activity.start_at
+                                  ? DATE_TIME_FORMATTER.format(new Date(activity.start_at))
+                                  : "尚未設定場次"}
                               </p>
                               <p className="mt-1 text-xs text-slate-400">{activity.location}</p>
                             </div>
@@ -363,15 +399,9 @@ export default function AdminActivitiesPage() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {isCancelled ? (
-                              <span className="inline-flex whitespace-nowrap rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-semibold text-rose-700">
-                                已取消
-                              </span>
-                            ) : (
-                              <span className="inline-flex whitespace-nowrap rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-                                進行中
-                              </span>
-                            )}
+                            <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusInfo.color}`}>
+                              {statusInfo.label}
+                            </span>
                           </td>
                           <td className="px-6 py-4 text-right">
                             <button
@@ -444,17 +474,13 @@ export default function AdminActivitiesPage() {
             setViewingRegistrations(null);
             handleCancelActivity(activity.id);
           }}
-          onRestore={(activity) => {
-            setViewingRegistrations(null);
-            handleRestoreActivity(activity.id);
-          }}
         />
       ) : null}
 
       <ConfirmDialog
         open={!!confirmCancelId}
         title="確定要取消此活動嗎？"
-        description="取消後，志工將無法再報名此活動（既有資料仍會保留）。"
+        description="取消後無法恢復；尚未開始場次的有效報名將自動取消並通知志工，已結束/進行中場次的出席紀錄會保留。"
         confirmText="取消活動"
         cancelText="返回"
         isConfirmDanger
@@ -482,15 +508,23 @@ function ActivityFormModal({
   const toast = useToast();
   const isEditing = Boolean(activity);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const existingParts = activity?.start_at
+    ? toTaipeiDateTimeParts(activity.start_at)
+    : { date: "", time: "" };
+  const existingEndParts = activity?.end_at
+    ? toTaipeiDateTimeParts(activity.end_at)
+    : { date: "", time: "" };
+
   const [form, setForm] = useState({
     title: activity?.title || "",
     content: activity?.content || "",
-    activity_date: activity?.activity_date || "",
-    activity_time: activity?.activity_time || "",
     location: activity?.location || "",
+    activity_date: existingParts.date,
+    start_time: existingParts.time,
+    end_time: existingEndParts.time,
     capacity: activity?.capacity?.toString() || "",
-    manager_name: activity?.manager_name || "",
-    cancel_deadline: activity?.cancel_deadline || "",
+    cancel_review_window_days: activity?.cancel_review_window_days?.toString() ?? "0",
   });
 
   const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -501,69 +535,83 @@ function ActivityFormModal({
     event.preventDefault();
     setIsSubmitting(true);
 
-    const payload = {
-      title: form.title,
-      content: form.content,
-      activity_date: form.activity_date,
-      activity_time: form.activity_time,
-      location: form.location,
-      capacity: parseInt(form.capacity, 10),
-      manager_name: form.manager_name,
-      cancel_deadline: form.cancel_deadline,
-    };
-
-    if (!payload.title.trim()) {
+    if (!form.title.trim()) {
       toast.error("請輸入活動名稱。");
       setIsSubmitting(false);
       return;
     }
-    if (!payload.content.trim()) {
+    if (!form.content.trim()) {
       toast.error("請輸入活動內容。");
       setIsSubmitting(false);
       return;
     }
-    if (!payload.activity_date) {
-      toast.error("請選擇活動日期。");
-      setIsSubmitting(false);
-      return;
-    }
-    if (!payload.activity_time) {
-      toast.error("請選擇活動時間。");
-      setIsSubmitting(false);
-      return;
-    }
-    if (!payload.location.trim()) {
+    if (!form.location.trim()) {
       toast.error("請輸入活動地點。");
       setIsSubmitting(false);
       return;
     }
-    if (!Number.isFinite(payload.capacity) || payload.capacity <= 0) {
-      toast.error("人數上限需為大於 0 的數字。");
-      setIsSubmitting(false);
-      return;
-    }
-    if (!payload.manager_name.trim()) {
-      toast.error("請輸入負責人。");
-      setIsSubmitting(false);
-      return;
-    }
-    if (!payload.cancel_deadline) {
-      toast.error("請選擇最晚取消日。");
-      setIsSubmitting(false);
-      return;
-    }
-    if (payload.cancel_deadline > payload.activity_date) {
-      toast.error("最晚取消日不可晚於活動日期。");
+    if (!form.activity_date || !form.start_time || !form.end_time) {
+      toast.error("請完整選擇活動日期與起訖時間。");
       setIsSubmitting(false);
       return;
     }
 
-    if (isEditing) {
-      const { error } = await supabase.from("activities").update(payload).eq("id", activity.id);
-      if (error) {
-        toast.error(`更新失敗：${error.message}`);
+    const capacity = parseInt(form.capacity, 10);
+    if (!Number.isFinite(capacity) || capacity <= 0) {
+      toast.error("人數上限需為大於 0 的數字。");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const cancelReviewWindowDays = parseInt(form.cancel_review_window_days, 10);
+    if (!Number.isFinite(cancelReviewWindowDays) || cancelReviewWindowDays < 0) {
+      toast.error("取消審核天數門檻需為 0 以上的數字。");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const startAt = toTaipeiISOString(form.activity_date, form.start_time);
+    const endAt = toTaipeiISOString(form.activity_date, form.end_time);
+
+    if (endAt <= startAt) {
+      toast.error("結束時間需晚於開始時間。");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (isEditing && activity) {
+      const { error: activityError } = await supabase
+        .from("activities")
+        .update({
+          title: form.title,
+          content: form.content,
+          location: form.location,
+          cancel_review_window_days: cancelReviewWindowDays,
+        })
+        .eq("id", activity.id);
+
+      if (activityError) {
+        toast.error(`更新失敗：${activityError.message}`);
         setIsSubmitting(false);
         return;
+      }
+
+      if (activity.session_id) {
+        const { error: sessionError } = await supabase
+          .from("activity_sessions")
+          .update({
+            start_at: startAt,
+            end_at: endAt,
+            capacity,
+            registration_deadline_at: startAt,
+          })
+          .eq("id", activity.session_id);
+
+        if (sessionError) {
+          toast.error(`場次更新失敗：${sessionError.message}`);
+          setIsSubmitting(false);
+          return;
+        }
       }
     } else {
       const {
@@ -576,14 +624,52 @@ function ActivityFormModal({
         return;
       }
 
-      const { error } = await supabase.from("activities").insert({
-        ...payload,
-        publisher_id: user.id,
-        is_cancelled: false,
+      const { data: newActivity, error: activityError } = await supabase
+        .from("activities")
+        .insert({
+          created_by: user.id,
+          title: form.title,
+          content: form.content,
+          activity_type: "general",
+          location: form.location,
+          cancel_review_window_days: cancelReviewWindowDays,
+        })
+        .select("id")
+        .single();
+
+      if (activityError || !newActivity) {
+        toast.error(`建立失敗：${activityError?.message ?? "未知錯誤"}`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const { error: sessionError } = await supabase.from("activity_sessions").insert({
+        activity_id: newActivity.id,
+        start_at: startAt,
+        end_at: endAt,
+        capacity,
+        registration_deadline_at: startAt,
       });
 
-      if (error) {
-        toast.error(`建立失敗：${error.message}`);
+      if (sessionError) {
+        toast.error(`場次建立失敗：${sessionError.message}（活動已建立為草稿，請編輯後重試）`);
+        setIsSubmitting(false);
+        return;
+      }
+
+      await supabase.from("activity_organizers").insert({
+        activity_id: newActivity.id,
+        staff_id: user.id,
+      });
+
+      // 已有一個有效場次，可從草稿轉為開放報名
+      const { error: openError } = await supabase
+        .from("activities")
+        .update({ status: "open" })
+        .eq("id", newActivity.id);
+
+      if (openError) {
+        toast.error(`活動已建立，但開放報名失敗：${openError.message}`);
         setIsSubmitting(false);
         return;
       }
@@ -628,7 +714,7 @@ function ActivityFormModal({
                 className="w-full resize-none rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </Field>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <Field label="活動日期">
                 <input
                   name="activity_date"
@@ -638,11 +724,20 @@ function ActivityFormModal({
                   className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
               </Field>
-              <Field label="活動時間">
+              <Field label="開始時間">
                 <input
-                  name="activity_time"
+                  name="start_time"
                   type="time"
-                  value={form.activity_time}
+                  value={form.start_time}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+              </Field>
+              <Field label="結束時間">
+                <input
+                  name="end_time"
+                  type="time"
+                  value={form.end_time}
                   onChange={handleChange}
                   className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
                 />
@@ -668,25 +763,19 @@ function ActivityFormModal({
                 />
               </Field>
             </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="負責人">
-                <input
-                  name="manager_name"
-                  value={form.manager_name}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-              </Field>
-              <Field label="最晚取消日">
-                <input
-                  name="cancel_deadline"
-                  type="date"
-                  value={form.cancel_deadline}
-                  onChange={handleChange}
-                  className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
-                />
-              </Field>
-            </div>
+            <Field label="取消審核天數門檻">
+              <input
+                name="cancel_review_window_days"
+                type="number"
+                min="0"
+                value={form.cancel_review_window_days}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-slate-200 px-4 py-2 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              <p className="text-xs text-slate-400">
+                活動開始前幾天內申請取消需經審核；0 = 任何時候取消都需審核。
+              </p>
+            </Field>
 
             <div className="flex justify-end gap-3 pt-4">
               <button
@@ -719,13 +808,11 @@ function RegistrationsModal({
   onClose,
   onEdit,
   onCancel,
-  onRestore,
 }: {
   activity: ActivityRow;
   onClose: () => void;
   onEdit: (activity: ActivityRow) => void;
   onCancel: (activity: ActivityRow) => void;
-  onRestore: (activity: ActivityRow) => void;
 }) {
   const supabase = createClient();
   const toast = useToast();
@@ -736,11 +823,19 @@ function RegistrationsModal({
   const [isBatchSaving, setIsBatchSaving] = useState(false);
 
   const loadRegistrations = useCallback(async () => {
+    if (!activity.session_id) {
+      setRegistrations([]);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const { data } = await supabase
       .from("registrations")
-      .select("id, volunteer_id, status, created_at, attendance, checked_in_at, hours, profiles:volunteer_id(full_name, email)")
-      .eq("activity_id", activity.id)
+      .select(
+        "id, volunteer_id, status, created_at, attendance, checked_in_at, service_hours, volunteer_profiles:volunteer_id(full_name, email)"
+      )
+      .eq("activity_session_id", activity.session_id)
       .order("created_at", { ascending: sortOrder === "oldest" });
 
     setRegistrations(
@@ -749,83 +844,40 @@ function RegistrationsModal({
         volunteer_id: registration.volunteer_id,
         status: registration.status,
         created_at: registration.created_at,
-        volunteer_name: registration.profiles?.full_name || "未知",
-        volunteer_email: registration.profiles?.email || "",
+        volunteer_name: registration.volunteer_profiles?.full_name || "未知",
+        volunteer_email: registration.volunteer_profiles?.email || "",
         attendance: registration.attendance ?? null,
         checked_in_at: registration.checked_in_at ?? null,
-        hours: registration.hours == null ? null : Number(registration.hours),
+        service_hours: registration.service_hours == null ? null : Number(registration.service_hours),
       }))
     );
     setIsLoading(false);
-  }, [activity.id, sortOrder, supabase]);
+  }, [activity.session_id, sortOrder, supabase]);
 
   useEffect(() => {
     loadRegistrations();
   }, [loadRegistrations]);
 
-  const updateStatus = async (registration: RegistrationRow, newStatus: string) => {
-    const isOccupyingBefore = ["pending", "approved"].includes(registration.status);
-    const isOccupyingAfter = ["pending", "approved"].includes(newStatus);
-
-    if (activity.is_cancelled && newStatus === "approved") {
-      toast.error("活動已取消，無法通過報名。");
+  // 待審核 → 通過／拒絕。V2 的名額為「待審核即佔額」，approve 不會消耗
+  // 新名額（pending 時已計入），故不需前端重新檢查容量。已審核過的報名
+  // 是終態，不提供「改判」——這是 V2 狀態機的刻意設計（見規格書 6.2）。
+  const updateStatus = async (registration: RegistrationRow, approve: boolean) => {
+    const result = await reviewRegistration(registration.id, approve);
+    if (result.error) {
+      toast.error(result.error);
       return;
     }
 
-    if (!isOccupyingBefore && isOccupyingAfter) {
-      const { count, error: countError } = await supabase
-        .from("registrations")
-        .select("*", { count: "exact", head: true })
-        .eq("activity_id", activity.id)
-        .in("status", ["pending", "approved"]);
-
-      if (countError) {
-        toastSupabaseError(toast, "檢查名額失敗", countError);
-        return;
-      }
-
-      if ((count ?? 0) >= activity.capacity) {
-        toast.error("此活動名額已滿，無法再通過報名。");
-        return;
-      }
-    }
-
-    const label = newStatus === "approved" ? "通過" : "拒絕";
-    const { error } = await supabase
-      .from("registrations")
-      .update({ status: newStatus })
-      .eq("id", registration.id);
-
-    if (error) {
-      toastSupabaseError(toast, "操作失敗", error);
-      return;
-    }
-
-    toast.success(`已${label}「${registration.volunteer_name}」的報名`);
-
-    if (newStatus === "approved" || newStatus === "rejected") {
-      const approved = newStatus === "approved";
-      await createNotification({
-        user_id: registration.volunteer_id,
-        type: approved ? "registration_approved" : "registration_rejected",
-        title: approved ? "報名已通過" : "報名未通過",
-        body: approved
-          ? `您報名的「${activity.title}」已通過審核。`
-          : `很抱歉，您報名的「${activity.title}」未通過審核。`,
-        link: "/profile/registrations",
-      });
-    }
-
+    toast.success(`已${approve ? "通過" : "拒絕"}「${registration.volunteer_name}」的報名`);
     loadRegistrations();
   };
 
   const handleMarkAttendance = async (
     registration: RegistrationRow,
-    attendance: AttendanceStatus | null,
-    hours: number | null
+    attendance: "attended" | "absent"
   ) => {
     setSavingId(registration.id);
-    const result = await markAttendance(registration.id, attendance, hours);
+    const result = await markAttendance(registration.id, attendance);
     setSavingId(null);
 
     if (result.error) {
@@ -846,7 +898,7 @@ function RegistrationsModal({
     }
 
     setIsBatchSaving(true);
-    const result = await batchCheckIn(activity.id, approvedIds);
+    const result = await batchCheckIn(approvedIds);
     setIsBatchSaving(false);
 
     if (result.error) {
@@ -859,7 +911,8 @@ function RegistrationsModal({
 
   const approvedCount = registrations.filter((r) => r.status === "approved").length;
   const totalHours = registrations.reduce(
-    (sum, r) => sum + (r.attendance === "present" ? Number(r.hours ?? 0) : 0),
+    (sum, r) =>
+      sum + (r.attendance === "attended" || r.attendance === "makeup_attended" ? Number(r.service_hours ?? 0) : 0),
     0
   );
 
@@ -877,11 +930,14 @@ function RegistrationsModal({
       r.volunteer_email,
       REG_STATUS_LABEL[r.status] ?? r.status,
       r.attendance ? ATTENDANCE_LABEL[r.attendance] ?? r.attendance : "",
-      r.attendance === "present" && r.hours != null ? r.hours : "",
+      r.attendance === "attended" || r.attendance === "makeup_attended"
+        ? (r.service_hours ?? "")
+        : "",
       new Date(r.created_at).toLocaleString("zh-TW"),
     ]);
     const safeTitle = activity.title.replace(/[\\/:*?"<>|]/g, "_");
-    downloadCsv(`報名名單_${safeTitle}_${activity.activity_date}`, toCsv(headers, rows));
+    const dateLabel = activity.start_at ? activity.start_at.slice(0, 10) : "";
+    downloadCsv(`報名名單_${safeTitle}_${dateLabel}`, toCsv(headers, rows));
   };
 
   const statusCounts = registrations.reduce(
@@ -905,17 +961,15 @@ function RegistrationsModal({
               <div className="flex items-center gap-2">
                 <h3 className="truncate text-lg font-bold">{activity.title}</h3>
                 <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                    activity.is_cancelled
-                      ? "bg-rose-100 text-rose-700"
-                      : "bg-emerald-100 text-emerald-700"
-                  }`}
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${ACTIVITY_STATUS_LABEL[activity.status].color}`}
                 >
-                  {activity.is_cancelled ? "已取消" : "進行中"}
+                  {ACTIVITY_STATUS_LABEL[activity.status].label}
                 </span>
               </div>
               <p className="mt-0.5 text-sm text-slate-500">
-                {activity.activity_date} · {activity.location} · 上限 {activity.capacity} 人
+                {activity.start_at ? DATE_TIME_FORMATTER.format(new Date(activity.start_at)) : "尚未設定場次"}
+                {" · "}
+                {activity.location} · 上限 {activity.capacity} 人
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -926,15 +980,7 @@ function RegistrationsModal({
                 <span className="material-symbols-outlined text-[18px]">edit</span>
                 <span className="hidden sm:inline">編輯</span>
               </button>
-              {activity.is_cancelled ? (
-                <button
-                  onClick={() => onRestore(activity)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-3 py-1.5 text-sm font-semibold text-emerald-600 transition-colors hover:bg-emerald-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">undo</span>
-                  <span className="hidden sm:inline">恢復活動</span>
-                </button>
-              ) : (
+              {activity.status !== "cancelled" ? (
                 <button
                   onClick={() => onCancel(activity)}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50"
@@ -942,7 +988,7 @@ function RegistrationsModal({
                   <span className="material-symbols-outlined text-[18px]">cancel</span>
                   <span className="hidden sm:inline">取消活動</span>
                 </button>
-              )}
+              ) : null}
               <button
                 onClick={onClose}
                 className="rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200"
@@ -1054,38 +1100,23 @@ function RegistrationsModal({
                         {isPending ? (
                           <>
                             <button
-                              onClick={() => updateStatus(registration, "approved")}
+                              onClick={() => updateStatus(registration, true)}
                               className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
                             >
                               通過
                             </button>
                             <button
-                              onClick={() => updateStatus(registration, "rejected")}
+                              onClick={() => updateStatus(registration, false)}
                               className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100"
                             >
                               拒絕
                             </button>
                           </>
-                        ) : registration.status === "approved" ? (
-                          <button
-                            onClick={() => updateStatus(registration, "rejected")}
-                            className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100"
-                          >
-                            改為拒絕
-                          </button>
-                        ) : registration.status === "rejected" ? (
-                          <button
-                            onClick={() => updateStatus(registration, "approved")}
-                            className="rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
-                          >
-                            改為通過
-                          </button>
                         ) : null}
                       </div>
                     </div>
                     {registration.status === "approved" ? (
                       <AttendanceControls
-                        key={`${registration.id}-${registration.attendance ?? "none"}-${registration.hours ?? "x"}`}
                         registration={registration}
                         isSaving={savingId === registration.id}
                         onMark={handleMarkAttendance}
@@ -1104,13 +1135,12 @@ function RegistrationsModal({
 }
 
 const ATTENDANCE_OPTIONS: {
-  value: AttendanceStatus;
+  value: "attended" | "absent";
   label: string;
   active: string;
 }[] = [
-  { value: "present", label: "出席", active: "bg-emerald-600 text-white" },
-  { value: "absent", label: "請假", active: "bg-amber-500 text-white" },
-  { value: "no_show", label: "未到", active: "bg-rose-500 text-white" },
+  { value: "attended", label: "出席", active: "bg-emerald-600 text-white" },
+  { value: "absent", label: "缺席", active: "bg-rose-500 text-white" },
 ];
 
 function AttendanceControls({
@@ -1120,31 +1150,8 @@ function AttendanceControls({
 }: {
   registration: RegistrationRow;
   isSaving: boolean;
-  onMark: (
-    registration: RegistrationRow,
-    attendance: AttendanceStatus | null,
-    hours: number | null
-  ) => void;
+  onMark: (registration: RegistrationRow, attendance: "attended" | "absent") => void;
 }) {
-  const [hoursInput, setHoursInput] = useState(
-    registration.hours == null ? "" : String(registration.hours)
-  );
-
-  const handleSelect = (value: AttendanceStatus) => {
-    if (registration.attendance === value) {
-      onMark(registration, null, null);
-      return;
-    }
-    const parsed = value === "present" ? Number(hoursInput) : null;
-    onMark(registration, value, parsed != null && !Number.isNaN(parsed) ? parsed : null);
-  };
-
-  const handleSaveHours = () => {
-    const parsed = hoursInput === "" ? null : Number(hoursInput);
-    if (parsed != null && (Number.isNaN(parsed) || parsed < 0)) return;
-    onMark(registration, "present", parsed);
-  };
-
   return (
     <div className="scroll-x flex items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-2.5">
       <span className="text-xs font-semibold text-slate-500">出席</span>
@@ -1153,7 +1160,7 @@ function AttendanceControls({
         return (
           <button
             key={option.value}
-            onClick={() => handleSelect(option.value)}
+            onClick={() => onMark(registration, option.value)}
             disabled={isSaving}
             className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60 ${
               isActive
@@ -1166,26 +1173,10 @@ function AttendanceControls({
         );
       })}
 
-      {registration.attendance === "present" ? (
-        <div className="ml-1 flex items-center gap-1.5">
-          <span className="text-xs font-semibold text-slate-500">時數</span>
-          <input
-            type="number"
-            min="0"
-            step="0.5"
-            value={hoursInput}
-            onChange={(e) => setHoursInput(e.target.value)}
-            className="w-20 rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            placeholder="0"
-          />
-          <button
-            onClick={handleSaveHours}
-            disabled={isSaving}
-            className="rounded-lg bg-primary px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
-          >
-            {isSaving ? "..." : "存"}
-          </button>
-        </div>
+      {registration.attendance === "attended" && registration.service_hours != null ? (
+        <span className="text-xs font-semibold text-primary">
+          服務時數 {registration.service_hours} 小時（依場次時長自動帶入）
+        </span>
       ) : null}
 
       {registration.checked_in_at ? (

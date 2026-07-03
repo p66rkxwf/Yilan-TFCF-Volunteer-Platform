@@ -2,13 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { getUnreadCount } from "@/lib/actions/notifications";
 
 const SIDEBAR_ITEMS = [
   { icon: "person", label: "個人資料", href: "/profile" },
   { icon: "description", label: "我的報名", href: "/profile/registrations" },
-  { icon: "notifications", label: "通知", href: "/profile/notifications" },
   { icon: "bookmark", label: "收藏項目", href: "/profile/favorites" },
   { icon: "settings", label: "帳號設定", href: "/profile/settings" },
 ];
@@ -26,17 +23,6 @@ export function ProfileLayoutClient({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    getUnreadCount().then((count) => {
-      if (active) setUnreadCount(count);
-    });
-    return () => {
-      active = false;
-    };
-  }, [pathname]);
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -68,15 +54,6 @@ export function ProfileLayoutClient({
                   {item.icon}
                 </span>
                 <span className="flex-1">{item.label}</span>
-                {item.href === "/profile/notifications" && unreadCount > 0 ? (
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                      isActive ? "bg-white text-primary" : "bg-primary text-white"
-                    }`}
-                  >
-                    {unreadCount}
-                  </span>
-                ) : null}
               </Link>
             );
           })}
@@ -100,11 +77,9 @@ export function ProfileLayoutClient({
         </div>
       </aside>
 
-      {/* Mobile nav (通知 lives in each page header on mobile) */}
+      {/* Mobile nav */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 px-2 py-1.5 flex justify-around">
-        {SIDEBAR_ITEMS.filter(
-          (item) => item.href !== "/profile/notifications"
-        ).map((item) => {
+        {SIDEBAR_ITEMS.map((item) => {
           const isActive =
             item.href === "/profile"
               ? pathname === "/profile"

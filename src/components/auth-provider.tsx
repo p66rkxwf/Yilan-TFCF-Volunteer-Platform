@@ -3,9 +3,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import type { UserRole } from "@/lib/types/database";
-
-const ADMIN_ROLES: UserRole[] = ["system_admin", "unit_admin", "internal_staff"];
 
 interface AuthContextValue {
   user: User | null;
@@ -53,14 +50,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (nextUser.id === lastRoleCheckedUserId) return;
       lastRoleCheckedUserId = nextUser.id;
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
+      // V2 沒有單一 role 欄位：職員/志工分成兩張互斥的表，
+      // 只要在 staff_profiles 裡且在職，就視為後台使用者。
+      const { data: staff } = await supabase
+        .from("staff_profiles")
+        .select("status")
         .eq("id", nextUser.id)
-        .single();
+        .maybeSingle();
 
       if (!active) return;
-      setIsAdmin(!!profile && ADMIN_ROLES.includes(profile.role as UserRole));
+      setIsAdmin(!!staff && staff.status === "active");
     };
 
     // onAuthStateChange 訂閱時會立即用目前的 session 觸發一次
