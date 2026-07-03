@@ -16,8 +16,9 @@
 *.log
 npm-debug.log*
 
-# env files
-.env.local
+# env files (never commit real secrets; opt-in a non-secret template via .env.example)
+.env*
+!.env.example
 
 .dev.vars
 
