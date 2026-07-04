@@ -149,7 +149,7 @@ export function SupportContent() {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center justify-center rounded-full bg-primary px-7 py-3 text-sm font-bold text-white transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full bg-primary px-7 py-3 text-sm font-bold text-white transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSubmitting ? "送出中..." : "送出支援需求"}
           </button>

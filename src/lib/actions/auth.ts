@@ -197,18 +197,3 @@ export async function updateEmail(newEmail: string): Promise<AuthResult> {
   return { success: true };
 }
 
-// V2 沒有志工自助停用/刪除帳號的路徑：帳號狀態變更一律由管理員
-// 經 rpc_update_volunteer_status 執行（需 unit_admin 以上權限），
-// 且該 RPC 不接受志工本人呼叫。這裡只登出，實際停用需請使用者
-// 聯絡管理員辦理（呼叫端文案已同步調整，見 settings/page.tsx）。
-export async function deleteAccount(): Promise<AuthResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return { error: "尚未登入。" };
-
-  await supabase.auth.signOut();
-  return { success: true };
-}

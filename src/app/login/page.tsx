@@ -44,7 +44,6 @@ function LoginForm() {
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -182,22 +181,6 @@ function LoginForm() {
             {errors.password && (
               <p className="text-red-500 text-xs mt-1">{errors.password}</p>
             )}
-          </div>
-
-          <div className="flex items-center gap-3 py-1">
-            <input
-              className="h-5 w-5 rounded border-slate-300 bg-transparent text-primary focus:ring-0 focus:ring-offset-0 transition-colors"
-              id="remember"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-            />
-            <label
-              className="text-slate-600 text-sm select-none"
-              htmlFor="remember"
-            >
-              記住我 30 天
-            </label>
           </div>
 
           <button

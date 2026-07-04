@@ -294,15 +294,13 @@ export default function RegisterPage() {
                   menuClassName="bg-background-light"
                   name="grade"
                   value={formData.grade}
+                  placeholder="請選擇學制階段"
                   ariaLabel="學制階段"
                   onValueChange={(value) => handleSelectChange("grade", value)}
-                  options={[
-                    { value: "", label: "請選擇學制階段" },
-                    ...GRADE_LEVELS.map((grade) => ({
-                      value: grade,
-                      label: GRADE_LEVEL_LABELS[grade],
-                    })),
-                  ]}
+                  options={GRADE_LEVELS.map((grade) => ({
+                    value: grade,
+                    label: GRADE_LEVEL_LABELS[grade],
+                  }))}
                 />
               </div>
               <FieldError field="grade" />
@@ -325,12 +323,10 @@ export default function RegisterPage() {
                 menuClassName="bg-background-light"
                 name="region"
                 value={formData.region}
+                placeholder="請選擇區域"
                 ariaLabel="區域"
                 onValueChange={(value) => handleSelectChange("region", value)}
-                options={[
-                  { value: "", label: "請選擇區域" },
-                  ...REGIONS.map((region) => ({ value: region, label: region })),
-                ]}
+                options={REGIONS.map((region) => ({ value: region, label: region }))}
               />
             </div>
           </div>

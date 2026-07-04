@@ -84,6 +84,7 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Asia/Taipei",
+  hourCycle: "h23",
 });
 
 export default function AdminUsersPage() {
@@ -95,6 +96,7 @@ export default function AdminUsersPage() {
   const [tab, setTab] = useState<"volunteer" | "staff">("volunteer");
   const [volunteers, setVolunteers] = useState<VolunteerRow[]>([]);
   const [staffList, setStaffList] = useState<StaffRow[]>([]);
+  const [pendingDeactivationIds, setPendingDeactivationIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [volunteerStatusFilter, setVolunteerStatusFilter] = useState("all");
@@ -110,11 +112,15 @@ export default function AdminUsersPage() {
 
   const loadUsers = useCallback(async () => {
     setIsLoading(true);
-    const [{ data: volunteerData, error: volunteerError }, { data: staffData, error: staffError }] =
-      await Promise.all([
-        supabase.from("volunteer_profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("staff_profiles").select("*").order("created_at", { ascending: false }),
-      ]);
+    const [
+      { data: volunteerData, error: volunteerError },
+      { data: staffData, error: staffError },
+      { data: pendingDeactivations },
+    ] = await Promise.all([
+      supabase.from("volunteer_profiles").select("*").order("created_at", { ascending: false }),
+      supabase.from("staff_profiles").select("*").order("created_at", { ascending: false }),
+      supabase.from("deactivation_requests").select("volunteer_id").eq("status", "pending"),
+    ]);
 
     if (volunteerError || staffError) {
       toast.error(`使用者載入失敗：${(volunteerError || staffError)?.message}`);
@@ -122,6 +128,7 @@ export default function AdminUsersPage() {
 
     setVolunteers((volunteerData as VolunteerRow[]) || []);
     setStaffList((staffData as StaffRow[]) || []);
+    setPendingDeactivationIds(new Set((pendingDeactivations || []).map((r) => r.volunteer_id)));
     setIsLoading(false);
   }, [supabase]);
 
@@ -341,11 +348,16 @@ export default function AdminUsersPage() {
                               <p className="text-xs text-slate-400">{v.phone}</p>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
                                 <span className={`h-2 w-2 rounded-full ${st.dot}`} />
                                 <span className={`text-sm font-medium ${st.text}`}>
                                   {VOLUNTEER_STATUS_LABELS[v.status] || v.status}
                                 </span>
+                                {pendingDeactivationIds.has(v.id) && (
+                                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                                    停用申請
+                                  </span>
+                                )}
                               </div>
                             </td>
                             <td className="px-6 py-4 text-sm text-slate-500">

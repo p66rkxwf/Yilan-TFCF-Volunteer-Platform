@@ -148,6 +148,11 @@ export default function ProfilePage() {
   }
 
   const accountStatus = profile?.status ? ACCOUNT_STATUS_MAP[profile.status] : null;
+  const isDirty =
+    !!profile &&
+    (form.full_name !== (profile.full_name || "") ||
+      form.phone !== (profile.phone || "") ||
+      form.region !== ((profile.region as YilanRegion) || ""));
 
   return (
     <>
@@ -179,24 +184,35 @@ export default function ProfilePage() {
               <h2 className="text-2xl font-black">{profile?.full_name || "使用者"}</h2>
               <p className="text-slate-500">帳號：{profile?.username}</p>
             </div>
-            <div className="flex gap-3">
-              <Link
-                href="/"
-                className="px-5 py-2.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50 transition-colors"
-              >
-                取消
-              </Link>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-5 py-2.5 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-colors disabled:opacity-60 flex items-center gap-2"
-              >
-                {isSaving && (
-                  <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
-                )}
-                儲存變更
-              </button>
-            </div>
+            {(isDirty || isSaving) && (
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    profile &&
+                    setForm({
+                      full_name: profile.full_name || "",
+                      phone: profile.phone || "",
+                      region: (profile.region as YilanRegion) || "",
+                    })
+                  }
+                  disabled={isSaving}
+                  className="px-5 py-2.5 border border-slate-200 rounded-lg font-semibold hover:bg-slate-50 transition-colors disabled:opacity-60"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="px-5 py-2.5 bg-primary text-white rounded-lg font-semibold hover:opacity-90 transition-colors disabled:opacity-60 flex items-center gap-2"
+                >
+                  {isSaving && (
+                    <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+                  )}
+                  儲存變更
+                </button>
+              </div>
+            )}
           </section>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -272,12 +288,10 @@ export default function ProfilePage() {
                       menuClassName="bg-white"
                       name="region"
                       value={form.region}
+                      placeholder="請選擇"
                       ariaLabel="所在地區"
                       onValueChange={handleRegionChange}
-                      options={[
-                        { value: "", label: "請選擇" },
-                        ...REGIONS.map((region) => ({ value: region, label: region })),
-                      ]}
+                      options={REGIONS.map((region) => ({ value: region, label: region }))}
                     />
                   </div>
                 </div>

@@ -5,6 +5,17 @@
   --color-background-light: #f6f7f8;
   --font-display: "Public Sans", sans-serif;
   --font-sans: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* 語義化色彩 token。這些 token 讓 bg-card / text-foreground / border-border
+     等語義類別在 Tailwind v4 產生對應 utility；舊的 tailwind.config.ts
+     色彩對映在 v4 未被載入，故改由此處定義。 */
+  --color-background: #f6f7f8;
+  --color-foreground: #18181b;
+  --color-card: #ffffff;
+  --color-surface: #ffffff;
+  --color-muted: #71717a;
+  --color-border: #e4e4e7;
+  --color-ring: #16599c;
 }
 
 /* ===== Scrollbar ===== */

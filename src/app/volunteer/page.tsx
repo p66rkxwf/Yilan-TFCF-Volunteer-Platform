@@ -1,17 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { registerForSession } from "@/lib/actions/registrations";
+import type { VolunteerStatus } from "@/lib/types/database";
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Asia/Taipei",
+  hourCycle: "h23",
 });
+
+// 僅 active 帳號可報名/收藏；其餘狀態顯示對應提示（比照 /profile 的 ACCOUNT_STATUS_MAP）
+const ACCOUNT_STATUS_BANNER: Partial<Record<VolunteerStatus, { label: string; color: string }>> = {
+  pending_review: { label: "帳號審核中，通過後即可報名與收藏活動", color: "bg-amber-100 text-amber-700" },
+  suspended: { label: "帳號已停權，暫無法報名或收藏活動", color: "bg-red-100 text-red-700" },
+  rejected: { label: "帳號審核未通過，如有疑問請聯絡管理員", color: "bg-red-100 text-red-700" },
+  graduated: { label: "帳號已結案，暫無法報名或收藏活動", color: "bg-slate-200 text-slate-600" },
+};
 
 interface ActivityWithSlots {
   id: string;
@@ -40,13 +50,24 @@ function FavoriteButton({
   favoriteIds,
   onToggle,
   disabled = false,
+  accountActive = true,
 }: {
   activityId: string;
   favoriteIds: Set<string>;
   onToggle: (id: string) => void;
   disabled?: boolean;
+  accountActive?: boolean;
 }) {
   const isFav = favoriteIds.has(activityId);
+  const isDisabled = disabled || !accountActive;
+  const title = !accountActive
+    ? "帳號審核通過後才能收藏"
+    : disabled
+      ? "處理中"
+      : isFav
+        ? "取消收藏"
+        : "加入收藏";
+
   return (
     <button
       type="button"
@@ -54,13 +75,15 @@ function FavoriteButton({
         e.stopPropagation();
         onToggle(activityId);
       }}
-      disabled={disabled}
+      disabled={isDisabled}
+      aria-label={isFav ? "取消收藏" : "加入收藏"}
+      aria-pressed={isFav}
       className={`p-1.5 rounded-lg transition-colors ${
         isFav
           ? "text-red-500 hover:text-red-600"
           : "text-slate-300 hover:text-red-400"
-      } ${disabled ? "cursor-not-allowed opacity-60" : ""}`}
-      title={disabled ? "處理中" : isFav ? "取消收藏" : "加入收藏"}
+      } ${isDisabled ? "cursor-not-allowed opacity-60" : ""}`}
+      title={title}
     >
       <span
         className="material-symbols-outlined text-[22px]"
@@ -80,6 +103,7 @@ function EventDetailModal({
   favoriteIds,
   onToggleFavorite,
   favoritePendingIds,
+  accountActive,
 }: {
   event: ActivityWithSlots;
   onClose: () => void;
@@ -88,9 +112,28 @@ function EventDetailModal({
   favoriteIds: Set<string>;
   onToggleFavorite: (id: string) => void;
   favoritePendingIds: Set<string>;
+  accountActive: boolean;
 }) {
   const isFavoritePending = favoritePendingIds.has(event.id);
   const registerable = canRegisterFor(event);
+  const titleId = `event-detail-title-${event.id}`;
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previouslyFocused?.focus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
@@ -100,12 +143,15 @@ function EventDetailModal({
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
       <div className="flex min-h-full items-start justify-center p-4 sm:p-6 md:p-8">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="relative z-10 w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-xl max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-start sm:p-8 md:p-12">
           <div>
-            <h1 className="mb-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+            <h1 id={titleId} className="mb-2 text-2xl font-bold text-slate-900 sm:text-3xl">
               {event.title}
             </h1>
             <p className="text-slate-500 flex items-center gap-2">
@@ -120,8 +166,11 @@ function EventDetailModal({
               favoriteIds={favoriteIds}
               onToggle={onToggleFavorite}
               disabled={isFavoritePending}
+              accountActive={accountActive}
             />
             <button
+              ref={closeButtonRef}
+              aria-label="關閉活動詳情"
               className="p-2 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
               onClick={onClose}
             >
@@ -147,7 +196,7 @@ function EventDetailModal({
               </h3>
               <p className="text-lg font-medium">
                 {event.start_at ? DATE_TIME_FORMATTER.format(new Date(event.start_at)) : "尚未公告"}
-                {event.end_at ? ` - ${new Date(event.end_at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Taipei" })}` : ""}
+                {event.end_at ? ` - ${new Date(event.end_at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Taipei", hourCycle: "h23" })}` : ""}
               </p>
             </div>
             <div>
@@ -179,13 +228,15 @@ function EventDetailModal({
           <div className="pt-8 mt-8 border-t border-slate-100">
             <button
               onClick={() => onRegister(event.id)}
-              disabled={isRegistering || !registerable}
+              disabled={isRegistering || !registerable || !accountActive}
               className="w-full md:w-auto px-12 py-4 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {isRegistering ? (
                 <span className="material-symbols-outlined animate-spin text-[20px]">
                   progress_activity
                 </span>
+              ) : !accountActive ? (
+                "審核通過後可報名"
               ) : !registerable ? (
                 event.spots_left <= 0 ? "名額已滿" : "已無法報名"
               ) : (
@@ -219,6 +270,7 @@ function EventCard({
   favoriteIds,
   onToggleFavorite,
   favoritePendingIds,
+  accountActive,
 }: {
   event: ActivityWithSlots;
   onViewDetail: () => void;
@@ -227,6 +279,7 @@ function EventCard({
   favoriteIds: Set<string>;
   onToggleFavorite: (id: string) => void;
   favoritePendingIds: Set<string>;
+  accountActive: boolean;
 }) {
   const isFavoritePending = favoritePendingIds.has(event.id);
   const registerable = canRegisterFor(event);
@@ -250,9 +303,10 @@ function EventCard({
                 favoriteIds={favoriteIds}
                 onToggle={onToggleFavorite}
                 disabled={isFavoritePending}
+                accountActive={accountActive}
               />
               {event.spots_left <= 0 && (
-                <span className="px-2 py-1 bg-red-100 text-[10px] font-bold uppercase tracking-widest text-red-600 rounded">
+                <span className="px-2 py-1 bg-red-100 text-xs font-bold uppercase tracking-widest text-red-600 rounded">
                   額滿
                 </span>
               )}
@@ -303,10 +357,10 @@ function EventCard({
           </button>
           <button
             onClick={() => onRegister(event.id)}
-            disabled={isRegistering || !registerable}
+            disabled={isRegistering || !registerable || !accountActive}
             className="bg-primary hover:bg-primary/90 text-white px-8 py-2 rounded-lg text-sm font-bold transition-colors disabled:opacity-60"
           >
-            {registerable ? "立即報名" : event.spots_left <= 0 ? "額滿" : "已截止"}
+            {!accountActive ? "審核通過後可報名" : registerable ? "立即報名" : event.spots_left <= 0 ? "額滿" : "已截止"}
           </button>
         </div>
       </div>
@@ -321,10 +375,12 @@ export default function VolunteerPage() {
   const [activities, setActivities] = useState<ActivityWithSlots[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [hideFull, setHideFull] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<ActivityWithSlots | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [favoritePendingIds, setFavoritePendingIds] = useState<Set<string>>(new Set());
+  const [volunteerStatus, setVolunteerStatus] = useState<VolunteerStatus | null>(null);
 
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -332,6 +388,7 @@ export default function VolunteerPage() {
     if (authLoading) return;
     if (!user) {
       setFavoriteIds(new Set());
+      setVolunteerStatus(null);
       return;
     }
     async function loadFavorites(userId: string) {
@@ -341,8 +398,19 @@ export default function VolunteerPage() {
         .eq("volunteer_id", userId);
       if (data) setFavoriteIds(new Set(data.map((f) => f.activity_id)));
     }
+    async function loadOwnStatus(userId: string) {
+      const { data } = await supabase
+        .from("volunteer_profiles")
+        .select("status")
+        .eq("id", userId)
+        .maybeSingle();
+      setVolunteerStatus(data?.status ?? null);
+    }
     loadFavorites(user.id);
+    loadOwnStatus(user.id);
   }, [supabase, user, authLoading]);
+
+  const accountActive = volunteerStatus === "active";
 
   useEffect(() => {
     if (fetchError) {
@@ -396,7 +464,7 @@ export default function VolunteerPage() {
       );
 
       if (error) {
-        toast.error("收藏失敗：帳號審核通過後才能收藏活動。");
+        toast.error(`收藏失敗：${error.message}`);
         return;
       }
 
@@ -508,6 +576,7 @@ export default function VolunteerPage() {
   };
 
   const filtered = activities.filter((a) => {
+    if (hideFull && a.spots_left <= 0) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -528,20 +597,31 @@ export default function VolunteerPage() {
     );
   }
 
+  const statusBanner = volunteerStatus ? ACCOUNT_STATUS_BANNER[volunteerStatus] : null;
+
   return (
     <>
       <main className="flex flex-1 justify-center py-10 px-6 md:px-20">
         <div className="flex flex-col max-w-5xl flex-1">
           <div className="flex flex-wrap justify-between gap-3 mb-8">
             <div className="flex flex-col gap-2">
-              <h1 className="text-slate-900 text-4xl font-black leading-tight tracking-tight uppercase">
-                Volunteer Events
+              <h1 className="text-slate-900 text-4xl font-black leading-tight tracking-tight">
+                志工活動
+                <span className="ml-3 align-middle text-base font-semibold uppercase tracking-wider text-slate-400">
+                  Volunteer Events
+                </span>
               </h1>
               <p className="text-slate-500 text-base font-normal">
                 探索志工服務機會，加入我們的行列，用行動為社區帶來正向改變。
               </p>
             </div>
           </div>
+
+          {statusBanner && (
+            <div className={`mb-6 px-4 py-3 rounded-lg text-sm font-semibold ${statusBanner.color}`}>
+              {statusBanner.label}
+            </div>
+          )}
 
           {fetchError && (
             <div className="mb-6 px-4 py-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700">
@@ -561,6 +641,21 @@ export default function VolunteerPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
+            <button
+              type="button"
+              onClick={() => setHideFull((v) => !v)}
+              aria-pressed={hideFull}
+              className={`inline-flex w-fit items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                hideFull
+                  ? "bg-primary text-white"
+                  : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {hideFull ? "check_circle" : "filter_alt"}
+              </span>
+              隱藏額滿
+            </button>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -577,6 +672,7 @@ export default function VolunteerPage() {
                   favoriteIds={favoriteIds}
                   onToggleFavorite={handleToggleFavorite}
                   favoritePendingIds={favoritePendingIds}
+                  accountActive={accountActive}
                 />
               ))
             ) : (
@@ -604,6 +700,7 @@ export default function VolunteerPage() {
           favoriteIds={favoriteIds}
           onToggleFavorite={handleToggleFavorite}
           favoritePendingIds={favoritePendingIds}
+          accountActive={accountActive}
         />
       )}
     </>

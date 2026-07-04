@@ -16,7 +16,7 @@ const FAQ_ITEMS = [
     category: "帳號與登入",
     question: "如何建立志工帳號？",
     answer:
-      "前往註冊頁填寫姓名、帳號、Email、生日與密碼即可建立帳號。若您已有負責社工，也可以在註冊時一併選擇，方便後續資料確認。",
+      "前往註冊頁填寫姓名、帳號、Email、生日與密碼即可建立帳號。註冊送出後帳號會進入待審核狀態，管理員審核通過並指派負責社工後即可開始報名。",
   },
   {
     category: "帳號與登入",
@@ -46,7 +46,7 @@ const FAQ_ITEMS = [
     category: "個人資料",
     question: "我可以修改 Email 或其他基本資料嗎？",
     answer:
-      "可以。登入後前往個人資料與設定頁面，即可更新姓名、生日、區域、Email 等資訊；修改後會立即套用到後續通知與聯繫資料。",
+      "登入後可於個人資料頁更新姓名、電話與地區；Email 請至帳號設定頁修改（需至新信箱完成驗證）。生日為管理員維護欄位，如需修改請聯絡管理員。",
   },
   {
     category: "個人資料",
@@ -119,7 +119,7 @@ export function FaqContent() {
 
   return (
     <div className="space-y-10">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/5 md:p-8">
           <div className="flex h-14 items-center rounded-2xl border border-slate-200 bg-background-light px-4 shadow-sm shadow-slate-900/5">
             <span className="material-symbols-outlined text-slate-400">

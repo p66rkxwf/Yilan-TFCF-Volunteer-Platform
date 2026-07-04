@@ -81,12 +81,10 @@ export function VolunteerAccountActions({
             triggerClassName="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
             menuClassName="bg-white"
             value={assignedWorkerId}
+            placeholder="選擇負責社工"
             ariaLabel="指派負責社工"
             onValueChange={setAssignedWorkerId}
-            options={[
-              { value: "", label: "選擇負責社工" },
-              ...socialWorkers.map((w) => ({ value: w.id, label: w.full_name })),
-            ]}
+            options={socialWorkers.map((w) => ({ value: w.id, label: w.full_name }))}
           />
           <div className="flex gap-2">
             <button

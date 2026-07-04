@@ -7,6 +7,7 @@ import {
   AdminPanel,
 } from "@/components/shells/admin-page-shell";
 import { VolunteerAccountActions } from "./volunteer-actions-client";
+import { DeactivationReviewPanel } from "./deactivation-review-client";
 import type { VolunteerStatus } from "@/lib/types/database";
 
 const VOLUNTEER_STATUS_LABELS: Record<string, string> = {
@@ -41,6 +42,7 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Asia/Taipei",
+  hourCycle: "h23",
 });
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
@@ -86,7 +88,12 @@ export default async function AdminUserFilePage({
 }
 
 async function VolunteerFile({ volunteer, supabase }: { volunteer: any; supabase: any }) {
-  const [{ data: registrationsData }, assignedWorkerResult, { data: socialWorkers }] = await Promise.all([
+  const [
+    { data: registrationsData },
+    assignedWorkerResult,
+    { data: socialWorkers },
+    { data: pendingDeactivation },
+  ] = await Promise.all([
     supabase
       .from("registrations")
       .select("id, status, created_at, activity_sessions(start_at, end_at, activities(title, location))")
@@ -106,6 +113,12 @@ async function VolunteerFile({ volunteer, supabase }: { volunteer: any; supabase
       .eq("job_title", "social_worker")
       .eq("status", "active")
       .order("full_name", { ascending: true }),
+    supabase
+      .from("deactivation_requests")
+      .select("*")
+      .eq("volunteer_id", volunteer.id)
+      .eq("status", "pending")
+      .maybeSingle(),
   ]);
 
   const registrations = registrationsData || [];
@@ -205,6 +218,12 @@ async function VolunteerFile({ volunteer, supabase }: { volunteer: any; supabase
             </div>
           </div>
         </AdminPanel>
+
+        {pendingDeactivation ? (
+          <AdminPanel title="停用申請">
+            <DeactivationReviewPanel request={pendingDeactivation} />
+          </AdminPanel>
+        ) : null}
 
         <AdminPanel title="帳號審核與狀態管理">
           <VolunteerAccountActions
