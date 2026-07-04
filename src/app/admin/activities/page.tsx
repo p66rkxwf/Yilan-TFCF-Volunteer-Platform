@@ -92,6 +92,7 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Asia/Taipei",
+  hourCycle: "h23",
 });
 
 // V2 的 activities/activity_sessions 是一對多模型，本次「一活動一場次」

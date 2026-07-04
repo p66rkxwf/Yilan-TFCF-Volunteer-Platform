@@ -31,52 +31,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 只在 onAuthStateChange callback 內做「同步」的狀態更新，
+  // 絕不在此 callback 內 await 任何 Supabase 呼叫。supabase-js 在觸發
+  // auth 事件時持有內部鎖，callback 內若再呼叫會讀 session 的方法
+  // （例如資料查詢）會與該鎖互相死結，導致「登入後要刷新才會更新」。
+  // 訂閱當下會立即用目前 session 觸發一次（INITIAL_SESSION）。
   useEffect(() => {
-    let active = true;
-    // 追蹤上次查過角色的 user id，避免同一位使用者的 token 刷新等
-    // 事件重複觸發不必要的 profiles.role 查詢。
-    let lastRoleCheckedUserId: string | null = null;
-
-    const applyUser = async (nextUser: User | null) => {
-      if (!active) return;
-      setUser(nextUser);
-
-      if (!nextUser) {
-        lastRoleCheckedUserId = null;
-        setIsAdmin(false);
-        return;
-      }
-
-      if (nextUser.id === lastRoleCheckedUserId) return;
-      lastRoleCheckedUserId = nextUser.id;
-
-      // V2 沒有單一 role 欄位：職員/志工分成兩張互斥的表，
-      // 只要在 staff_profiles 裡且在職，就視為後台使用者。
-      const { data: staff } = await supabase
-        .from("staff_profiles")
-        .select("status")
-        .eq("id", nextUser.id)
-        .maybeSingle();
-
-      if (!active) return;
-      setIsAdmin(!!staff && staff.status === "active");
-    };
-
-    // onAuthStateChange 訂閱時會立即用目前的 session 觸發一次
-    // （INITIAL_SESSION 事件），不需要另外呼叫 getSession()。
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      applyUser(session?.user ?? null).then(() => {
-        if (active) setIsLoading(false);
-      });
+      setUser(session?.user ?? null);
+      setIsLoading(false);
     });
+
+    return () => subscription.unsubscribe();
+  }, [supabase]);
+
+  // 是否為後台使用者的判斷拆到獨立 effect：V2 沒有單一 role 欄位，
+  // 職員/志工分成兩張互斥的表，只要在 staff_profiles 裡且在職即視為
+  // 後台使用者。依 user.id 觸發 → token 刷新（同一 id）不會重複查。
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) {
+      setIsAdmin(false);
+      return;
+    }
+
+    let active = true;
+    supabase
+      .from("staff_profiles")
+      .select("status")
+      .eq("id", uid)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setIsAdmin(!!data && data.status === "active");
+      });
 
     return () => {
       active = false;
-      subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, user?.id]);
 
   return (
     <AuthContext.Provider value={{ user, isAdmin, isLoading }}>

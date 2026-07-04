@@ -12,6 +12,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   dateStyle: "medium",
   timeStyle: "short",
   timeZone: "Asia/Taipei",
+  hourCycle: "h23",
 });
 
 interface RegistrationRow {

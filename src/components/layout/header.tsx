@@ -50,11 +50,6 @@ export function Header() {
     router.refresh();
   };
 
-  const handleScholarshipBlocked = () => {
-    toast.info("獎學金專區目前暫未開放，開放時間將另行通知。", "尚未開放");
-    setMobileMenuOpen(false);
-  };
-
   const authLink = isLoading ? null : user ? (
     <div className="flex items-center gap-10">
       {isAdmin && (
@@ -132,13 +127,15 @@ export function Header() {
       </Link>
 
       <nav className="hidden md:flex items-center gap-10">
-        <button
-          type="button"
-          onClick={handleScholarshipBlocked}
-          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors cursor-pointer"
+        <Link
+          href="/scholarship"
+          className="flex items-center gap-1.5 text-slate-600 text-sm font-medium hover:text-primary transition-colors"
         >
           獎學金專區
-        </button>
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+            即將開放
+          </span>
+        </Link>
         <Link
           href="/volunteer"
           className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
@@ -162,15 +159,18 @@ export function Header() {
       {mobileMenuOpen && (
         <div className="absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-lg md:hidden z-40">
           <nav className="flex flex-col p-6 gap-4">
-            <button
-              type="button"
-              onClick={handleScholarshipBlocked}
-              className="text-left text-slate-700 text-base font-medium hover:text-primary transition-colors py-2 cursor-pointer"
+            <Link
+              href="/scholarship"
+              className="flex items-center gap-1.5 text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setMobileMenuOpen(false)}
             >
               獎學金專區
-            </button>
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                即將開放
+              </span>
+            </Link>
             <Link
-              href="#"
+              href="/volunteer"
               className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >

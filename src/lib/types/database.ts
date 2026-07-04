@@ -41,6 +41,8 @@ export type CancelReason =
   | "session_cancelled"
   | "admin_removed";
 
+export type DeactivationRequestStatus = "pending" | "approved" | "rejected" | "withdrawn";
+
 // 前台選單常數；V2 的 volunteer_profiles.region / staff_profiles.region 是自由 text
 // （非資料庫 ENUM），此清單僅供 UI 下拉選單使用。
 export const YILAN_REGIONS = [
@@ -148,6 +150,18 @@ export interface Favorite {
   created_at: string;
 }
 
+export interface DeactivationRequest {
+  id: string;
+  volunteer_id: string;
+  reason: string | null;
+  status: DeactivationRequestStatus;
+  reviewed_by: string | null;
+  review_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // v_organizer_contacts：志工唯一能讀到的職員個資（姓名＋電話）
 export interface OrganizerContact {
   activity_id: string;
@@ -232,6 +246,13 @@ export interface Database {
         Update: Partial<Omit<Favorite, "id" | "created_at">>;
         Relationships: [];
       };
+      deactivation_requests: {
+        Row: DeactivationRequest;
+        Insert: Pick<DeactivationRequest, "volunteer_id"> &
+          Partial<Omit<DeactivationRequest, "id" | "volunteer_id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<DeactivationRequest, "id" | "created_at" | "updated_at">>;
+        Relationships: [];
+      };
     };
     Views: {
       v_organizer_contacts: { Row: OrganizerContact };
@@ -259,6 +280,12 @@ export interface Database {
         Returns: void;
       };
       rpc_cancel_activity: { Args: { p_activity_id: string }; Returns: number };
+      rpc_request_deactivation: { Args: { p_reason?: string | null }; Returns: string };
+      rpc_withdraw_deactivation_request: { Args: Record<string, never>; Returns: void };
+      rpc_review_deactivation_request: {
+        Args: { p_request_id: string; p_approve: boolean; p_note?: string | null };
+        Returns: void;
+      };
     };
     Enums: {
       staff_role: StaffRole;
@@ -271,6 +298,7 @@ export interface Database {
       registration_status: RegistrationStatus;
       attendance_status: AttendanceStatus;
       cancel_reason: CancelReason;
+      deactivation_request_status: DeactivationRequestStatus;
     };
     CompositeTypes: Record<string, never>;
   };

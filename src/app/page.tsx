@@ -1,15 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { useToast } from "@/components/ui/toast";
 
 export default function Home() {
-  const toast = useToast();
-
-  const handleScholarshipBlocked = () => {
-    toast.info("獎學金專區目前暫未開放，開放時間將另行通知。", "尚未開放");
-  };
-
   return (
     <main className="grow flex flex-col md:flex-row">
       {/* 獎學金專區 */}
@@ -26,22 +17,21 @@ export default function Home() {
             <span className="material-symbols-outlined text-4xl">school</span>
           </div>
           <h2 className="text-white text-3xl md:text-5xl font-black mb-4 tracking-tight">
-            Scholarship Application
-          </h2>
-          <h3 className="text-white/80 text-xl md:text-2xl font-medium mb-6">
             獎學金申請專區
+          </h2>
+          <h3 className="text-white/80 text-lg md:text-xl font-medium mb-6 uppercase tracking-wider">
+            Scholarship Application
           </h3>
           {/* <p className="text-slate-300 max-w-md mb-10 leading-relaxed">
             Empowering academic excellence through financial support. Apply for
             our diverse range of merit and need-based scholarships.
           </p> */}
-          <button
-            type="button"
-            onClick={handleScholarshipBlocked}
-            className="bg-white text-slate-900 font-bold py-4 px-8 rounded-xl hover:bg-primary hover:text-white transition-all transform hover:scale-105 inline-block text-center cursor-pointer"
+          <Link
+            href="/scholarship"
+            className="bg-white text-slate-900 font-bold py-4 px-8 rounded-xl hover:bg-primary hover:text-white transition-all transform hover:scale-105 inline-block text-center"
           >
             即將開放
-          </button>
+          </Link>
         </div>
       </section>
 
@@ -61,10 +51,10 @@ export default function Home() {
             </span>
           </div>
           <h2 className="text-white text-3xl md:text-5xl font-black mb-4 tracking-tight">
-            Volunteer Registration
-          </h2>
-          <h3 className="text-white/80 text-xl md:text-2xl font-medium mb-6">
             志工報名專區
+          </h2>
+          <h3 className="text-white/80 text-lg md:text-xl font-medium mb-6 uppercase tracking-wider">
+            Volunteer Registration
           </h3>
           {/* <p className="text-slate-300 max-w-md mb-10 leading-relaxed">
             Join our dedicated community of changemakers. Register to

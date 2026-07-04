@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AdminProvider } from "./admin-context";
@@ -30,6 +31,11 @@ export function AdminLayoutClient({
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -50,7 +56,18 @@ export function AdminLayoutClient({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background-light">
-      <aside className="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white transition-transform duration-200 md:static md:translate-x-0 ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <div className="p-6 flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white">
             <span className="material-symbols-outlined">shield_person</span>
@@ -129,9 +146,22 @@ export function AdminLayoutClient({
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <AdminProvider profile={profile}>{children}</AdminProvider>
-      </main>
+      <div className="flex flex-1 flex-col min-w-0">
+        <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 md:hidden">
+          <button
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="開啟選單"
+            className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            <span className="material-symbols-outlined">menu</span>
+          </button>
+          <span className="text-sm font-bold text-slate-900">後台管理</span>
+        </div>
+
+        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <AdminProvider profile={profile}>{children}</AdminProvider>
+        </main>
+      </div>
     </div>
   );
 }

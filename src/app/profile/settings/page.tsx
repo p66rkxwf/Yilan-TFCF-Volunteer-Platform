@@ -1,9 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { updatePassword, updateEmail, deleteAccount } from "@/lib/actions/auth";
-import { setFlashToast, useToast } from "@/components/ui/toast";
+import { useState, useEffect } from "react";
+import { updatePassword, updateEmail } from "@/lib/actions/auth";
+import {
+  requestDeactivation,
+  withdrawDeactivationRequest,
+} from "@/lib/actions/deactivation";
+import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/components/auth-provider";
+import type { DeactivationRequest } from "@/lib/types/database";
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Asia/Taipei",
+  hourCycle: "h23",
+});
 
 function SettingsSection({
   icon,
@@ -43,8 +57,9 @@ function SettingsSection({
 }
 
 export default function SettingsPage() {
-  const router = useRouter();
+  const supabase = createClient();
   const toast = useToast();
+  const { user } = useAuth();
 
   const [pwForm, setPwForm] = useState({ password: "", confirm: "" });
   const [pwLoading, setPwLoading] = useState(false);
@@ -52,8 +67,37 @@ export default function SettingsPage() {
   const [emailForm, setEmailForm] = useState({ email: "" });
   const [emailLoading, setEmailLoading] = useState(false);
 
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState<DeactivationRequest | null>(null);
+  const [isLoadingRequest, setIsLoadingRequest] = useState(true);
+  const [deactivateReason, setDeactivateReason] = useState("");
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setIsLoadingRequest(false);
+      return;
+    }
+
+    let active = true;
+    supabase
+      .from("deactivation_requests")
+      .select("*")
+      .eq("volunteer_id", user.id)
+      .eq("status", "pending")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) {
+          setPendingRequest(data);
+          setIsLoadingRequest(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [supabase, user]);
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,22 +144,40 @@ export default function SettingsPage() {
     setEmailLoading(false);
   };
 
-  const handleDeleteAccount = async () => {
-    setDeleteLoading(true);
+  const handleSubmitDeactivation = async () => {
+    setDeactivateLoading(true);
 
-    const result = await deleteAccount();
+    const result = await requestDeactivation(deactivateReason.trim() || undefined);
     if (result.error) {
       toast.error(result.error);
-      setDeleteLoading(false);
     } else {
-      setFlashToast({
-        variant: "success",
-        title: "已登出",
-        description: "帳號本身尚未停用，如需完全停用請聯絡管理員辦理。",
-      });
-      router.push("/login");
-      router.refresh();
+      toast.success("停用申請已送出，待管理員審核。");
+      setShowDeactivateConfirm(false);
+      setDeactivateReason("");
+      if (user) {
+        const { data } = await supabase
+          .from("deactivation_requests")
+          .select("*")
+          .eq("volunteer_id", user.id)
+          .eq("status", "pending")
+          .maybeSingle();
+        setPendingRequest(data);
+      }
     }
+    setDeactivateLoading(false);
+  };
+
+  const handleWithdrawDeactivation = async () => {
+    setWithdrawLoading(true);
+
+    const result = await withdrawDeactivationRequest();
+    if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.success("已撤回停用申請。");
+      setPendingRequest(null);
+    }
+    setWithdrawLoading(false);
   };
 
   const inputCls =
@@ -221,44 +283,87 @@ export default function SettingsPage() {
             </form>
           </SettingsSection>
 
-          {/* Delete Account */}
+          {/* Deactivation request */}
           <SettingsSection
             icon="warning"
             title="停用帳號"
-            description="帳號的實際停用需由管理員辦理；此按鈕僅會將您登出。"
+            description="停用後將無法報名新活動，未開始的已核准報名也會一併取消；需管理員審核通過才會生效。"
             danger
           >
-            <div className="space-y-4">
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-700 font-medium mb-3">
-                  如需完全停用帳號，請於登出後聯絡管理員辦理。請在下方輸入「刪除我的帳號」確認登出：
-                </p>
-                <input
-                  type="text"
-                  className="w-full px-4 py-2.5 rounded-lg border border-red-200 bg-white focus:ring-2 focus:ring-red-200 focus:border-red-400 outline-none transition-all"
-                  placeholder="刪除我的帳號"
-                  value={deleteConfirm}
-                  onChange={(e) => setDeleteConfirm(e.target.value)}
-                />
+            {isLoadingRequest ? (
+              <div className="flex items-center justify-center py-6">
+                <span className="material-symbols-outlined animate-spin text-2xl text-primary">
+                  progress_activity
+                </span>
               </div>
-              <div className="flex justify-end">
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={deleteLoading || deleteConfirm !== "刪除我的帳號"}
-                  className="px-5 py-2.5 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition-colors disabled:opacity-40 flex items-center gap-2"
-                >
-                  {deleteLoading && (
-                    <span className="material-symbols-outlined animate-spin text-[16px]">
-                      progress_activity
-                    </span>
-                  )}
-                  登出並聯絡管理員
-                </button>
+            ) : pendingRequest ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800 font-medium">
+                    停用申請已於 {DATE_FORMATTER.format(new Date(pendingRequest.created_at))} 送出，待管理員處理。
+                  </p>
+                  {pendingRequest.reason ? (
+                    <p className="mt-2 text-sm text-amber-700">申請原因：{pendingRequest.reason}</p>
+                  ) : null}
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleWithdrawDeactivation}
+                    disabled={withdrawLoading}
+                    className="px-5 py-2.5 border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-60 flex items-center gap-2"
+                  >
+                    {withdrawLoading && (
+                      <span className="material-symbols-outlined animate-spin text-[16px]">
+                        progress_activity
+                      </span>
+                    )}
+                    撤回申請
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">
+                    申請原因
+                    <span className="text-slate-400 font-normal ml-1">（選填）</span>
+                  </label>
+                  <textarea
+                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    rows={3}
+                    placeholder="請簡述申請停用的原因"
+                    value={deactivateReason}
+                    onChange={(e) => setDeactivateReason(e.target.value)}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => setShowDeactivateConfirm(true)}
+                    className="px-5 py-2.5 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition-colors"
+                  >
+                    送出停用申請
+                  </button>
+                </div>
+              </div>
+            )}
           </SettingsSection>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showDeactivateConfirm}
+        title="確定要送出停用申請嗎？"
+        description="送出後，管理員審核通過時您的帳號將轉為停權，未開始的已核准報名會一併取消。"
+        confirmText="送出申請"
+        cancelText="取消"
+        isConfirmDanger
+        isLoading={deactivateLoading}
+        onClose={() => {
+          if (deactivateLoading) return;
+          setShowDeactivateConfirm(false);
+        }}
+        onConfirm={handleSubmitDeactivation}
+      />
     </>
   );
 }
