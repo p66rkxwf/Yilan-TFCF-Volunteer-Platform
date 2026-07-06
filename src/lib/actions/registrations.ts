@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getCachedUser, requireAdmin } from "@/lib/supabase/cached-auth";
+import { getCachedUser } from "@/lib/supabase/cached-auth";
 import type { RegistrationStatus } from "@/lib/types/database";
 
 interface ActionResult {
@@ -38,87 +38,6 @@ export async function cancelRegistration(
 
   if (error) return { error: error.message };
   return { success: true, status: data as RegistrationStatus };
-}
-
-export async function getMyRegistrations() {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return [];
-
-  const { data } = await supabase
-    .from("registrations")
-    .select("*, activity_sessions(start_at, end_at, activities(title))")
-    .eq("volunteer_id", user.id)
-    .order("created_at", { ascending: false });
-
-  return data ?? [];
-}
-
-// 報名審核（待審核 → 通過／拒絕）
-export async function reviewRegistration(
-  registrationId: string,
-  approve: boolean
-): Promise<ActionResult> {
-  const { supabase, error: authError } = await requireAdmin();
-  if (authError) return { error: authError };
-
-  const { error } = await supabase.rpc("rpc_review_registration", {
-    p_registration_id: registrationId,
-    p_approve: approve,
-  });
-
-  if (error) return { error: error.message };
-  return { success: true };
-}
-
-// 標記單筆報名的出席狀態（僅管理員、僅限已通過的報名且在補登寬限期內；
-// 服務時數由 DB trigger 依場次時長自動帶入，不再手動輸入）
-export async function markAttendance(
-  registrationId: string,
-  attendance: "attended" | "absent"
-): Promise<ActionResult> {
-  const { supabase, error: authError } = await requireAdmin();
-  if (authError) return { error: authError };
-
-  const { error } = await supabase.rpc("rpc_admin_check_in", {
-    p_registration_id: registrationId,
-    p_attendance: attendance,
-  });
-
-  if (error) return { error: error.message };
-  return { success: true };
-}
-
-// 寬限期後的缺席改判／補登（#25：無時間上限）
-export async function makeupAttendance(registrationId: string): Promise<ActionResult> {
-  const { supabase, error: authError } = await requireAdmin();
-  if (authError) return { error: authError };
-
-  const { error } = await supabase.rpc("rpc_makeup_attendance", {
-    p_registration_id: registrationId,
-  });
-
-  if (error) return { error: error.message };
-  return { success: true };
-}
-
-// 批次將指定報名標記為出席（僅管理員、僅限已通過的報名）；
-// 規格書明示批次＝迴圈呼叫同一支簽到 RPC，規模 ≤1000 可接受。
-export async function batchCheckIn(registrationIds: string[]): Promise<ActionResult> {
-  const { supabase, error: authError } = await requireAdmin();
-  if (authError) return { error: authError };
-
-  if (registrationIds.length === 0) return { error: "未選擇任何報名。" };
-
-  for (const id of registrationIds) {
-    const { error } = await supabase.rpc("rpc_admin_check_in", {
-      p_registration_id: id,
-      p_attendance: "attended",
-    });
-    if (error) return { error: `批次簽到失敗：${error.message}` };
-  }
-
-  return { success: true };
 }
 
 export interface HoursSummaryEntry {

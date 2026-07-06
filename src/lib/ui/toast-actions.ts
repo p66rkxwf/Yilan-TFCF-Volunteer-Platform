@@ -14,11 +14,3 @@ export function getErrorMessage(error: ErrorLike) {
   return "未知錯誤";
 }
 
-export function toastSupabaseError(
-  toast: { error: (description: string, title?: string) => string },
-  prefix: string,
-  error: ErrorLike
-) {
-  toast.error(`${prefix}：${getErrorMessage(error)}`);
-}
-

@@ -7,8 +7,22 @@ import {
   normalizeBirthdayForSubmit,
 } from "@/lib/birthday";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
+
+// Server Action 內沒有請求的完整 URL，改由 header 還原站台網址；
+// Server Action 由前端 fetch 呼叫，現代瀏覽器一律會帶 Origin 表頭，
+// x-forwarded-proto/host 作為代理環境（Cloudflare 等）下的備援。
+async function getSiteOrigin(): Promise<string> {
+  const headersList = await headers();
+  const origin = headersList.get("origin");
+  if (origin) return origin;
+
+  const host = headersList.get("host");
+  const proto = headersList.get("x-forwarded-proto") ?? "https";
+  return host ? `${proto}://${host}` : "";
+}
 
 // admin client 刻意保持 untyped（見專案慣例）；permissive cast 避免
 // service-role client 在部分查詢鏈上被推斷成 never。
@@ -147,9 +161,10 @@ export async function signUp(formData: {
 
 export async function resetPassword(email: string): Promise<AuthResult> {
   const supabase = await createClient();
+  const origin = await getSiteOrigin();
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin : ""}/auth/callback?next=/profile`,
+    redirectTo: `${origin}/auth/callback?next=/profile/settings`,
   });
 
   if (error) {
