@@ -5,6 +5,9 @@ import { useState } from "react";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { submitSupportRequest } from "@/lib/actions/support";
+import { TurnstileWidget } from "@/components/support/turnstile-widget";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 const TOPICS = [
   "帳號登入",
@@ -37,6 +40,7 @@ const CONTACT_GUIDES = [
 export function SupportContent() {
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [formData, setFormData] = useState<{
     name: string;
     email: string;
@@ -64,8 +68,13 @@ export function SupportContent() {
       return;
     }
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      toast.error("請先完成人機驗證後再送出。", "驗證未完成");
+      return;
+    }
+
     setIsSubmitting(true);
-    const result = await submitSupportRequest(formData);
+    const result = await submitSupportRequest({ ...formData, turnstileToken });
     setIsSubmitting(false);
 
     if (result.error) {
@@ -78,6 +87,7 @@ export function SupportContent() {
       "已送出"
     );
 
+    setTurnstileToken(null);
     setFormData({
       name: "",
       email: "",
@@ -144,6 +154,10 @@ export function SupportContent() {
             className={`resize-none leading-6 ${fieldCls}`}
           />
         </label>
+
+        {TURNSTILE_SITE_KEY && (
+          <TurnstileWidget siteKey={TURNSTILE_SITE_KEY} onToken={setTurnstileToken} />
+        )}
 
         <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 md:flex-row md:items-center md:justify-between">
           <p className="text-xs leading-5 text-slate-500">

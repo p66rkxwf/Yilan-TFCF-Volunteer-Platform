@@ -11,10 +11,15 @@ import { headers } from "next/headers";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
 
-// Server Action 內沒有請求的完整 URL，改由 header 還原站台網址；
-// Server Action 由前端 fetch 呼叫，現代瀏覽器一律會帶 Origin 表頭，
-// x-forwarded-proto/host 作為代理環境（Cloudflare 等）下的備援。
+// 還原站台網址（供重設密碼信件的 redirect 連結使用）。
+// 安全性：優先採用固定的 NEXT_PUBLIC_SITE_URL，避免攻擊者以偽造的
+// Host/Origin 標頭污染重設密碼連結（host header injection → reset token 外洩）。
+// 僅在未設定該環境變數時，才回退到請求標頭（本機開發便利）。
+// 註：Supabase 端仍會以 Auth Redirect URL allowlist 再把關（見 supabase/README §4）。
 async function getSiteOrigin(): Promise<string> {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, "");
+
   const headersList = await headers();
   const origin = headersList.get("origin");
   if (origin) return origin;
@@ -114,13 +119,15 @@ export async function signUp(formData: {
 
   const admin = adminClient();
 
-  const { data: existing } = await admin
-    .from("volunteer_profiles")
-    .select("id")
-    .eq("username", formData.account)
-    .maybeSingle();
+  // 帳號唯一性預檢：username 在 volunteer_profiles / staff_profiles 各有獨立
+  // unique 約束但不跨表，故兩張表都要查，避免志工註冊到與職員相同的帳號
+  // （login 的 resolveEmailInternal 先解析志工，會造成同名歧義）。
+  const [{ data: existingVolunteer }, { data: existingStaff }] = await Promise.all([
+    admin.from("volunteer_profiles").select("id").eq("username", formData.account).maybeSingle(),
+    admin.from("staff_profiles").select("id").eq("username", formData.account).maybeSingle(),
+  ]);
 
-  if (existing) {
+  if (existingVolunteer || existingStaff) {
     return { error: "此帳號已被使用，請選擇其他帳號。" };
   }
 
@@ -165,6 +172,10 @@ export async function signUp(formData: {
   });
 
   if (profileError) {
+    // 回滾：profile 建立失敗時刪除剛建立的 auth 帳號，避免孤兒帳號占用該
+    // email／username（否則使用者既無法登入、也因 email 已註冊而無法重註冊）。
+    // 比照 admin-volunteers.ts / admin-users.ts 的回滾處理。
+    await admin.auth.admin.deleteUser(authData.user.id);
     return { error: `註冊失敗：${profileError.message}` };
   }
 

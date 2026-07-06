@@ -8,6 +8,8 @@ const eslintConfig = [
       "node_modules/**",
       "next-env.d.ts",
       "tsconfig.tsbuildinfo",
+      // Deno runtime (Supabase Edge Function) — 由 Deno 自帶工具檢查，非 Next tsc/eslint
+      "supabase/functions/**",
     ],
   },
   ...coreWebVitals,

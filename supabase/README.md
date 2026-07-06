@@ -31,12 +31,18 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
 10. `10_support_requests.sql` — `/support` 頁支援表單改為真送出（原僅前端假延遲，未落地）。新增
     `support_requests` 資料表與 `rpc_submit_support_request`（開放 anon＋authenticated）／
     `rpc_resolve_support_request`（僅在職職員）兩支 RPC，並於後台新增「支援需求」收件匣頁面。
+11. `11_harden_cancel_and_checkin.sql` — 資安補強：禁止場次開始後才申請取消（規避黑名單）、
+    自助簽到前重驗志工在職且未在黑名單。
+12. `12_enable_scheduled_jobs.sql` — 部署啟用檔：一次註冊 5 支 pg_cron 排程 ＋ 發信 worker 觸發。
+    取代原本手動解除 `05` 區塊 G 註解的做法；可重複執行（見下方「部署後手動步驟」1、5）。
 
 ### 部署後手動步驟
 
-1. **啟用 pg_cron**：Supabase Dashboard → Database → Extensions → 啟用 `pg_cron`，再回 SQL Editor
-   解除 `05_scheduled_jobs.sql` 區塊 G 的 `cron.schedule(...)` 註解並執行（至少需啟用
-   `advance-activity-status`，否則活動狀態不會自動從 open → closed → completed）。
+1. **啟用排程（pg_cron）**：於 SQL Editor 執行 `12_enable_scheduled_jobs.sql`（會 `CREATE EXTENSION`
+   pg_cron/pg_net 並一次註冊 5 支排程；可重複執行）。若 `CREATE EXTENSION` 無權限，先到
+   Dashboard → Database → Extensions 開啟 pg_cron / pg_net 再執行。未啟用的後果：活動不會自動
+   open→closed→completed、缺席不會自動判定/加黑名單、黑名單不會自動解除、提醒不會產生。
+   驗證：`SELECT jobname, schedule, active FROM cron.job;`。
 2. **種第一位系統管理員**：先在 Dashboard → Authentication 建立一個 auth 使用者，取得其 `id`，
    再於 SQL Editor 執行：
    ```sql
@@ -50,8 +56,14 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
    Dashboard → Authentication → URL Configuration 的 Redirect URLs 加入站台網址
    （例如 `https://<你的網域>/auth/callback`），流程才會生效；本機開發請加入
    `http://localhost:3000/auth/callback`。
-5. **寄信 worker 尚未建置**：通知會正常寫入 `notification_outbox` 佇列，但不會真的寄出，屬預期行為，
-   待寄信 worker 建立後才會實際發信。
+5. **啟用寄信 worker**：通知一律先寫入 `notification_outbox` 佇列，需由 worker 消費才會實際寄出。
+   worker 已實作於 `supabase/functions/send-notifications`（Supabase Edge Function，Resend 寄送）。
+   部署步驟：
+   1. `supabase functions deploy send-notifications`
+   2. 設定 secrets：`supabase secrets set RESEND_API_KEY=re_xxx MAIL_FROM='宜蘭家扶志工平台 <noreply@你的網域>' SITE_URL=https://你的網域 WORKER_SECRET=<自訂隨機字串>`
+      （`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` 由平台自動注入；寄件網域需先在 Resend 驗證）
+   3. 執行 `12_enable_scheduled_jobs.sql` 的 STEP 2（每分鐘觸發本函式；建議以 Vault 保存 service role key）。
+   未設定 `RESEND_API_KEY` 時 worker 會回報未設定而不寄出（等同暫時停用，佇列仍會累積）。
 
 ### 常見注意事項
 
