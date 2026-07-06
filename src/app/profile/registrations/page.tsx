@@ -7,13 +7,8 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/components/auth-provider";
 import { cancelRegistration } from "@/lib/actions/registrations";
-
-const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "Asia/Taipei",
-  hourCycle: "h23",
-});
+import { ProfilePageHeader } from "../profile-page-header";
+import { formatSessionRange } from "@/lib/admin/datetime";
 
 interface RegistrationRow {
   id: string;
@@ -21,6 +16,7 @@ interface RegistrationRow {
   created_at: string;
   activity_title: string;
   session_start_at: string | null;
+  session_end_at: string | null;
   activity_location: string;
   attendance: string | null;
   service_hours: number | null;
@@ -66,7 +62,7 @@ export default function RegistrationsPage() {
     const { data } = await supabase
       .from("registrations")
       .select(
-        "id, status, created_at, attendance, service_hours, activity_sessions(start_at, activities(title, location))"
+        "id, status, created_at, attendance, service_hours, activity_sessions(start_at, end_at, activities(title, location))"
       )
       .eq("volunteer_id", user.id)
       .order("created_at", { ascending: false });
@@ -79,6 +75,7 @@ export default function RegistrationsPage() {
         created_at: r.created_at,
         activity_title: session?.activities?.title || "未知活動",
         session_start_at: session?.start_at || null,
+        session_end_at: session?.end_at || null,
         activity_location: session?.activities?.location || "",
         attendance: r.attendance ?? null,
         service_hours: r.service_hours == null ? null : Number(r.service_hours),
@@ -144,42 +141,38 @@ export default function RegistrationsPage() {
 
   return (
     <>
-      <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
-        <h1 className="text-lg font-bold">我的報名</h1>
-        <Link
-          href="/volunteer"
-          className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/20 transition-colors"
-        >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          瀏覽活動
-        </Link>
-      </header>
+      <ProfilePageHeader
+        title="我的報名"
+        actions={
+          <Link
+            href="/volunteer"
+            className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+          >
+            <span className="material-symbols-outlined text-[18px]">add</span>
+            瀏覽活動
+          </Link>
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Hours summary */}
+      <div className="flex-1 overflow-y-auto p-5 md:p-8">
+        <div className="w-full space-y-5">
+          {/* Hours summary（扁平強調列） */}
           {!isLoading && totalHours > 0 ? (
-            <div className="flex flex-col gap-4 rounded-xl border border-primary/20 bg-primary/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <span className="material-symbols-outlined">timer</span>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">累計服務時數</p>
-                  <p className="text-2xl font-black text-slate-900">
-                    {totalHours} <span className="text-base font-bold text-slate-500">小時</span>
-                    <span className="ml-2 text-sm font-semibold text-slate-400">
-                      · {attendedRegistrations.length} 場活動
-                    </span>
-                  </p>
-                </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-4">
+              <div className="flex items-baseline gap-2">
+                <span className="material-symbols-outlined text-[18px] text-primary">timer</span>
+                <span className="text-sm text-slate-500">累計服務時數</span>
+                <span className="text-2xl font-bold text-slate-900">{totalHours}</span>
+                <span className="text-sm text-slate-500">
+                  小時 · {attendedRegistrations.length} 場
+                </span>
               </div>
               <Link
                 href="/profile/certificate"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
               >
                 <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
-                服務證明
+                服務時數紀錄
               </Link>
             </div>
           ) : null}
@@ -215,82 +208,79 @@ export default function RegistrationsPage() {
               </span>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
-              <span className="material-symbols-outlined text-5xl text-slate-300 block mb-3">
+            <div className="py-16 text-center">
+              <span className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
                 inbox
               </span>
-              <p className="text-slate-500 mb-4">
+              <p className="mb-4 text-sm text-slate-500">
                 {registrations.length === 0 ? "還沒有任何報名紀錄" : "此分類沒有報名紀錄"}
               </p>
               <Link
                 href="/volunteer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
               >
                 前往志工專區
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filtered.map((reg) => {
-                const s = STATUS_MAP[reg.status] || STATUS_MAP.pending;
-                const canCancel = reg.status === "pending" || reg.status === "approved";
+            <div className="border-t border-slate-100">
+              <ul className="divide-y divide-slate-100">
+                {filtered.map((reg) => {
+                  const s = STATUS_MAP[reg.status] || STATUS_MAP.pending;
+                  const canCancel = reg.status === "pending" || reg.status === "approved";
 
-                return (
-                  <div
-                    key={reg.id}
-                    className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col md:flex-row md:items-center gap-4 hover:shadow-sm transition-shadow"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-slate-900 truncate">
-                          {reg.activity_title}
-                        </h3>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${s.color} shrink-0`}>
-                          {s.label}
-                        </span>
-                        {reg.attendance && ATTENDANCE_MAP[reg.attendance] ? (
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ${ATTENDANCE_MAP[reg.attendance].color}`}>
-                            {ATTENDANCE_MAP[reg.attendance].label}
+                  return (
+                    <li
+                      key={reg.id}
+                      className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-semibold text-slate-900">{reg.activity_title}</h3>
+                          <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold ${s.color}`}>
+                            {s.label}
                           </span>
-                        ) : null}
+                          {reg.attendance && ATTENDANCE_MAP[reg.attendance] ? (
+                            <span className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-bold ${ATTENDANCE_MAP[reg.attendance].color}`}>
+                              {ATTENDANCE_MAP[reg.attendance].label}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
+                          {reg.session_start_at && reg.session_end_at && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px]">calendar_today</span>
+                              {formatSessionRange(reg.session_start_at, reg.session_end_at)}
+                            </span>
+                          )}
+                          {reg.activity_location && (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="material-symbols-outlined text-[14px]">location_on</span>
+                              {reg.activity_location}
+                            </span>
+                          )}
+                          {(reg.attendance === "attended" || reg.attendance === "makeup_attended") &&
+                          reg.service_hours != null ? (
+                            <span className="inline-flex items-center gap-1 font-semibold text-primary">
+                              <span className="material-symbols-outlined text-[14px]">timer</span>
+                              服務 {reg.service_hours} 小時
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-500">
-                        {reg.session_start_at && (
-                          <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                            {DATE_FORMATTER.format(new Date(reg.session_start_at))}
-                          </span>
-                        )}
-                        {reg.activity_location && (
-                          <span className="flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[14px]">location_on</span>
-                            {reg.activity_location}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[14px]">schedule</span>
-                          報名於 {new Date(reg.created_at).toLocaleDateString("zh-TW")}
-                        </span>
-                        {(reg.attendance === "attended" || reg.attendance === "makeup_attended") && reg.service_hours != null ? (
-                          <span className="flex items-center gap-1 font-semibold text-primary">
-                            <span className="material-symbols-outlined text-[14px]">timer</span>
-                            服務 {reg.service_hours} 小時
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
 
-                    {canCancel && (
-                      <button
-                        onClick={() => handleCancel(reg)}
-                        className="shrink-0 px-4 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors"
-                      >
-                        取消報名
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                      {canCancel && (
+                        <button
+                          onClick={() => handleCancel(reg)}
+                          className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
+                        >
+                          取消報名
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
         </div>

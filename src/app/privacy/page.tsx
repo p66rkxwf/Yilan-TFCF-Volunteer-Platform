@@ -93,137 +93,94 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <InfoPageShell
-      icon="shield_lock"
-      eyebrow="Privacy Policy"
       title="隱私政策"
       description="本政策說明宜蘭家扶中心志工平台如何蒐集、使用、保存與保護您在使用帳號與活動報名功能時提供的資料。"
       meta={
         <>
-          <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm shadow-slate-900/5 backdrop-blur">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              最後更新
-            </p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
-              2026年3月11日
-            </p>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm shadow-slate-900/5 backdrop-blur">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              適用資料
-            </p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
-              帳號、報名與操作紀錄
-            </p>
-          </div>
+          <span>最後更新：2026年3月11日</span>
+          <span>適用資料：帳號、報名與操作紀錄</span>
         </>
       }
     >
-      <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="lg:sticky lg:top-28 lg:self-start">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              文件導覽
-            </p>
-            <nav className="mt-4 flex flex-col gap-2">
-              {PRIVACY_SECTIONS.map((section) => (
-                <a
-                  key={section.id}
-                  href={`#${section.id}`}
-                  className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
-                >
-                  {section.index} {section.title}
-                </a>
-              ))}
-            </nav>
-          </div>
+      <div className="grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)]">
+        <aside className="lg:sticky lg:top-6 lg:self-start">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+            文件導覽
+          </p>
+          <nav className="mt-2 flex flex-col">
+            {PRIVACY_SECTIONS.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                className="rounded px-2 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
+              >
+                {section.index} {section.title}
+              </a>
+            ))}
+          </nav>
 
-          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              相關頁面
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-              {RELATED_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="flex items-center justify-between rounded-2xl bg-background-light px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-primary/10 hover:text-primary"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">
-                      {link.icon}
-                    </span>
-                    {link.label}
-                  </span>
-                  <span className="material-symbols-outlined text-[18px]">
-                    arrow_forward
-                  </span>
-                </Link>
-              ))}
-            </div>
+          <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+            相關頁面
+          </p>
+          <div className="mt-2 flex flex-col">
+            {RELATED_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
+              >
+                <span className="material-symbols-outlined text-[18px]">{link.icon}</span>
+                {link.label}
+              </Link>
+            ))}
           </div>
         </aside>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           {PRIVACY_SECTIONS.map((section) => (
-            <section
-              key={section.id}
-              id={section.id}
-              className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/5 md:p-8"
-            >
-              <div className="flex items-start gap-4">
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-sm font-black text-primary">
-                  {section.index}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-2xl font-black tracking-tight text-slate-900">
-                    {section.title}
-                  </h2>
-                  <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600 md:text-base">
-                    {section.paragraphs.map((paragraph) => (
-                      <p key={paragraph}>{paragraph}</p>
-                    ))}
-                  </div>
-
-                  {"bullets" in section ? (
-                    <ul className="mt-5 grid gap-3 md:grid-cols-2">
-                      {section.bullets.map((bullet) => (
-                        <li
-                          key={bullet}
-                          className="rounded-2xl bg-background-light px-4 py-4 text-sm leading-6 text-slate-600"
-                        >
-                          <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-black text-primary">
-                            +
-                          </span>
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
+            <section key={section.id} id={section.id} className="scroll-mt-6">
+              <h2 className="border-b border-slate-200 pb-2 text-base font-bold tracking-tight text-slate-900">
+                {section.index} {section.title}
+              </h2>
+              <div className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
+                {section.paragraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
               </div>
+
+              {"bullets" in section ? (
+                <ul className="mt-3 grid gap-2 md:grid-cols-2">
+                  {section.bullets.map((bullet) => (
+                    <li
+                      key={bullet}
+                      className="flex gap-2 text-sm leading-6 text-slate-600"
+                    >
+                      <span className="mt-1 text-primary">+</span>
+                      {bullet}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </section>
           ))}
 
-          <section className="rounded-3xl bg-slate-900 p-8 text-white">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
-              Privacy Requests
-            </p>
-            <h2 className="mt-3 text-2xl font-black tracking-tight">
+          <section className="border-t border-slate-200 pt-6">
+            <h2 className="text-base font-bold tracking-tight text-slate-900">
               若您需要查詢或更正個人資料
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/70 md:text-base">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
               建議先於個人設定頁面更新；若涉及刪除、停止處理或其他進一步申請，請透過支援頁聯繫平台管理團隊。
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href="/support"
-                className="inline-flex items-center rounded-full bg-primary px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-primary/90"
+                className="inline-flex items-center rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
               >
                 提交資料需求
               </Link>
               <Link
                 href="/terms"
-                className="inline-flex items-center rounded-full border border-white/20 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-white/10"
+                className="inline-flex items-center rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
               >
                 查看服務條款
               </Link>

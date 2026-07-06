@@ -18,9 +18,17 @@ export default async function ProfileLayout({
   // 查不到再查職員（V1 允許任何已登入使用者查看 /profile）。
   const { data: volunteer } = await supabase
     .from("volunteer_profiles")
-    .select("full_name, email")
+    .select("full_name, email, status")
     .eq("id", user.id)
     .maybeSingle();
+
+  // 審核中／未通過的志工看不到個人資料，導到帳號審核狀態頁。
+  if (
+    volunteer &&
+    (volunteer.status === "pending_review" || volunteer.status === "rejected")
+  ) {
+    redirect("/account-review");
+  }
 
   const profile =
     volunteer ??

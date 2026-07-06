@@ -7,6 +7,7 @@ import {
   getMyHoursSummary,
   type HoursSummary,
 } from "@/lib/actions/registrations";
+import { ProfilePageHeader } from "../profile-page-header";
 
 const PRINT_STYLE = `
 @media print {
@@ -63,57 +64,56 @@ export default function CertificatePage() {
     <>
       <style>{PRINT_STYLE}</style>
 
-      <header className="no-print h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
-        <h1 className="text-lg font-bold">服務證明</h1>
-        <div className="flex items-center gap-3">
-          <Link
-            href="/profile/registrations"
-            className="flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            返回報名紀錄
-          </Link>
-          {hasHours ? (
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors"
+      <ProfilePageHeader
+        title="服務時數紀錄"
+        noPrint
+        actions={
+          <>
+            <Link
+              href="/profile/registrations"
+              className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
             >
-              <span className="material-symbols-outlined text-[18px]">print</span>
-              列印 / 另存 PDF
-            </button>
-          ) : null}
-        </div>
-      </header>
+              返回報名紀錄
+            </Link>
+            {hasHours ? (
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+              >
+                <span className="material-symbols-outlined text-[18px]">print</span>
+                列印 / 另存 PDF
+              </button>
+            ) : null}
+          </>
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-6 md:p-8">
+      <div className="flex-1 overflow-y-auto p-5 md:p-8">
         {!hasHours ? (
-          <div className="max-w-2xl mx-auto text-center py-20 bg-white rounded-xl border border-slate-200 no-print">
-            <span className="material-symbols-outlined text-5xl text-slate-300 block mb-3">
+          <div className="no-print mx-auto max-w-2xl py-16 text-center">
+            <span className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
               workspace_premium
             </span>
-            <p className="text-slate-500">目前尚無已認列的服務時數，完成活動並由管理員登記出席後即可產出證明。</p>
+            <p className="text-sm text-slate-500">
+              目前尚無已認列的服務時數，完成活動並由管理員登記出席後即可在此查看紀錄。
+            </p>
           </div>
         ) : (
-          <div
-            id="service-certificate"
-            className="max-w-3xl mx-auto bg-white rounded-xl border border-slate-200 p-10 md:p-14"
-          >
-            <div className="text-center border-b-2 border-primary pb-6 mb-8">
-              <p className="text-sm tracking-[0.3em] text-slate-400 mb-2">
-                CERTIFICATE OF SERVICE
-              </p>
-              <h2 className="text-3xl font-black text-slate-900">志工服務時數證明</h2>
-              <p className="text-slate-500 mt-2">宜蘭家扶中心</p>
+          <div id="service-certificate" className="mx-auto max-w-3xl bg-white py-6 md:py-8">
+            <div className="mb-8 border-b-2 border-primary pb-6 text-center">
+              <h2 className="text-2xl font-bold text-slate-900">服務時數紀錄</h2>
+              <p className="mt-1 text-sm text-slate-500">宜蘭家扶中心</p>
             </div>
 
             <div className="space-y-2 text-slate-700 leading-relaxed mb-8">
               <p>
-                茲證明志工{" "}
+                志工{" "}
                 <span className="font-bold text-slate-900 text-lg">{fullName || "（未填寫姓名）"}</span>{" "}
-                參與本中心志工服務活動，累計出席{" "}
+                於本中心參與志工服務活動，累計出席{" "}
                 <span className="font-bold text-primary">{summary.attendedCount}</span>{" "}
                 場，服務時數合計{" "}
                 <span className="font-bold text-primary text-lg">{summary.totalHours}</span>{" "}
-                小時，特此證明。
+                小時。
               </p>
             </div>
 
@@ -152,12 +152,8 @@ export default function CertificatePage() {
               </tfoot>
             </table>
 
-            <div className="flex justify-between items-end pt-8">
-              <p className="text-sm text-slate-500">開立日期：{today}</p>
-              <div className="text-center">
-                <div className="h-16 w-40 border-b border-slate-300 mb-1" />
-                <p className="text-xs text-slate-400">宜蘭家扶中心（用印）</p>
-              </div>
+            <div className="pt-8">
+              <p className="text-sm text-slate-500">資料時間：{today}</p>
             </div>
           </div>
         )}
