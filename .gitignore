@@ -37,6 +37,9 @@ next-env.d.ts
 public/storage/attachments/*
 !public/storage/attachments/.gitkeep
 
+# local-only business spec docs (not committed)
+/files/
+
 # backups
 /backups/
 
