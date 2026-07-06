@@ -29,6 +29,12 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // 忘記密碼信件連結導回的公開路徑：交換 session 前尚未登入是預期狀態，
+  // 不可被下方任何導向規則攔截。
+  if (request.nextUrl.pathname.startsWith("/auth/callback")) {
+    return supabaseResponse;
+  }
+
   const isAuthPage =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/register") ||

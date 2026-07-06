@@ -7,12 +7,15 @@ import type { User } from "@supabase/supabase-js";
 interface AuthContextValue {
   user: User | null;
   isAdmin: boolean;
+  // 志工帳號審核中／未通過 → 被擋在門外（隱藏志工專區/個人資料連結）
+  volunteerBlocked: boolean;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   isAdmin: false,
+  volunteerBlocked: false,
   isLoading: true,
 });
 
@@ -29,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [volunteerBlocked, setVolunteerBlocked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // 只在 onAuthStateChange callback 內做「同步」的狀態更新，
@@ -54,18 +58,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const uid = user?.id;
     if (!uid) {
       setIsAdmin(false);
+      setVolunteerBlocked(false);
       return;
     }
 
     let active = true;
-    supabase
-      .from("staff_profiles")
-      .select("status")
-      .eq("id", uid)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (active) setIsAdmin(!!data && data.status === "active");
-      });
+    (async () => {
+      const { data: staff } = await supabase
+        .from("staff_profiles")
+        .select("status")
+        .eq("id", uid)
+        .maybeSingle();
+      if (!active) return;
+      if (staff) {
+        setIsAdmin(staff.status === "active");
+        setVolunteerBlocked(false);
+        return;
+      }
+      setIsAdmin(false);
+      // 非職員 → 查志工狀態，審核中／未通過視為被擋在門外
+      const { data: vol } = await supabase
+        .from("volunteer_profiles")
+        .select("status")
+        .eq("id", uid)
+        .maybeSingle();
+      if (!active) return;
+      setVolunteerBlocked(
+        !!vol && (vol.status === "pending_review" || vol.status === "rejected")
+      );
+    })();
 
     return () => {
       active = false;
@@ -73,7 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, user?.id]);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin, isLoading }}>
+    <AuthContext.Provider value={{ user, isAdmin, volunteerBlocked, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
