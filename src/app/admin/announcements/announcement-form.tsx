@@ -1,0 +1,165 @@
+"use client";
+
+// 公告表單（新增／編輯共用）：Markdown 內容，附即時預覽。
+// 發布時間（published_at）於狀態轉為已發布時自動帶入。
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/toast";
+import { getErrorMessage } from "@/lib/ui/toast-actions";
+import { Button } from "@/components/ui/button";
+import { Field, inputClass, Panel } from "@/components/admin/ui";
+import { Markdown } from "@/components/admin/markdown";
+import type { Announcement, AnnouncementStatus } from "@/lib/types/database";
+
+export function AnnouncementForm({
+  announcement,
+  currentUserId,
+}: {
+  announcement?: Announcement;
+  currentUserId: string;
+}) {
+  const supabase = createClient();
+  const toast = useToast();
+  const router = useRouter();
+  const isEdit = Boolean(announcement);
+
+  const [title, setTitle] = useState(announcement?.title ?? "");
+  const [content, setContent] = useState(announcement?.content ?? "");
+  const [isPinned, setIsPinned] = useState(announcement?.is_pinned ?? false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const save = async (publish: boolean) => {
+    if (!title.trim()) return void toast.error("請輸入公告標題");
+    if (!content.trim()) return void toast.error("請輸入公告內容");
+
+    setIsSaving(true);
+    try {
+      // 已發布公告再次儲存時維持發布狀態；草稿可選擇「儲存草稿」或「儲存並發布」。
+      const nextStatus: AnnouncementStatus =
+        publish || announcement?.status === "published" ? "published" : "draft";
+      const shouldStampPublishedAt =
+        nextStatus === "published" && !announcement?.published_at;
+
+      const payload: Record<string, unknown> = {
+        title: title.trim(),
+        content: content.trim(),
+        is_pinned: isPinned,
+        status: nextStatus,
+      };
+      if (shouldStampPublishedAt) payload.published_at = new Date().toISOString();
+
+      if (isEdit && announcement) {
+        const { error } = await supabase
+          .from("announcements")
+          .update(payload)
+          .eq("id", announcement.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("announcements")
+          .insert({ ...payload, created_by: currentUserId });
+        if (error) throw error;
+      }
+
+      toast.success(nextStatus === "published" ? "公告已發布" : "草稿已儲存");
+      router.push("/admin/announcements");
+      router.refresh();
+    } catch (error) {
+      toast.error(`儲存失敗：${getErrorMessage(error as Error)}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl space-y-5">
+      <Panel title="公告內容">
+        <div className="space-y-4">
+          <Field label="標題" required>
+            <input
+              className={inputClass}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+            />
+          </Field>
+
+          <Field
+            label="內容"
+            required
+            hint="支援 Markdown：# 標題、**粗體**、*斜體*、- 清單、> 引用、[文字](網址)。"
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPreview(false)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                  !showPreview ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                編輯
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowPreview(true)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold ${
+                  showPreview ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-100"
+                }`}
+              >
+                預覽
+              </button>
+            </div>
+            {showPreview ? (
+              <div className="min-h-48 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
+                {content.trim() ? (
+                  <Markdown content={content} />
+                ) : (
+                  <p className="text-sm text-slate-400">（無內容可預覽）</p>
+                )}
+              </div>
+            ) : (
+              <textarea
+                className={`${inputClass} min-h-48 font-mono text-sm`}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+              />
+            )}
+          </Field>
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={isPinned}
+              onChange={(e) => setIsPinned(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/30"
+            />
+            <span className="font-medium text-slate-700">置頂此公告</span>
+          </label>
+        </div>
+      </Panel>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {announcement?.status === "published" ? (
+          <Button size="sm" isLoading={isSaving} onClick={() => save(true)}>
+            儲存變更
+          </Button>
+        ) : (
+          <>
+            <Button size="sm" isLoading={isSaving} onClick={() => save(true)}>
+              儲存並發布
+            </Button>
+            <Button size="sm" variant="outline" isLoading={isSaving} onClick={() => save(false)}>
+              儲存草稿
+            </Button>
+          </>
+        )}
+        <Button size="sm" variant="ghost" onClick={() => router.back()}>
+          取消
+        </Button>
+      </div>
+    </div>
+  );
+}
