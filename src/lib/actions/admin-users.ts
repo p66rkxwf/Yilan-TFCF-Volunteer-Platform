@@ -104,6 +104,20 @@ export async function setStaffStatus(
   const { supabase, userId, error: authError } = await requireAdmin();
   if (authError) return { error: authError };
 
+  // 收斂：停權／恢復職員（含底層 Auth ban）限系統管理員。
+  // requireAdmin() 只保證「在職職員」；對他人列的 staff_profiles 直寫在非
+  // system_admin 時會命中 0 列且「不報錯」（RLS USING 不符只是靜默過濾），
+  // 若不在此重查角色，一般職員就能繞過 RLS 用 service-role ban 任一職員帳號。
+  // 故從 DB 重查操作者角色，不信任前端（比照 setStaffRole / createStaff）。
+  const { data: actor } = await supabase
+    .from("staff_profiles")
+    .select("role")
+    .eq("id", userId as string)
+    .maybeSingle();
+  if (actor?.role !== "system_admin") {
+    return { error: "僅系統管理員可停權或恢復職員帳號。" };
+  }
+
   if (targetUserId === userId) {
     return { error: "不可停權目前登入的管理員帳號。" };
   }
