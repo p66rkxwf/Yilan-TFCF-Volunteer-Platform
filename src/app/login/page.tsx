@@ -3,8 +3,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { resolveLoginEmail } from "@/lib/actions/auth";
+import { login } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
+import { safeInternalPath } from "@/lib/url";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 
 export default function LoginPage() {
@@ -13,22 +14,6 @@ export default function LoginPage() {
       <LoginForm />
     </Suspense>
   );
-}
-
-// Only allow same-origin relative paths as the post-login redirect target.
-// Resolves the value with the URL parser (the same normalization the router
-// applies), so absolute URLs, protocol-relative "//host", and backslash/tab
-// tricks like "/\\evil.com" that escape to another origin are rejected.
-function safeInternalPath(raw: string | null): string {
-  if (!raw) return "/";
-  try {
-    const base = "http://internal.invalid";
-    const url = new URL(raw, base);
-    if (url.origin === base) return url.pathname + url.search + url.hash;
-  } catch {
-    // fall through
-  }
-  return "/";
 }
 
 function LoginForm() {
@@ -75,25 +60,21 @@ function LoginForm() {
 
     setIsLoading(true);
 
-    const { email, error: resolveError } = await resolveLoginEmail(
-      formData.account
-    );
+    // 密碼驗證在伺服器端完成（login），前端不再取得任何帳號的 email。
+    const { session, error } = await login(formData.account, formData.password);
 
-    if (resolveError || !email) {
-      toast.error(resolveError ?? "帳號不存在，請確認後再試。");
+    if (error || !session) {
+      toast.error(error ?? "帳號或密碼錯誤，請重新輸入。");
       setIsLoading(false);
       return;
     }
 
-    // 刻意用瀏覽器端的 client 呼叫，讓 Header 等元件的
-    // onAuthStateChange 立即收到登入事件，不用整頁重新整理。
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: formData.password,
-    });
+    // 用瀏覽器端 client 設定 session，讓 Header 等元件的 onAuthStateChange
+    // 立即收到登入事件，不用整頁重新整理。
+    const { error: setError } = await supabase.auth.setSession(session);
 
-    if (error) {
-      toast.error("帳號或密碼錯誤，請重新輸入。");
+    if (setError) {
+      toast.error("登入失敗，請稍後再試。");
       setIsLoading(false);
       return;
     }

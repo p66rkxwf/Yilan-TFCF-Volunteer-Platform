@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getCachedUser, requireAdmin } from "@/lib/supabase/cached-auth";
 
 interface ActionResult {
@@ -50,5 +51,23 @@ export async function reviewDeactivationRequest(
   });
 
   if (error) return { error: error.message };
+
+  // 核准停用＝將志工轉為停權。比照 setVolunteerStatus，一併撤銷其 Auth session，
+  // 避免既有 token 在自然過期前仍可讀取自身資料（資安審核 hardening H3）。
+  if (approve) {
+    const { data: req } = await supabase
+      .from("deactivation_requests")
+      .select("volunteer_id")
+      .eq("id", requestId)
+      .maybeSingle();
+    const volunteerId = (req as { volunteer_id?: string } | null)?.volunteer_id;
+    if (volunteerId) {
+      const admin = createAdminClient();
+      await admin.auth.admin.updateUserById(volunteerId, {
+        ban_duration: "876000h",
+      });
+    }
+  }
+
   return { success: true };
 }

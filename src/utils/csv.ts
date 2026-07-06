@@ -4,9 +4,10 @@ function escapeCell(value: string | number | null | undefined): string {
   let str = value == null ? "" : String(value);
 
   // Neutralize formula injection: if the cell starts with a character that
-  // spreadsheet apps interpret as a formula prefix, prepend a single quote
-  // so it's treated as literal text.
-  if (/^[=+\-@]/.test(str)) {
+  // spreadsheet apps interpret as a formula prefix (including a leading tab or
+  // carriage return that a CSV parser may strip to expose the formula),
+  // prepend a single quote so it's treated as literal text.
+  if (/^[=+\-@\t\r]/.test(str)) {
     str = `'${str}`;
   }
 

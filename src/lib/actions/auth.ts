@@ -8,7 +8,7 @@ import {
 } from "@/lib/birthday";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
 
 // Server Action 內沒有請求的完整 URL，改由 header 還原站台網址；
@@ -35,25 +35,16 @@ export interface AuthResult {
   success?: boolean;
 }
 
-// 將帳號/Email 輸入解析為實際登入用的 Email。
-// 實際的 signInWithPassword 呼叫刻意留給前端用瀏覽器端的 Supabase client
-// 執行（見 src/app/login/page.tsx），這樣登入後 onAuthStateChange 才會
-// 立即通知同一個 client 實例（例如 Header），不需要整頁重新整理才會反映
-// 登入狀態——透過 Server Action 登入的話，瀏覽器端的 client 完全不會知道。
+// 將帳號/Email 輸入解析為實際登入用的 Email（僅供伺服器端 login 使用）。
 //
-// 這裡查表發生在使用者「尚未登入」的當下：V2 的 staff_profiles /
-// volunteer_profiles RLS 只允許本人或在職職員讀取，anon 一律查不到任何
-// 列，所以帳號→Email 的查詢改用 admin client（僅讀取 email 欄位，
-// 不外洩其他個資，暴露面等同登入功能本身）。
-export async function resolveLoginEmail(
-  account: string
-): Promise<{ email?: string; error?: string }> {
+// 安全性（資安審核 Finding 3）：此函式「不」對外匯出、也不把 email 回傳給
+// 前端。V2 登入改為在伺服器端完成密碼驗證（見下方 login），前端不再取得
+// 任何帳號的 email，避免未登入者以任意帳號查詢 email／列舉帳號。
+// 查表沿用 admin client：使用者尚未登入時，anon 受 RLS 限制查不到任何列。
+async function resolveEmailInternal(account: string): Promise<string | null> {
   const input = account.trim();
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
-
-  if (isEmail) {
-    return { email: input };
-  }
+  if (isEmail) return input;
 
   const admin = adminClient();
 
@@ -62,18 +53,39 @@ export async function resolveLoginEmail(
     .select("email")
     .eq("username", input)
     .maybeSingle();
-
-  if (volunteer) return { email: volunteer.email };
+  if (volunteer) return volunteer.email as string;
 
   const { data: staff } = await admin
     .from("staff_profiles")
     .select("email")
     .eq("username", input)
     .maybeSingle();
+  if (staff) return staff.email as string;
 
-  if (staff) return { email: staff.email };
+  return null;
+}
 
-  return { error: "帳號不存在，請確認後再試。" };
+// 伺服器端登入：以帳號或 Email + 密碼驗證，成功只回傳 session（絕不回 email）。
+// 帳號不存在或密碼錯誤一律回同一個錯誤，避免帳號列舉與 email 外洩。
+// 前端拿到 session 後呼叫瀏覽器 client 的 setSession()，讓 onAuthStateChange
+// 立即通知 Header/AuthProvider，維持免整頁重新整理即可反映登入狀態的體驗。
+export async function login(
+  account: string,
+  password: string
+): Promise<{ session?: Session; error?: string }> {
+  const generic = { error: "帳號或密碼錯誤，請重新輸入。" };
+
+  const email = await resolveEmailInternal(account);
+  if (!email) return generic;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  if (error || !data.session) return generic;
+
+  return { session: data.session };
 }
 
 export async function signUp(formData: {
