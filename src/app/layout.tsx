@@ -12,7 +12,11 @@ export const metadata: Metadata = {
   title: "宜蘭家扶中心志工平台",
   description: "宜蘭家扶中心志工管理與報名平台",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: "/apple-icon.png",
   },
 };
 

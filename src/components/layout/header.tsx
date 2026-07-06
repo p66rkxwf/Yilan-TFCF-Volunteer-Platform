@@ -7,30 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 
-function LogoIcon() {
-  return (
-    <svg
-      className="text-primary w-8 h-8"
-      fill="none"
-      viewBox="0 0 48 48"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        clipRule="evenodd"
-        d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z"
-        fill="currentColor"
-        fillRule="evenodd"
-      />
-    </svg>
-  );
-}
-
 export function Header() {
   const router = useRouter();
   const supabase = createClient();
   const toast = useToast();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isAdmin, isLoading } = useAuth();
+  const { user, isAdmin, volunteerBlocked, isLoading } = useAuth();
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -60,12 +42,14 @@ export function Header() {
           後台管理
         </Link>
       )}
-      <Link
-        href="/profile"
-        className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
-      >
-        個人資料
-      </Link>
+      {!volunteerBlocked && (
+        <Link
+          href="/profile"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+        >
+          個人資料
+        </Link>
+      )}
       <button
         onClick={handleSignOut}
         className="text-slate-600 text-sm font-medium hover:text-red-500 transition-colors"
@@ -93,13 +77,15 @@ export function Header() {
           後台管理
         </Link>
       )}
-      <Link
-        href="/profile"
-        className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
-        onClick={() => setMobileMenuOpen(false)}
-      >
-        個人資料
-      </Link>
+      {!volunteerBlocked && (
+        <Link
+          href="/profile"
+          className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          個人資料
+        </Link>
+      )}
       <button
         onClick={handleSignOut}
         className="text-left text-red-500 text-base font-medium py-2"
@@ -118,9 +104,17 @@ export function Header() {
   );
 
   return (
-    <header className="flex items-center justify-between border-b border-slate-200 px-6 md:px-16 py-4 bg-white sticky top-0 z-50">
+    <header className="border-b border-slate-200 px-4 sm:px-6 py-4 bg-white sticky top-0 z-50">
+      <div className="flex w-full items-center justify-between">
       <Link href="/" className="flex items-center gap-3">
-        <LogoIcon />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo.webp"
+          alt="宜蘭家扶中心"
+          width={49}
+          height={40}
+          className="h-10 w-auto"
+        />
         <h2 className="text-slate-900 text-xl font-bold tracking-tight">
           宜蘭家扶中心志工平台
         </h2>
@@ -128,20 +122,31 @@ export function Header() {
 
       <nav className="hidden md:flex items-center gap-10">
         <Link
-          href="/scholarship"
-          className="flex items-center gap-1.5 text-slate-600 text-sm font-medium hover:text-primary transition-colors"
-        >
-          獎學金專區
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-            即將開放
-          </span>
-        </Link>
-        <Link
-          href="/volunteer"
+          href="/"
           className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
         >
-          志工專區
+          首頁
         </Link>
+        <Link
+          href="/announcements"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+        >
+          最新消息
+        </Link>
+        <Link
+          href="/scholarship"
+          className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+        >
+          獎學金專區
+        </Link>
+        {!volunteerBlocked && (
+          <Link
+            href="/volunteer"
+            className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
+          >
+            志工專區
+          </Link>
+        )}
         {authLink}
       </nav>
 
@@ -155,27 +160,41 @@ export function Header() {
           </span>
         </button>
       </div>
+      </div>
 
       {mobileMenuOpen && (
         <div className="absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-lg md:hidden z-40">
           <nav className="flex flex-col p-6 gap-4">
             <Link
-              href="/scholarship"
-              className="flex items-center gap-1.5 text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              獎學金專區
-              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
-                即將開放
-              </span>
-            </Link>
-            <Link
-              href="/volunteer"
+              href="/"
               className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
               onClick={() => setMobileMenuOpen(false)}
             >
-              志工專區
+              首頁
             </Link>
+            <Link
+              href="/announcements"
+              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              最新消息
+            </Link>
+            <Link
+              href="/scholarship"
+              className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              獎學金專區
+            </Link>
+            {!volunteerBlocked && (
+              <Link
+                href="/volunteer"
+                className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                志工專區
+              </Link>
+            )}
             {mobileAuthLink}
           </nav>
         </div>

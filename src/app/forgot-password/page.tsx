@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { resetPassword } from "@/lib/actions/auth";
 import { useToast } from "@/components/ui/toast";
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordInner() {
   const toast = useToast();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("error") === "callback_failed") {
+      toast.error("重設密碼連結已失效或已被使用，請重新申請一次。");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +71,7 @@ export default function ForgotPasswordPage() {
             忘記密碼？
           </h1>
           <p className="text-slate-600 text-base font-normal leading-relaxed">
-            別擔心，請輸入您註冊時的電子郵件，我們會寄送重設密碼的連結給您。
+            請輸入您註冊時的電子郵件，我們會寄送重設密碼的連結給您。
           </p>
         </div>
 
@@ -175,5 +184,13 @@ export default function ForgotPasswordPage() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ForgotPasswordInner />
+    </Suspense>
   );
 }

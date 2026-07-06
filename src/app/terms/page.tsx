@@ -73,121 +73,80 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <InfoPageShell
-      icon="gavel"
-      eyebrow="Terms of Service"
       title="服務條款"
       description="本條款說明您在使用宜蘭家扶中心志工平台時的帳號義務、活動參與規範，以及平台內容與服務範圍。"
       meta={
         <>
-          <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm shadow-slate-900/5 backdrop-blur">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              最後更新
-            </p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
-              2026年3月11日
-            </p>
-          </div>
-          <div className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm shadow-slate-900/5 backdrop-blur">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              適用功能
-            </p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">
-              註冊、登入、報名、收藏
-            </p>
-          </div>
+          <span>最後更新：2026年3月11日</span>
+          <span>適用功能：註冊、登入、報名、收藏</span>
         </>
       }
     >
-      <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)]">
-        <aside className="lg:sticky lg:top-28 lg:self-start">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              文件導覽
-            </p>
-            <nav className="mt-4 flex flex-col gap-2">
-              {TERMS_SECTIONS.map((section) => (
-                <a
-                  key={section.id}
-                  href={`#${section.id}`}
-                  className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
-                >
-                  {section.index} {section.title}
-                </a>
-              ))}
-            </nav>
-          </div>
+      <div className="grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)]">
+        <aside className="lg:sticky lg:top-6 lg:self-start">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+            文件導覽
+          </p>
+          <nav className="mt-2 flex flex-col">
+            {TERMS_SECTIONS.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                className="rounded px-2 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
+              >
+                {section.index} {section.title}
+              </a>
+            ))}
+          </nav>
 
-          <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-              相關文件
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-              {RELATED_DOCUMENTS.map((document) => (
-                <Link
-                  key={document.href}
-                  href={document.href}
-                  className="flex items-center justify-between rounded-2xl bg-background-light px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:bg-primary/10 hover:text-primary"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px]">
-                      {document.icon}
-                    </span>
-                    {document.label}
-                  </span>
-                  <span className="material-symbols-outlined text-[18px]">
-                    arrow_forward
-                  </span>
-                </Link>
-              ))}
-            </div>
+          <p className="mt-6 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
+            相關文件
+          </p>
+          <div className="mt-2 flex flex-col">
+            {RELATED_DOCUMENTS.map((document) => (
+              <Link
+                key={document.href}
+                href={document.href}
+                className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
+              >
+                <span className="material-symbols-outlined text-[18px]">{document.icon}</span>
+                {document.label}
+              </Link>
+            ))}
           </div>
         </aside>
 
-        <div className="space-y-6">
+        <div className="space-y-8">
           {TERMS_SECTIONS.map((section) => (
-            <section
-              key={section.id}
-              id={section.id}
-              className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/5 md:p-8"
-            >
-              <div className="flex items-start gap-4">
-                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-sm font-black text-primary">
-                  {section.index}
-                </span>
-                <div>
-                  <h2 className="text-2xl font-black tracking-tight text-slate-900">
-                    {section.title}
-                  </h2>
-                  <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600 md:text-base">
-                    {section.paragraphs.map((paragraph) => (
-                      <p key={paragraph}>{paragraph}</p>
-                    ))}
-                  </div>
-                </div>
+            <section key={section.id} id={section.id} className="scroll-mt-6">
+              <h2 className="border-b border-slate-200 pb-2 text-base font-bold tracking-tight text-slate-900">
+                {section.index} {section.title}
+              </h2>
+              <div className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
+                {section.paragraphs.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
               </div>
             </section>
           ))}
 
-          <section className="rounded-3xl bg-slate-900 p-8 text-white">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
-              Need Clarification
-            </p>
-            <h2 className="mt-3 text-2xl font-black tracking-tight">
+          <section className="border-t border-slate-200 pt-6">
+            <h2 className="text-base font-bold tracking-tight text-slate-900">
               若條款內容影響您的報名或帳號使用
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/70 md:text-base">
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
               建議一併提供活動名稱、帳號資訊與問題情境，平台管理團隊可依實際狀況協助說明。
             </p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href="/support"
-                className="inline-flex items-center rounded-full bg-primary px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-primary/90"
+                className="inline-flex items-center rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
               >
                 聯絡支援
               </Link>
               <Link
                 href="/privacy"
-                className="inline-flex items-center rounded-full border border-white/20 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-white/10"
+                className="inline-flex items-center rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50"
               >
                 查看隱私政策
               </Link>

@@ -11,6 +11,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-provider";
 import type { DeactivationRequest } from "@/lib/types/database";
+import { ProfilePageHeader } from "../profile-page-header";
+import { InfoRow } from "@/components/site/section";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   dateStyle: "medium",
@@ -33,22 +35,18 @@ function SettingsSection({
   danger?: boolean;
 }) {
   return (
-    <section
-      className={`bg-white p-6 rounded-xl border ${
-        danger ? "border-red-200" : "border-slate-200"
-      }`}
-    >
-      <div className="flex items-start gap-3 mb-6">
+    <section>
+      <div className="mb-4 flex items-start gap-2.5 border-b border-slate-200 pb-2.5">
         <span
-          className={`material-symbols-outlined ${
+          className={`material-symbols-outlined text-[20px] ${
             danger ? "text-red-500" : "text-primary"
           }`}
         >
           {icon}
         </span>
         <div>
-          <h3 className="text-lg font-bold">{title}</h3>
-          <p className="text-sm text-slate-500">{description}</p>
+          <h2 className="text-base font-bold text-slate-900">{title}</h2>
+          <p className="text-xs text-slate-500">{description}</p>
         </div>
       </div>
       {children}
@@ -181,58 +179,48 @@ export default function SettingsPage() {
   };
 
   const inputCls =
-    "w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all";
+    "w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all";
 
   return (
     <>
-      <header className="h-16 border-b border-slate-200 bg-white flex items-center justify-between px-6 md:px-8 shrink-0">
-        <h1 className="text-lg font-bold">帳號設定</h1>
-      </header>
+      <ProfilePageHeader title="帳號設定" />
 
-      <div className="flex-1 overflow-y-auto p-6 md:p-8">
-        <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto p-5 md:p-8">
+        <div className="w-full space-y-8">
           {/* Password */}
           <SettingsSection
             icon="lock"
             title="修改密碼"
             description="建議定期更換密碼以維護帳號安全。"
           >
-            <form onSubmit={handlePasswordUpdate} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  新密碼
-                </label>
-                <input
-                  type="password"
-                  className={inputCls}
-                  placeholder="至少 8 個字元"
-                  value={pwForm.password}
-                  onChange={(e) =>
-                    setPwForm((p) => ({ ...p, password: e.target.value }))
-                  }
-                  minLength={8}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  確認新密碼
-                </label>
-                <input
-                  type="password"
-                  className={inputCls}
-                  placeholder="再次輸入新密碼"
-                  value={pwForm.confirm}
-                  onChange={(e) =>
-                    setPwForm((p) => ({ ...p, confirm: e.target.value }))
-                  }
-                  minLength={8}
-                />
-              </div>
-              <div className="flex justify-end">
+            <form onSubmit={handlePasswordUpdate}>
+              <dl>
+                <InfoRow label="新密碼">
+                  <input
+                    type="password"
+                    className={inputCls}
+                    placeholder="至少 8 個字元"
+                    value={pwForm.password}
+                    onChange={(e) => setPwForm((p) => ({ ...p, password: e.target.value }))}
+                    minLength={8}
+                  />
+                </InfoRow>
+                <InfoRow label="確認新密碼">
+                  <input
+                    type="password"
+                    className={inputCls}
+                    placeholder="再次輸入新密碼"
+                    value={pwForm.confirm}
+                    onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
+                    minLength={8}
+                  />
+                </InfoRow>
+              </dl>
+              <div className="mt-4 flex justify-end">
                 <button
                   type="submit"
                   disabled={pwLoading}
-                  className="px-5 py-2.5 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-2"
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {pwLoading && (
                     <span className="material-symbols-outlined animate-spin text-[16px]">
@@ -251,26 +239,23 @@ export default function SettingsPage() {
             title="修改 Email"
             description="更改後需至新信箱完成驗證。"
           >
-            <form onSubmit={handleEmailUpdate} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  新的 Email 地址
-                </label>
-                <input
-                  type="email"
-                  className={inputCls}
-                  placeholder="new-email@example.com"
-                  value={emailForm.email}
-                  onChange={(e) =>
-                    setEmailForm({ email: e.target.value })
-                  }
-                />
-              </div>
-              <div className="flex justify-end">
+            <form onSubmit={handleEmailUpdate}>
+              <dl>
+                <InfoRow label="新 Email">
+                  <input
+                    type="email"
+                    className={inputCls}
+                    placeholder="new-email@example.com"
+                    value={emailForm.email}
+                    onChange={(e) => setEmailForm({ email: e.target.value })}
+                  />
+                </InfoRow>
+              </dl>
+              <div className="mt-4 flex justify-end">
                 <button
                   type="submit"
                   disabled={emailLoading}
-                  className="px-5 py-2.5 bg-primary text-white rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center gap-2"
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {emailLoading && (
                     <span className="material-symbols-outlined animate-spin text-[16px]">
@@ -310,7 +295,7 @@ export default function SettingsPage() {
                   <button
                     onClick={handleWithdrawDeactivation}
                     disabled={withdrawLoading}
-                    className="px-5 py-2.5 border border-slate-200 rounded-lg font-semibold text-sm hover:bg-slate-50 transition-colors disabled:opacity-60 flex items-center gap-2"
+                    className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold transition-colors hover:bg-slate-50 disabled:opacity-60"
                   >
                     {withdrawLoading && (
                       <span className="material-symbols-outlined animate-spin text-[16px]">
@@ -322,24 +307,22 @@ export default function SettingsPage() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-slate-700">
-                    申請原因
-                    <span className="text-slate-400 font-normal ml-1">（選填）</span>
-                  </label>
-                  <textarea
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-200 bg-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-                    rows={3}
-                    placeholder="請簡述申請停用的原因"
-                    value={deactivateReason}
-                    onChange={(e) => setDeactivateReason(e.target.value)}
-                  />
-                </div>
-                <div className="flex justify-end">
+              <div>
+                <dl>
+                  <InfoRow label="申請原因" align="start">
+                    <textarea
+                      className={`${inputCls} min-h-20`}
+                      rows={3}
+                      placeholder="請簡述申請停用的原因（選填）"
+                      value={deactivateReason}
+                      onChange={(e) => setDeactivateReason(e.target.value)}
+                    />
+                  </InfoRow>
+                </dl>
+                <div className="mt-4 flex justify-end">
                   <button
                     onClick={() => setShowDeactivateConfirm(true)}
-                    className="px-5 py-2.5 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition-colors"
+                    className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
                   >
                     送出停用申請
                   </button>

@@ -39,11 +39,6 @@ export default function RegisterPage() {
     birthday: "",
   });
 
-  const [interests, setInterests] = useState({
-    scholarships: false,
-    volunteering: false,
-  });
-
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -137,14 +132,6 @@ export default function RegisterPage() {
     router.push("/login");
   };
 
-  const requiredFields = ["account", "password", "confirmPassword", "name", "email", "phone", "grade", "birthday"];
-  const optionalFields = ["region"];
-  const allFields = [...requiredFields, ...optionalFields];
-  const filledCount = allFields.filter(
-    (k) => formData[k as keyof typeof formData].toString().trim() !== ""
-  ).length;
-  const progressPercent = Math.round((filledCount / allFields.length) * 100);
-
   function FieldError({ field }: { field: string }) {
     return errors[field] ? (
       <p className="text-red-500 text-xs mt-1">{errors[field]}</p>
@@ -161,21 +148,6 @@ export default function RegisterPage() {
           <p className="text-slate-600 text-lg">
             掌握最新的服務機會與獎學金資訊。
           </p>
-        </div>
-
-        <div className="flex flex-col gap-3 bg-white p-6 rounded-xl shadow-sm border border-primary/5">
-          <div className="flex justify-between items-center">
-            <p className="text-slate-900 text-sm font-semibold uppercase tracking-wider">
-              填寫進度
-            </p>
-            <p className="text-primary text-sm font-bold">{progressPercent}%</p>
-          </div>
-          <div className="w-full h-2 rounded-full bg-primary/10">
-            <div
-              className="h-2 rounded-full bg-primary transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
         </div>
 
         <form
@@ -368,41 +340,6 @@ export default function RegisterPage() {
                 />
               </div>
               <FieldError field="confirmPassword" />
-            </div>
-          </div>
-
-          {/* 興趣 */}
-          <div className="flex flex-col gap-4 mt-2">
-            <p className="text-slate-900 text-sm font-bold">您的感興趣項目</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 cursor-pointer hover:bg-primary/5 transition-colors">
-                <input
-                  className="w-5 h-5 rounded text-primary focus:ring-primary bg-background-light border-slate-300"
-                  type="checkbox"
-                  checked={interests.scholarships}
-                  onChange={(e) =>
-                    setInterests((p) => ({ ...p, scholarships: e.target.checked }))
-                  }
-                />
-                <div className="flex flex-col">
-                  <span className="font-bold text-slate-900">獎學金</span>
-                  <span className="text-xs text-slate-500">接收獎學金申請通知</span>
-                </div>
-              </label>
-              <label className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 cursor-pointer hover:bg-primary/5 transition-colors">
-                <input
-                  className="w-5 h-5 rounded text-primary focus:ring-primary bg-background-light border-slate-300"
-                  type="checkbox"
-                  checked={interests.volunteering}
-                  onChange={(e) =>
-                    setInterests((p) => ({ ...p, volunteering: e.target.checked }))
-                  }
-                />
-                <div className="flex flex-col">
-                  <span className="font-bold text-slate-900">志工服務</span>
-                  <span className="text-xs text-slate-500">接收志工活動通知</span>
-                </div>
-              </label>
             </div>
           </div>
 
