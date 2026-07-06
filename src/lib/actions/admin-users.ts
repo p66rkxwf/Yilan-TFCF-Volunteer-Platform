@@ -2,11 +2,93 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
-import type { StaffRole } from "@/lib/types/database";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
 
 interface ActionResult {
   error?: string;
   success?: boolean;
+  staffId?: string;
+}
+
+function adminClient(): SupabaseClient {
+  return createAdminClient() as unknown as SupabaseClient;
+}
+
+// 建立職員帳號（伺服器端 Admin API，前端不開放直接 INSERT）。
+// 僅系統管理員可建立；角色與職稱在此設定，故收斂到系統管理員。
+export async function createStaff(input: {
+  fullName: string;
+  username: string;
+  email: string;
+  password: string;
+  phone: string;
+  role: StaffRole;
+  jobTitle: StaffJobTitle;
+  region?: string;
+}): Promise<ActionResult> {
+  const { supabase, userId, error: authError } = await requireAdmin();
+  if (authError) return { error: authError };
+
+  // 收斂：建立職員（含指派角色）限系統管理員，從 DB 重查角色不信任前端。
+  const { data: actor } = await supabase
+    .from("staff_profiles")
+    .select("role")
+    .eq("id", userId as string)
+    .maybeSingle();
+  if (actor?.role !== "system_admin") {
+    return { error: "僅系統管理員可建立職員帳號。" };
+  }
+
+  if (!input.fullName.trim()) return { error: "請輸入姓名" };
+  if (!input.username.trim()) return { error: "請輸入帳號" };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return { error: "請輸入有效的 Email" };
+  if (input.password.length < 8) return { error: "密碼至少需 8 個字元" };
+  if (!input.phone.trim()) return { error: "電話為必填（主辦人電話會公開於前台）" };
+
+  const admin = adminClient();
+
+  const { data: existing } = await admin
+    .from("staff_profiles")
+    .select("id")
+    .eq("username", input.username.trim())
+    .maybeSingle();
+  if (existing) return { error: "此帳號已被使用" };
+
+  const { data: authData, error: createError } = await admin.auth.admin.createUser({
+    email: input.email.trim(),
+    password: input.password,
+    email_confirm: true,
+    user_metadata: { full_name: input.fullName.trim(), account: input.username.trim() },
+  });
+
+  if (createError) {
+    return {
+      error: createError.message.includes("already")
+        ? "此 Email 已被註冊"
+        : `建立帳號失敗：${createError.message}`,
+    };
+  }
+  if (!authData.user) return { error: "建立帳號失敗，請稍後再試" };
+
+  const { error: profileError } = await admin.from("staff_profiles").insert({
+    id: authData.user.id,
+    full_name: input.fullName.trim(),
+    email: input.email.trim(),
+    username: input.username.trim(),
+    phone: input.phone.trim(),
+    region: input.region?.trim() || null,
+    role: input.role,
+    job_title: input.jobTitle,
+    status: "active",
+  });
+
+  if (profileError) {
+    await admin.auth.admin.deleteUser(authData.user.id);
+    return { error: `建立職員資料失敗：${profileError.message}` };
+  }
+
+  return { success: true, staffId: authData.user.id };
 }
 
 // 停權 / 恢復「職員」帳號（僅系統管理員）。
@@ -83,7 +165,7 @@ export async function setStaffRole(
   return { success: true };
 }
 
-// 志工帳號審核（pending_review → active／rejected）；核准需同時指定負責社工
+// 學生帳號審核（pending_review → active／rejected）；核准需同時指定負責社工
 export async function reviewVolunteerAccount(
   targetUserId: string,
   approve: boolean,
@@ -102,7 +184,7 @@ export async function reviewVolunteerAccount(
   return { success: true };
 }
 
-// 志工狀態變更（active／suspended／graduated；pending_review／rejected
+// 學生狀態變更（active／suspended／graduated；pending_review／rejected
 // 只能透過 reviewVolunteerAccount 進出，符合 V2 狀態機設計）
 export async function setVolunteerStatus(
   targetUserId: string,
