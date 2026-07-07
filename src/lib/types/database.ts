@@ -1,6 +1,6 @@
-// 手寫型別（非自動產生），對應 supabase/v2/01_schema.sql ~ 07_deactivation_requests.sql。
-// V2 後台全面重寫後涵蓋除 notification_outbox（僅發信 worker 可存取）
-// 以外的全部表／視圖／RPC。
+// 手寫型別（非自動產生），對應 supabase/v2/01_schema.sql 起的全部表／視圖／RPC。
+// notification_outbox 自 15_notification_center.sql 起開放本人 SELECT（站內通知中心），
+// 故一併納入型別；其寫入仍僅限 SECURITY DEFINER 函式與發信 worker。
 
 export type StaffRole = "system_admin" | "unit_admin" | "staff";
 export type StaffAccountStatus = "active" | "suspended";
@@ -175,6 +175,40 @@ export interface SupportRequest {
   resolved_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export type NotificationStatus = "pending" | "sent" | "failed";
+
+export type NotificationType =
+  | "account_review_result"
+  | "registration_review_result"
+  | "cancel_review_result"
+  | "blacklist_added"
+  | "blacklist_cascade_cancelled"
+  | "review_reminder"
+  | "activity_reminder"
+  | "activity_cancelled"
+  | "session_cancelled"
+  | "session_time_changed"
+  | "schedule_conflict_alert"
+  | "registration_cancelled_by_admin"
+  | "deactivation_requested"
+  | "deactivation_review_result";
+
+// 站內通知中心讀取用（RLS 限本人列）；status/error/sent_at 為 email 寄送狀態，
+// read_at 為站內已讀狀態，兩者正交（見 15_notification_center.sql）。
+export interface NotificationOutboxRow {
+  id: string;
+  recipient_user_id: string;
+  notification_type: NotificationType;
+  payload: Record<string, unknown>;
+  dedup_key: string | null;
+  status: NotificationStatus;
+  error: string | null;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+  sent_at: string | null;
 }
 
 export type AnnouncementStatus = "draft" | "published" | "unpublished";
@@ -437,6 +471,12 @@ export interface Database {
         Update: never; // 狀態變更一律走 rpc_resolve_support_request
         Relationships: [];
       };
+      notification_outbox: {
+        Row: NotificationOutboxRow;
+        Insert: never; // 僅 fn_notify / trigger / worker 寫入
+        Update: never; // 已讀一律走 rpc_mark_notifications_read
+        Relationships: [];
+      };
     };
     Views: {
       v_organizer_contacts: { Row: OrganizerContact };
@@ -504,6 +544,10 @@ export interface Database {
         Args: { p_request_id: string; p_resolved: boolean };
         Returns: void;
       };
+      rpc_mark_notifications_read: {
+        Args: { p_ids?: string[] | null };
+        Returns: number;
+      };
     };
     Enums: {
       staff_role: StaffRole;
@@ -519,6 +563,8 @@ export interface Database {
       announcement_status: AnnouncementStatus;
       deactivation_request_status: DeactivationRequestStatus;
       support_request_status: SupportRequestStatus;
+      notification_status: NotificationStatus;
+      notification_type: NotificationType;
     };
     CompositeTypes: Record<string, never>;
   };

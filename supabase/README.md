@@ -16,7 +16,7 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
 5. `05_scheduled_jobs.sql` — 5 支排程函式（不用 pg_cron；由 Cloudflare Cron Worker 觸發，見下與 `12`）
 6. `06_frontend_support.sql` — 前端改寫新增的輕量視圖（`v_session_open_slots`，志工前台剩餘名額用）
 
-**B. 增量 patch（07～10，可重複執行，依序疊加在 01～06 之上）**
+**B. 增量 patch（07 起，可重複執行，依序疊加在 01～06 之上）**
 
 7. `07_deactivation_requests.sql` — 志工帳號停用申請（志工發起→管理員審核）。**需分兩步驟執行**：
    檔案內以 `STEP 1` / `STEP 2` 註解分隔，因 Postgres 不允許在同一交易內新增 enum 值後立即使用，
@@ -36,6 +36,15 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
 12. `12_enable_scheduled_jobs.sql` — 部署啟用檔（Cloudflare-first）：把 5 支排程函式 `GRANT
     EXECUTE` 給 `service_role`，供 Cloudflare Cron Worker 以 RPC 觸發。**不使用 pg_cron/pg_net**，
     排程與發信全在 Cloudflare（`workers/orchestrator/`）；可重複執行（見下方「部署後手動步驟」1、5）。
+13. `13_allow_duplicate_volunteer_email.sql` — 志工改以「帳號」登入後，聯絡 Email 允許重複
+    （移除唯一約束）。**另需在 Supabase Dashboard 關閉 Email 的 Confirm email**（見檔內說明）。
+14. `14_harden_views.sql` — 資安／正確性修補：`v_session_open_slots` 過濾草稿活動（不外洩給志工）；
+    `v_volunteer_period_hours` 改以台灣時區切分期間日期。
+15. `15_notification_center.sql` — 站內通知中心：`notification_outbox` 新增 `read_at` 已讀欄位、
+    開放本人 SELECT 的 RLS policy、`rpc_mark_notifications_read` 標記已讀 RPC。**未執行本檔前，
+    前台 header 鈴鐺與 `/profile/notifications` 頁會查無資料（RLS 拒讀）**。
+16. `16_min_service_hours.sql` — 自動帶入服務時數時設下限 0.01，避免極短場次違反
+    `service_hours > 0` CHECK。
 
 ### 部署後手動步驟
 

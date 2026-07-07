@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 export function Header() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export function Header() {
 
   const authLink = isLoading ? null : user ? (
     <div className="flex items-center gap-10">
+      {!volunteerBlocked && <NotificationBell />}
       {isAdmin && (
         <Link
           href="/admin"
@@ -84,6 +86,15 @@ export function Header() {
           onClick={() => setMobileMenuOpen(false)}
         >
           個人資料
+        </Link>
+      )}
+      {!volunteerBlocked && (
+        <Link
+          href="/profile/notifications"
+          className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          通知
         </Link>
       )}
       <button
