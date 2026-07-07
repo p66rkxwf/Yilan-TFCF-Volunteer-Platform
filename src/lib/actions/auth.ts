@@ -41,37 +41,45 @@ export interface AuthResult {
   success?: boolean;
 }
 
-// 將帳號/Email 輸入解析為實際登入用的 Email（僅供伺服器端 login 使用）。
+// 將「帳號」解析為該使用者實際的登入 Email（僅供伺服器端 login 使用）。
 //
-// 安全性（資安審核 Finding 3）：此函式「不」對外匯出、也不把 email 回傳給
-// 前端。V2 登入改為在伺服器端完成密碼驗證（見下方 login），前端不再取得
-// 任何帳號的 email，避免未登入者以任意帳號查詢 email／列舉帳號。
-// 查表沿用 admin client：使用者尚未登入時，anon 受 RLS 限制查不到任何列。
-async function resolveEmailInternal(account: string): Promise<string | null> {
+// 志工以「帳號」登入：其 auth 登入 Email 為系統產生的內部信箱，與使用者填寫的
+// 聯絡 email（volunteer_profiles.email，允許重複）不同，故不能用 profile.email
+// 登入；一律以「帳號 → profile.id → auth.users 的實際 email」解析。職員為真實
+// email，同樣以 id 反查即可，兩者統一。
+//
+// 安全性（資安審核 Finding 3）：此函式「不」對外匯出、也不把 email 回傳給前端；
+// 查表沿用 admin client（未登入者 anon 受 RLS 限制查不到任何列），避免帳號列舉。
+async function resolveAuthEmailInternal(account: string): Promise<string | null> {
   const input = account.trim();
-  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
-  if (isEmail) return input;
+  if (!input) return null;
 
   const admin = adminClient();
 
+  let id: string | null = null;
   const { data: volunteer } = await admin
     .from("volunteer_profiles")
-    .select("email")
+    .select("id")
     .eq("username", input)
     .maybeSingle();
-  if (volunteer) return volunteer.email as string;
+  if (volunteer) id = volunteer.id as string;
 
-  const { data: staff } = await admin
-    .from("staff_profiles")
-    .select("email")
-    .eq("username", input)
-    .maybeSingle();
-  if (staff) return staff.email as string;
+  if (!id) {
+    const { data: staff } = await admin
+      .from("staff_profiles")
+      .select("id")
+      .eq("username", input)
+      .maybeSingle();
+    if (staff) id = staff.id as string;
+  }
 
-  return null;
+  if (!id) return null;
+
+  const { data } = await admin.auth.admin.getUserById(id);
+  return data?.user?.email ?? null;
 }
 
-// 伺服器端登入：以帳號或 Email + 密碼驗證，成功只回傳 session（絕不回 email）。
+// 伺服器端登入：以「帳號」+ 密碼驗證，成功只回傳 session（絕不回 email）。
 // 帳號不存在或密碼錯誤一律回同一個錯誤，避免帳號列舉與 email 外洩。
 // 前端拿到 session 後呼叫瀏覽器 client 的 setSession()，讓 onAuthStateChange
 // 立即通知 Header/AuthProvider，維持免整頁重新整理即可反映登入狀態的體驗。
@@ -81,7 +89,7 @@ export async function login(
 ): Promise<{ session?: Session; error?: string }> {
   const generic = { error: "帳號或密碼錯誤，請重新輸入。" };
 
-  const email = await resolveEmailInternal(account);
+  const email = await resolveAuthEmailInternal(account);
   if (!email) return generic;
 
   const supabase = await createClient();
@@ -125,11 +133,15 @@ export async function signUp(formData: {
     return { error: "電話為必填欄位" };
   }
 
+  if (!formData.region) {
+    return { error: "區域為必填欄位" };
+  }
+
   const admin = adminClient();
 
-  // 帳號唯一性預檢：username 在 volunteer_profiles / staff_profiles 各有獨立
-  // unique 約束但不跨表，故兩張表都要查，避免志工註冊到與職員相同的帳號
-  // （login 的 resolveEmailInternal 先解析志工，會造成同名歧義）。
+  // 帳號唯一性預檢：username 是登入身分，在 volunteer_profiles / staff_profiles
+  // 各有獨立 unique 約束但不跨表，故兩張表都要查，避免志工註冊到與職員相同的帳號
+  // （login 以帳號解析，同名會造成歧義）。
   const [{ data: existingVolunteer }, { data: existingStaff }] = await Promise.all([
     admin.from("volunteer_profiles").select("id").eq("username", formData.account).maybeSingle(),
     admin.from("staff_profiles").select("id").eq("username", formData.account).maybeSingle(),
@@ -139,8 +151,12 @@ export async function signUp(formData: {
     return { error: "此帳號已被使用，請選擇其他帳號。" };
   }
 
+  // 志工以「帳號」登入，Email 僅作聯絡用途且允許重複；auth 身分改用系統產生的
+  // 唯一內部信箱（絕不寄信到此位址），使用者填的聯絡 Email 存 volunteer_profiles.email。
+  const authEmail = `${crypto.randomUUID()}@users.sekinv.com`;
+
   const { data: authData, error: authError } = await supabase.auth.signUp({
-    email: formData.email,
+    email: authEmail,
     password: formData.password,
     options: {
       data: {
@@ -151,21 +167,11 @@ export async function signUp(formData: {
   });
 
   if (authError) {
-    if (authError.message.includes("already registered")) {
-      return { error: "此 Email 已被註冊。" };
-    }
     return { error: `註冊失敗：${authError.message}` };
   }
 
   if (!authData.user) {
     return { error: "註冊失敗，請稍後再試。" };
-  }
-
-  // 若 Email 已存在，開啟 Email 驗證時 Supabase 會回傳「混淆使用者」（identities 為空、
-  // 不真的建立帳號）以防帳號列舉；此時若再 insert profile，其 id 不在 auth.users 會違反
-  // 外鍵 volunteer_profiles_id_fkey。改為直接回報 Email 已被註冊。
-  if ((authData.user.identities?.length ?? 0) === 0) {
-    return { error: "此 Email 已被註冊。" };
   }
 
   // V2 沒有 handle_new_user trigger 自動建立 profile，signUp 成功後
@@ -247,13 +253,27 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
   return { success: true };
 }
 
+// 更新「聯絡用」Email（volunteer_profiles.email，允許重複）。志工登入身分是帳號，
+// 此處不動 auth 登入信箱。志工本人直接改 email 會被欄位白名單 trigger 擋下（僅允許
+// 姓名/電話/區域），故以 admin client（service_role；auth.uid() 為 NULL 會略過白名單）
+// 更新，並限定為目前登入者自己的那一列。
 export async function updateEmail(newEmail: string): Promise<AuthResult> {
-  if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+  const email = newEmail.trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "請輸入有效的 Email 地址。" };
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ email: newEmail });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "尚未登入。" };
+
+  const admin = adminClient();
+  const { error } = await admin
+    .from("volunteer_profiles")
+    .update({ email })
+    .eq("id", user.id);
 
   if (error) return { error: `Email 更新失敗：${error.message}` };
   return { success: true };

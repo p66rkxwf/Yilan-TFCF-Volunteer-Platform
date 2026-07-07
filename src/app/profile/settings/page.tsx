@@ -136,7 +136,7 @@ export default function SettingsPage() {
     if (result.error) {
       toast.error(result.error);
     } else {
-      toast.success("驗證信已寄出，請至新信箱確認。");
+      toast.success("聯絡 Email 已更新。");
       setEmailForm({ email: "" });
     }
     setEmailLoading(false);
@@ -236,8 +236,8 @@ export default function SettingsPage() {
           {/* Email */}
           <SettingsSection
             icon="mail"
-            title="修改 Email"
-            description="更改後需至新信箱完成驗證。"
+            title="修改聯絡 Email"
+            description="供平台與您聯繫用；登入仍請使用帳號。"
           >
             <form onSubmit={handleEmailUpdate}>
               <dl>

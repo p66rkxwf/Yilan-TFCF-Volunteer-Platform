@@ -40,7 +40,7 @@ function LoginForm() {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.account.trim()) newErrors.account = "請輸入帳號或 Email";
+    if (!formData.account.trim()) newErrors.account = "請輸入帳號";
     if (!formData.password) newErrors.password = "請輸入密碼";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -104,7 +104,7 @@ function LoginForm() {
               className="text-slate-700 text-sm font-semibold"
               htmlFor="account"
             >
-              帳號 / Email
+              帳號
             </label>
             <input
               className={`w-full h-12 px-4 rounded-lg border ${
@@ -112,7 +112,7 @@ function LoginForm() {
               } bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400`}
               id="account"
               name="account"
-              placeholder="請輸入帳號或 Email"
+              placeholder="請輸入帳號"
               type="text"
               value={formData.account}
               onChange={handleChange}

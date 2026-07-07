@@ -61,6 +61,7 @@ export default function RegisterPage() {
     if (!formData.name.trim()) newErrors.name = "姓名為必填欄位";
     if (!formData.phone.trim()) newErrors.phone = "電話為必填欄位";
     if (!formData.grade) newErrors.grade = "請選擇學制階段";
+    if (!formData.region) newErrors.region = "請選擇區域";
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
@@ -172,7 +173,7 @@ export default function RegisterPage() {
                 person
               </span>
               <input
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.name ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.name ? "border-red-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                 name="name"
                 placeholder="請輸入您的姓名"
                 type="text"
@@ -191,7 +192,7 @@ export default function RegisterPage() {
                 badge
               </span>
               <input
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.account ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.account ? "border-red-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                 name="account"
                 placeholder="請設定您的帳號"
                 type="text"
@@ -210,7 +211,7 @@ export default function RegisterPage() {
                 mail
               </span>
               <input
-                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.email ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.email ? "border-red-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                 name="email"
                 placeholder="example@email.com"
                 type="email"
@@ -229,7 +230,7 @@ export default function RegisterPage() {
                 cake
               </span>
               <input
-                className={`date-input w-full min-w-0 pl-10 pr-4 py-3 rounded-lg border ${errors.birthday ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                className={`date-input w-full min-w-0 pl-10 pr-4 py-3 rounded-lg border ${errors.birthday ? "border-red-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                 name="birthday"
                 type="text"
                 inputMode="numeric"
@@ -254,7 +255,7 @@ export default function RegisterPage() {
                   call
                 </span>
                 <input
-                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.phone ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.phone ? "border-red-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                   name="phone"
                   placeholder="請輸入聯絡電話"
                   type="tel"
@@ -272,8 +273,8 @@ export default function RegisterPage() {
                 </span>
                 <Select
                   className="w-full"
-                  triggerClassName={`w-full rounded-lg border ${errors.grade ? "border-red-400" : "border-slate-200"} bg-background-light py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary`}
-                  menuClassName="bg-background-light"
+                  triggerClassName={`w-full rounded-lg border ${errors.grade ? "border-red-400" : "border-slate-200"} bg-white py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary`}
+                  menuClassName="bg-white"
                   name="grade"
                   value={formData.grade}
                   placeholder="請選擇學制階段"
@@ -289,20 +290,17 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* 區域（非必填） */}
+          {/* 區域 */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-900 text-sm font-bold">
-              區域
-              <span className="text-slate-400 font-normal ml-1">（選填）</span>
-            </label>
+            <label className="text-slate-900 text-sm font-bold">區域</label>
             <div className="relative">
               <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                 location_on
               </span>
               <Select
                 className="w-full"
-                triggerClassName="w-full rounded-lg border border-slate-200 bg-background-light py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary"
-                menuClassName="bg-background-light"
+                triggerClassName={`w-full rounded-lg border ${errors.region ? "border-red-400" : "border-slate-200"} bg-white py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary`}
+                menuClassName="bg-white"
                 name="region"
                 value={formData.region}
                 placeholder="請選擇區域"
@@ -311,6 +309,7 @@ export default function RegisterPage() {
                 options={REGIONS.map((region) => ({ value: region, label: region }))}
               />
             </div>
+            <FieldError field="region" />
           </div>
 
           {/* 密碼 */}
@@ -322,7 +321,7 @@ export default function RegisterPage() {
                   lock
                 </span>
                 <input
-                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.password ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.password ? "border-red-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                   name="password"
                   placeholder="至少 8 碼"
                   type="password"
@@ -341,7 +340,7 @@ export default function RegisterPage() {
                   lock_reset
                 </span>
                 <input
-                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.confirmPassword ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.confirmPassword ? "border-red-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                   name="confirmPassword"
                   placeholder="再輸入一次密碼"
                   type="password"
