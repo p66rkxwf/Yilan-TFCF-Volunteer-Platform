@@ -292,17 +292,37 @@ export default function VolunteerPage() {
                       </span>
                     </div>
 
-                    {/* 中排：日期／場次、地點（分散排開） */}
-                    <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-2 text-sm text-slate-500">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[18px]">calendar_today</span>
-                        {formatRange(a.firstStart, a.lastEnd)}
-                        {a.sessionCount > 0 && ` · ${a.sessionCount} 場次`}
-                      </span>
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[18px]">location_on</span>
-                        {a.location}
-                      </span>
+                    {/* 中排：逐行帶標籤（日期／場次／地點），比照詳情頁的「地點：」樣式 */}
+                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                      <p className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[18px] text-slate-400">
+                          calendar_today
+                        </span>
+                        <span>
+                          <span className="font-medium text-slate-500">日期：</span>
+                          {formatRange(a.firstStart, a.lastEnd)}
+                        </span>
+                      </p>
+                      {a.sessionCount > 0 && (
+                        <p className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-[18px] text-slate-400">
+                            event_repeat
+                          </span>
+                          <span>
+                            <span className="font-medium text-slate-500">場次：</span>
+                            {a.sessionCount} 場
+                          </span>
+                        </p>
+                      )}
+                      <p className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[18px] text-slate-400">
+                          location_on
+                        </span>
+                        <span>
+                          <span className="font-medium text-slate-500">地點：</span>
+                          {a.location}
+                        </span>
+                      </p>
                     </div>
 
                     <div className="my-4 border-t border-slate-100" />
