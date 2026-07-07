@@ -1,39 +1,44 @@
-// ⚠️ DEPRECATED（已停用，僅留作參考）
-// 本專案已改以 Cloudflare Cron Worker 消化 notification_outbox 並觸發背景排程，
-// 見 workers/orchestrator/（邏輯自本檔移植）。不再部署此 Supabase Edge Function，
-// pg_cron/pg_net 觸發也已移除（見 supabase/v2/12_enable_scheduled_jobs.sql）。
-// 保留本檔僅供比對／回溯，請勿再 `supabase functions deploy send-notifications`。
+// Cloudflare Cron Worker：志工平台背景編排器（orchestrator）
 //
-// Supabase Edge Function：notification_outbox 發信 worker（Transactional Outbox 消費端）
+// 單一 worker 以多個 cron trigger 統包所有排程（於 scheduled() 內用 event.cron 分流）：
+//   "* * * * *"    每分鐘：消化 notification_outbox（status='pending'）→ Resend 寄出
+//   "*/15 * * * *" 每15分：rpc job_advance_activity_status（活動 open→closed→completed）
+//   "10 19 * * *"  每日 03:10 台灣：rpc job_attendance_scan（缺席判定＋黑名單觸發＋級聯取消）
+//   "20 19 * * *"  每日 03:20 台灣：rpc job_release_blacklists（黑名單到期自動解除）
+//   "0 1 * * *"    每日 09:00 台灣：rpc job_send_review_reminders（主辦審核提醒→入列）
+//   "0 10 * * *"   每日 18:00 台灣：rpc job_send_activity_reminders（活動開始前提醒→入列）
 //
-// 職責：讀取 status='pending' 的通知 → 解析收件者 email → 依 notification_type 組信
-//       → 透過 Resend 寄出 → 更新該列 status 為 'sent'（失敗記 'failed' + error）。
-//
-// 部署：
-//   supabase functions deploy send-notifications
-//   supabase secrets set RESEND_API_KEY=re_xxx MAIL_FROM='宜蘭家扶志工平台 <noreply@你的網域>' \
-//                        SITE_URL=https://你的網域 WORKER_SECRET=<自訂隨機字串>
-//   （SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 由平台自動注入）
-// 觸發：見 supabase/v2/12_enable_scheduled_jobs.sql（pg_cron + pg_net 每分鐘呼叫本函式）
+// 設計沿革：原為 Supabase Edge Function（Deno）＋ pg_cron/pg_net 每分鐘觸發；
+//   為「以 Cloudflare 為中心、少綁 Supabase」改為本 worker，pg_cron 已移除。
+//   job_* 仍是 Postgres 端可攜的 plpgsql，僅由此以 service_role RPC 觸發。
 //
 // 併發備註：假設由單一排程每分鐘觸發、批量 50 筆、單次執行遠短於 1 分鐘，
-// 故不做 FOR UPDATE SKIP LOCKED 佇列鎖；更新皆帶 .eq('status','pending') 作樂觀防護。
-// 若日後量大，可加 'sending' 狀態或 attempts 欄位強化。
+//   故不做 FOR UPDATE SKIP LOCKED 佇列鎖；更新皆帶 .eq('status','pending') 作樂觀防護。
+//   job_* 皆為冪等設計（見 supabase/v2/05_scheduled_jobs.sql），偶發延遲／重跑可容忍。
 
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const MAIL_FROM =
-  Deno.env.get("MAIL_FROM") ?? "宜蘭家扶志工平台 <noreply@example.org>";
-const SITE_URL = (Deno.env.get("SITE_URL") ?? "").replace(/\/+$/, "");
-const WORKER_SECRET = Deno.env.get("WORKER_SECRET");
+export interface Env {
+  SUPABASE_URL: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  RESEND_API_KEY: string;
+  MAIL_FROM?: string;
+  SITE_URL?: string;
+  // 可選：保護手動測試用的 fetch 入口（未設定則 fetch 一律 403）
+  MANUAL_TRIGGER_SECRET?: string;
+}
+
 const BATCH_SIZE = 50;
+const DEFAULT_MAIL_FROM = "宜蘭家扶志工平台 <noreply@example.org>";
 
-const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+// event.cron → 對應的 job RPC 名稱（"* * * * *" 另行處理為 outbox 消化）
+const JOB_BY_CRON: Record<string, string> = {
+  "*/15 * * * *": "job_advance_activity_status",
+  "10 19 * * *": "job_attendance_scan",
+  "20 19 * * *": "job_release_blacklists",
+  "0 1 * * *": "job_send_review_reminders",
+  "0 10 * * *": "job_send_activity_reminders",
+};
 
 interface OutboxRow {
   id: string;
@@ -42,10 +47,9 @@ interface OutboxRow {
   payload: Record<string, unknown>;
 }
 
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
+function adminClient(env: Env): SupabaseClient {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
   });
 }
 
@@ -125,15 +129,25 @@ function lead(type: string): string {
 function renderTemplate(
   type: string,
   payload: Record<string, unknown>,
-  name: string
+  name: string,
+  siteUrl: string
 ): { subject: string; html: string; text: string } {
   const subject = SUBJECTS[type] ?? "志工平台通知";
   const greeting = name ? `${name} 您好：` : "您好：";
   const when = formatTW(payload?.["start_at"]);
   const whenLine = when ? `活動時間：${when}` : "";
-  const cta = SITE_URL || "";
+  const cta = siteUrl || "";
 
-  const textParts = [greeting, "", lead(type), whenLine, "", cta ? `請登入平台查看詳情：${cta}` : "請登入平台查看詳情。", "", "— 宜蘭家扶中心志工平台（此為系統自動通知，請勿直接回覆）"].filter((l) => l !== "");
+  const textParts = [
+    greeting,
+    "",
+    lead(type),
+    whenLine,
+    "",
+    cta ? `請登入平台查看詳情：${cta}` : "請登入平台查看詳情。",
+    "",
+    "— 宜蘭家扶中心志工平台（此為系統自動通知，請勿直接回覆）",
+  ].filter((l) => l !== "");
   const text = textParts.join("\n");
 
   const html = `<div style="font-family:system-ui,-apple-system,'Noto Sans TC',sans-serif;font-size:15px;color:#0f172a;line-height:1.7">
@@ -149,6 +163,7 @@ function renderTemplate(
 }
 
 async function resolveRecipients(
+  admin: SupabaseClient,
   ids: string[]
 ): Promise<Map<string, { email: string; name: string }>> {
   const map = new Map<string, { email: string; name: string }>();
@@ -164,16 +179,17 @@ async function resolveRecipients(
   for (const id of ids) {
     if (map.has(id)) continue;
     const { data } = await admin.auth.admin.getUserById(id);
-    const email = data?.user?.email;
-    if (email) {
-      const meta = (data.user.user_metadata ?? {}) as Record<string, unknown>;
-      map.set(id, { email, name: (meta.full_name as string) ?? "" });
+    const user = data?.user;
+    if (user?.email) {
+      const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
+      map.set(id, { email: user.email, name: (meta.full_name as string) ?? "" });
     }
   }
   return map;
 }
 
 async function sendEmail(
+  env: Env,
   to: string,
   subject: string,
   html: string,
@@ -182,10 +198,16 @@ async function sendEmail(
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: MAIL_FROM, to, subject, html, text }),
+    body: JSON.stringify({
+      from: env.MAIL_FROM ?? DEFAULT_MAIL_FROM,
+      to,
+      subject,
+      html,
+      text,
+    }),
   });
   if (!res.ok) {
     const body = await res.text();
@@ -193,13 +215,17 @@ async function sendEmail(
   }
 }
 
-Deno.serve(async (req) => {
-  if (WORKER_SECRET && req.headers.get("x-worker-secret") !== WORKER_SECRET) {
-    return json({ ok: false, error: "forbidden" }, 403);
+// 消化 notification_outbox：讀 pending → 解析收件者 → 組信 → Resend 寄出 → 更新狀態
+export async function drainOutbox(
+  env: Env
+): Promise<{ processed: number; sent: number; failed: number }> {
+  if (!env.RESEND_API_KEY) {
+    console.warn("[orchestrator] RESEND_API_KEY 未設定，略過 outbox 消化");
+    return { processed: 0, sent: 0, failed: 0 };
   }
-  if (!RESEND_API_KEY) {
-    return json({ ok: false, error: "RESEND_API_KEY 未設定" }, 500);
-  }
+
+  const admin = adminClient(env);
+  const siteUrl = (env.SITE_URL ?? "").replace(/\/+$/, "");
 
   const { data: pending, error } = await admin
     .from("notification_outbox")
@@ -208,13 +234,14 @@ Deno.serve(async (req) => {
     .order("created_at", { ascending: true })
     .limit(BATCH_SIZE);
 
-  if (error) return json({ ok: false, error: error.message }, 500);
-  if (!pending || pending.length === 0) return json({ ok: true, processed: 0 });
+  if (error) throw new Error(`讀取 outbox 失敗：${error.message}`);
+  if (!pending || pending.length === 0) return { processed: 0, sent: 0, failed: 0 };
 
   const rows = pending as OutboxRow[];
-  const recipients = await resolveRecipients([
-    ...new Set(rows.map((r) => r.recipient_user_id)),
-  ]);
+  const recipients = await resolveRecipients(
+    admin,
+    [...new Set(rows.map((r) => r.recipient_user_id))]
+  );
 
   let sent = 0;
   let failed = 0;
@@ -222,8 +249,13 @@ Deno.serve(async (req) => {
     try {
       const rec = recipients.get(row.recipient_user_id);
       if (!rec?.email) throw new Error("找不到收件者 email");
-      const tmpl = renderTemplate(row.notification_type, row.payload ?? {}, rec.name);
-      await sendEmail(rec.email, tmpl.subject, tmpl.html, tmpl.text);
+      const tmpl = renderTemplate(
+        row.notification_type,
+        row.payload ?? {},
+        rec.name,
+        siteUrl
+      );
+      await sendEmail(env, rec.email, tmpl.subject, tmpl.html, tmpl.text);
       await admin
         .from("notification_outbox")
         .update({ status: "sent", sent_at: new Date().toISOString(), error: null })
@@ -241,5 +273,59 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ ok: true, processed: rows.length, sent, failed });
-});
+  console.log(
+    `[orchestrator] outbox processed=${rows.length} sent=${sent} failed=${failed}`
+  );
+  return { processed: rows.length, sent, failed };
+}
+
+// 以 service_role 觸發 Postgres 端的排程函式（job_*）
+async function runJob(env: Env, fn: string): Promise<void> {
+  const admin = adminClient(env);
+  const { data, error } = await admin.rpc(fn);
+  if (error) {
+    console.error(`[orchestrator] ${fn} 失敗：${error.message}`);
+    throw new Error(`${fn}: ${error.message}`);
+  }
+  console.log(`[orchestrator] ${fn} ok`, data ?? "");
+}
+
+async function dispatch(cron: string, env: Env): Promise<void> {
+  if (cron === "* * * * *") {
+    await drainOutbox(env);
+    return;
+  }
+  const fn = JOB_BY_CRON[cron];
+  if (fn) {
+    await runJob(env, fn);
+    return;
+  }
+  console.warn(`[orchestrator] 未對應的 cron：${cron}`);
+}
+
+export default {
+  async scheduled(
+    controller: ScheduledController,
+    env: Env,
+    ctx: ExecutionContext
+  ): Promise<void> {
+    ctx.waitUntil(dispatch(controller.cron, env));
+  },
+
+  // 手動測試入口（本機 `wrangler dev` 或臨時排錯用）；未設定 MANUAL_TRIGGER_SECRET
+  // 一律拒絕，正式環境的實際觸發一律走上方 scheduled()。
+  async fetch(req: Request, env: Env): Promise<Response> {
+    const secret = env.MANUAL_TRIGGER_SECRET?.trim();
+    if (!secret || req.headers.get("x-trigger-secret") !== secret) {
+      return new Response("forbidden", { status: 403 });
+    }
+    const cron = new URL(req.url).searchParams.get("cron") ?? "* * * * *";
+    try {
+      await dispatch(cron, env);
+      return Response.json({ ok: true, cron });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return Response.json({ ok: false, cron, error: message }, { status: 500 });
+    }
+  },
+};

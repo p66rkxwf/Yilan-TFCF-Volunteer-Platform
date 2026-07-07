@@ -6,6 +6,7 @@ import {
   getBirthdayValidationError,
   normalizeBirthdayForSubmit,
 } from "@/lib/birthday";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
@@ -102,7 +103,14 @@ export async function signUp(formData: {
   grade: GradeLevel;
   region?: YilanRegion | "";
   birthday: string;
+  turnstileToken?: string | null;
 }): Promise<AuthResult> {
+  // 防濫用：公開註冊端點易被機器人灌爆，先過 Turnstile（未設金鑰時自動放行）。
+  const humanVerified = await verifyTurnstile(formData.turnstileToken ?? null);
+  if (!humanVerified) {
+    return { error: "人機驗證失敗，請重新完成驗證後再送出。" };
+  }
+
   const supabase = await createClient();
   const normalizedBirthday = normalizeBirthdayForSubmit(formData.birthday);
   const birthdayError = getBirthdayValidationError(normalizedBirthday, {
@@ -182,7 +190,16 @@ export async function signUp(formData: {
   return { success: true };
 }
 
-export async function resetPassword(email: string): Promise<AuthResult> {
+export async function resetPassword(
+  email: string,
+  turnstileToken?: string | null
+): Promise<AuthResult> {
+  // 防濫用：公開重設端點易被機器人灌爆，先過 Turnstile（未設金鑰時自動放行）。
+  const humanVerified = await verifyTurnstile(turnstileToken ?? null);
+  if (!humanVerified) {
+    return { error: "人機驗證失敗，請重新完成驗證後再送出。" };
+  }
+
   const supabase = await createClient();
   const origin = await getSiteOrigin();
 

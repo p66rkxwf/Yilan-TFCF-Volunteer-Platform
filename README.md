@@ -10,8 +10,9 @@
 > `supabase/v2/` 內已收錄可從零建置的完整 V2 SQL（01～10，依編號為部署順序）。
 > 依 [supabase/README.md](supabase/README.md) 的順序執行即可建立 `staff_profiles`、`volunteer_profiles`、
 > `activities`／`activity_sessions`、`registrations`、`favorites`、`support_requests` 等全部資料表與
-> RLS／RPC；文件內也說明了部署後需在 Supabase Dashboard 補的手動步驟（種子系統管理員、啟用 pg_cron、
-> 設定 Auth Redirect URLs）。
+> RLS／RPC；文件內也說明了部署後需在 Supabase Dashboard 補的手動步驟（種子系統管理員、授權排程函式給
+> service_role、設定 Auth Redirect URLs 與 custom SMTP）。排程與寄信由 Cloudflare Cron Worker
+> （[workers/orchestrator/](workers/orchestrator/)）負責，不使用 pg_cron。
 
 ## 功能總覽
 
@@ -72,7 +73,7 @@
 - `periods` / `grade_hour_thresholds` / `grade_reference_ages` / `system_settings`：報表期間、時數門檻、
   年度審查基準與系統參數
 - `audit_logs`：管理操作稽核紀錄
-- `notification_outbox`：通知外送佇列（Transactional Outbox；寄信 worker 尚未建置，通知會入列但不會實際寄出）
+- `notification_outbox`：通知外送佇列（Transactional Outbox；由 Cloudflare Cron Worker 每分鐘消化並經 Resend 寄出）
 
 角色列舉（`staff_role`）：
 
@@ -132,8 +133,9 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ### Supabase 設定
 
 本 repo 內可直接執行的 SQL 檔位於 [supabase/v2/](supabase/v2/)，部署順序與部署後手動步驟（種子系統管理員、
-啟用 pg_cron、於 Supabase Dashboard 設定 Auth Redirect URLs 以讓忘記密碼流程生效）請見
-[supabase/README.md](supabase/README.md)。
+授權排程函式給 service_role、於 Supabase Dashboard 設定 Auth Redirect URLs 與 custom SMTP 以讓忘記密碼
+流程生效）請見 [supabase/README.md](supabase/README.md)。排程與寄信部署見
+[workers/orchestrator/README.md](workers/orchestrator/README.md)。
 
 ### 啟動開發環境
 
@@ -189,7 +191,9 @@ npm run dev
 │  │  ├─ types/database.ts  # 手寫 Supabase 型別定義
 │  │  └─ ui/、birthday.ts
 │  └─ proxy.ts            # Next.js 16 middleware 入口（呼叫 lib/supabase/middleware 更新 session）
-├─ wrangler.jsonc          # Cloudflare Workers 部署設定（OpenNext）
+├─ workers/
+│  └─ orchestrator/        # Cloudflare Cron Worker：消化 notification_outbox（Resend）＋觸發 job_*
+├─ wrangler.jsonc          # Cloudflare Workers 部署設定（OpenNext；app 本體）
 └─ package.json
 ```
 
@@ -200,7 +204,8 @@ npm run dev
 - RLS 為主要防線：`registrations`、`deactivation_requests`、`support_requests` 等涉及多步驟邏輯或跨角色
   寫入的資料表刻意不開放直寫 policy，一律強制走 `SECURITY DEFINER` RPC，交易邊界與權限檢查集中在
   資料庫端（詳見 `supabase/v2/03_rls_policies.sql`、`04_rpc_functions.sql`）。
-- 通知採 Transactional Outbox 模式：業務交易只寫入 `notification_outbox`，實際寄信 worker 尚未建置，
-  屬已知待辦，不影響現有功能運作。
+- 通知採 Transactional Outbox 模式：業務交易只寫入 `notification_outbox`，由 Cloudflare Cron Worker
+  （`workers/orchestrator/`）每分鐘消化並經 Resend 寄出；同一 worker 也以 service_role RPC 觸發 5 支
+  背景排程函式（`job_*`），故本專案不使用 pg_cron。
 - 核心資料表與 RLS／RPC 已收錄於 `supabase/v2/`，可從零建置；`07`～`10` 為之後新增的增量 patch，
   執行細節（含 `07` 需分兩步驟）見 `supabase/README.md`。

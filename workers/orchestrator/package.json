@@ -1,0 +1,20 @@
+{
+  "name": "volunteer-orchestrator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "宜蘭家扶志工平台背景編排器（Cloudflare Cron Worker）：消化 notification_outbox 並觸發 Postgres 排程函式。",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.0.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.105.0"
+  }
+}

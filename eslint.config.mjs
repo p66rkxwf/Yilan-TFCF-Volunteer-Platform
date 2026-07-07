@@ -10,6 +10,8 @@ const eslintConfig = [
       "tsconfig.tsbuildinfo",
       // Deno runtime (Supabase Edge Function) — 由 Deno 自帶工具檢查，非 Next tsc/eslint
       "supabase/functions/**",
+      // Cloudflare Workers（獨立 tsconfig 與 @cloudflare/workers-types）— 於各自目錄檢查
+      "workers/**",
     ],
   },
   ...coreWebVitals,

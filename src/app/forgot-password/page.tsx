@@ -5,6 +5,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { resetPassword } from "@/lib/actions/auth";
 import { useToast } from "@/components/ui/toast";
+import { TurnstileWidget } from "@/components/support/turnstile-widget";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 function ForgotPasswordInner() {
   const toast = useToast();
@@ -13,6 +16,9 @@ function ForgotPasswordInner() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  // Turnstile token 為單次使用；每次寄出後 bump key 讓 widget 重新出題以供重新發送。
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   useEffect(() => {
     if (searchParams.get("error") === "callback_failed") {
@@ -32,10 +38,14 @@ function ForgotPasswordInner() {
       setError("請輸入有效的 Email 格式");
       return;
     }
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      toast.error("請先完成人機驗證後再送出。", "驗證未完成");
+      return;
+    }
     setError("");
     setIsLoading(true);
 
-    const result = await resetPassword(email);
+    const result = await resetPassword(email, turnstileToken);
 
     if (result.error) {
       toast.error(result.error);
@@ -44,17 +54,24 @@ function ForgotPasswordInner() {
     }
 
     setIsLoading(false);
+    setTurnstileToken(null);
+    setTurnstileKey((k) => k + 1);
     setIsSent(true);
     toast.success("重設密碼連結已寄出，請至信箱查看。");
   };
 
   const handleResend = async () => {
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      toast.error("請先完成人機驗證後再重新發送。", "驗證未完成");
+      return;
+    }
     setIsLoading(true);
-    setIsSent(false);
 
-    const result = await resetPassword(email);
+    const result = await resetPassword(email, turnstileToken);
 
     setIsLoading(false);
+    setTurnstileToken(null);
+    setTurnstileKey((k) => k + 1);
     if (result.error) {
       toast.error(result.error);
     } else {
@@ -107,6 +124,13 @@ function ForgotPasswordInner() {
               </div>
               {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
             </div>
+            {TURNSTILE_SITE_KEY && (
+              <TurnstileWidget
+                key={turnstileKey}
+                siteKey={TURNSTILE_SITE_KEY}
+                onToken={setTurnstileToken}
+              />
+            )}
             <button
               className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-wide hover:opacity-90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 disabled:opacity-60"
               type="submit"
@@ -151,6 +175,13 @@ function ForgotPasswordInner() {
                 </p>
               </div>
               <div className="flex flex-col items-center gap-4 w-full">
+                {TURNSTILE_SITE_KEY && (
+                  <TurnstileWidget
+                    key={turnstileKey}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onToken={setTurnstileToken}
+                  />
+                )}
                 <button
                   className="flex w-full max-w-[240px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-slate-200 text-slate-900 text-sm font-bold leading-normal transition-colors hover:bg-slate-300 disabled:opacity-60"
                   onClick={handleResend}

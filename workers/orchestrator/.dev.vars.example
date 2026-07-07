@@ -1,0 +1,15 @@
+# 本機開發用機密（複製成 workers/orchestrator/.dev.vars 後填入真值；請勿提交）
+# 正式環境改用 `wrangler secret put <NAME>`（於 workers/orchestrator/ 目錄執行）。
+
+SUPABASE_URL=https://<your-project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<supabase-service-role-key>
+
+# Resend（同一把 API Key 也用於 Supabase Auth custom SMTP）
+RESEND_API_KEY=re_xxx
+MAIL_FROM=宜蘭家扶志工平台 <noreply@your-domain>
+
+# 站台網址（組通知信內的「登入平台查看詳情」連結）
+SITE_URL=https://your-domain
+
+# 可選：保護手動測試用的 fetch 入口（未設定則 fetch 一律 403）
+MANUAL_TRIGGER_SECRET=
