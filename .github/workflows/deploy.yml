@@ -1,0 +1,60 @@
+name: Deploy app (Cloudflare Workers)
+
+# 為什麼要 CI：OpenNext 在 Windows 上 build 會把 Windows 絕對路徑烤進 bundle，
+# 導致部署後所有路徑 500（見 src/middleware.ts 附近說明）。改由 Linux runner
+# build+deploy 即可根治。push 到 main 或手動觸發皆會部署 app worker。
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "supabase/**"
+      - "workers/**" # mail worker 另行部署，改動它不需重建 app
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy (OpenNext)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build & deploy to Cloudflare Workers
+        run: npm run deploy
+        env:
+          # --- Cloudflare 認證（wrangler 自動讀這兩個環境變數）---
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # --- build-time：NEXT_PUBLIC_* 會 inline 進 bundle，必須在 build 當下存在 ---
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+
+# 執行前需在 GitHub repo → Settings 設定：
+#   Secrets（Settings → Secrets and variables → Actions → Secrets）：
+#     CLOUDFLARE_API_TOKEN   ← Cloudflare Dashboard → My Profile → API Tokens →
+#                              Create Token →「Edit Cloudflare Workers」範本
+#     CLOUDFLARE_ACCOUNT_ID  ← Cloudflare Dashboard 右側 Account ID
+#   Variables（同頁 → Variables）：
+#     NEXT_PUBLIC_SUPABASE_URL        = https://ncygfjndwuyolgfceiuu.supabase.co
+#     NEXT_PUBLIC_SUPABASE_ANON_KEY   = （你的 anon key）
+#     NEXT_PUBLIC_SITE_URL            = https://volunteer.sekinv.com
+#     NEXT_PUBLIC_TURNSTILE_SITE_KEY  = （選用，未用可留空）
+#
+# 執行時的伺服器端機密（runtime secret，非 build-time）改用 wrangler 設定一次即可，
+# 之後每次 deploy 都會保留：
+#     npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#     npx wrangler secret put TURNSTILE_SECRET_KEY   # 選用

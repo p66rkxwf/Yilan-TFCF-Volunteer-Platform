@@ -49,7 +49,7 @@
 
 ## 技術棧
 
-- `Next.js 16`（App Router；`proxy.ts` 取代舊有 `middleware.ts` 慣例）
+- `Next.js 16`（App Router；middleware 沿用 `middleware.ts` 的 edge 慣例——OpenNext Cloudflare 尚未支援 Next 16 Node runtime 的 `proxy.ts`，見 `src/middleware.ts` 檔內註解）
 - `React 19`
 - `TypeScript`
 - `Tailwind CSS 4`
@@ -190,7 +190,7 @@ npm run dev
 │  │  ├─ admin/           # labels（ENUM 中文標籤）、datetime 格式化
 │  │  ├─ types/database.ts  # 手寫 Supabase 型別定義
 │  │  └─ ui/、birthday.ts
-│  └─ proxy.ts            # Next.js 16 middleware 入口（呼叫 lib/supabase/middleware 更新 session）
+│  └─ middleware.ts       # Edge middleware 入口（呼叫 lib/supabase/middleware 更新 session；見檔內註解）
 ├─ workers/
 │  └─ orchestrator/        # Cloudflare Cron Worker：消化 notification_outbox（Resend）＋觸發 job_*
 ├─ wrangler.jsonc          # Cloudflare Workers 部署設定（OpenNext；app 本體）
