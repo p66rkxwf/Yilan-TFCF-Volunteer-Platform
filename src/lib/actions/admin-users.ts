@@ -221,3 +221,41 @@ export async function setVolunteerStatus(
 
   return { success: true };
 }
+
+// 管理員代重設「志工」密碼。志工以帳號登入、無法自助以 email 重設，故由管理員代設。
+// 限系統管理員／單位管理員；且僅能重設志工帳號（不可經此端點重設職員/管理員密碼）。
+export async function resetVolunteerPassword(
+  targetUserId: string,
+  newPassword: string
+): Promise<ActionResult> {
+  const { supabase, userId, error: authError } = await requireAdmin();
+  if (authError) return { error: authError };
+
+  const { data: actor } = await supabase
+    .from("staff_profiles")
+    .select("role")
+    .eq("id", userId as string)
+    .maybeSingle();
+  if (actor?.role !== "system_admin" && actor?.role !== "unit_admin") {
+    return { error: "僅管理員可重設密碼。" };
+  }
+
+  if (newPassword.length < 8) {
+    return { error: "密碼至少需 8 個字元" };
+  }
+
+  const admin = adminClient();
+  // 僅允許重設「志工」帳號，避免經此端點重設職員/管理員密碼（權限升級防護）。
+  const { data: target } = await admin
+    .from("volunteer_profiles")
+    .select("id")
+    .eq("id", targetUserId)
+    .maybeSingle();
+  if (!target) return { error: "找不到該志工帳號。" };
+
+  const { error } = await admin.auth.admin.updateUserById(targetUserId, {
+    password: newPassword,
+  });
+  if (error) return { error: `重設密碼失敗：${error.message}` };
+  return { success: true };
+}

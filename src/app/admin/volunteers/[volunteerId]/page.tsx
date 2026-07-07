@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../../admin-context";
-import { setVolunteerStatus } from "@/lib/actions/admin-users";
+import { setVolunteerStatus, resetVolunteerPassword } from "@/lib/actions/admin-users";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -83,6 +83,9 @@ export default function VolunteerDetailPage() {
   const [showBlacklistModal, setShowBlacklistModal] = useState(false);
   const [blacklistDays, setBlacklistDays] = useState("");
   const [blacklistNote, setBlacklistNote] = useState("");
+
+  const [showResetPw, setShowResetPw] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -172,6 +175,23 @@ export default function VolunteerDetailPage() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (newPassword.length < 8) {
+      toast.error("密碼至少需要 8 個字元。");
+      return;
+    }
+    setIsActing(true);
+    const result = await resetVolunteerPassword(volunteerId, newPassword);
+    setIsActing(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("已重設該學生的密碼，請將新密碼轉知學生。");
+    setShowResetPw(false);
+    setNewPassword("");
+  };
+
   const statusActions = useMemo(() => {
     if (!volunteer || !isAdmin) return [];
     const actions: StatusConfirm[] = [];
@@ -222,6 +242,9 @@ export default function VolunteerDetailPage() {
                   加入黑名單
                 </Button>
               )}
+              <Button size="sm" variant="outline" onClick={() => setShowResetPw(true)}>
+                重設密碼
+              </Button>
             </>
           ) : undefined
         }
@@ -463,6 +486,51 @@ export default function VolunteerDetailPage() {
               </Button>
               <Button size="sm" variant="danger" isLoading={isActing} onClick={handleAddBlacklist}>
                 確定加入
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showResetPw && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/40"
+            onClick={() => !isActing && setShowResetPw(false)}
+            aria-label="關閉"
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
+            <div className="px-6 py-5">
+              <h3 className="text-lg font-bold text-slate-900">重設密碼</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                為 {volunteer.full_name}（帳號 {volunteer.username}）設定新密碼。設定後請自行將
+                新密碼轉知學生；系統不會寄出通知。
+              </p>
+              <div className="mt-4 space-y-4">
+                <Field label="新密碼" hint="至少 8 個字元。">
+                  <input
+                    type="text"
+                    autoComplete="new-password"
+                    className={inputClass}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="輸入新密碼"
+                  />
+                </Field>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={isActing}
+                onClick={() => setShowResetPw(false)}
+              >
+                取消
+              </Button>
+              <Button size="sm" isLoading={isActing} onClick={handleResetPassword}>
+                確定重設
               </Button>
             </div>
           </div>
