@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -49,6 +50,7 @@ const FILTER_TABS = [
 export default function RegistrationsPage() {
   const supabase = createClient();
   const toast = useToast();
+  const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const [registrations, setRegistrations] = useState<RegistrationRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -229,10 +231,21 @@ export default function RegistrationsPage() {
                   const s = STATUS_MAP[reg.status] || STATUS_MAP.pending;
                   const canCancel = reg.status === "pending" || reg.status === "approved";
 
+                  const goDetail = () => router.push(`/profile/registrations/${reg.id}`);
+
                   return (
                     <li
                       key={reg.id}
-                      className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3"
+                      role="button"
+                      tabIndex={0}
+                      onClick={goDetail}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          goDetail();
+                        }
+                      }}
+                      className="group flex cursor-pointer flex-wrap items-center gap-x-4 gap-y-2 rounded-md px-2 py-3 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-primary/30"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -271,12 +284,18 @@ export default function RegistrationsPage() {
 
                       {canCancel && (
                         <button
-                          onClick={() => handleCancel(reg)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCancel(reg);
+                          }}
                           className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
                         >
                           取消報名
                         </button>
                       )}
+                      <span className="material-symbols-outlined shrink-0 text-[18px] text-slate-300 transition-colors group-hover:text-primary">
+                        arrow_forward
+                      </span>
                     </li>
                   );
                 })}

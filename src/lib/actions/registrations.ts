@@ -40,6 +40,22 @@ export async function cancelRegistration(
   return { success: true, status: data as RegistrationStatus };
 }
 
+// 志工自行簽到：開放時段（場次開始前 N 分鐘～結束，N 為後台系統參數）、
+// 帳號狀態、報名狀態等守衛全在 RPC 內強制（rpc_self_check_in，見 11_harden…）；
+// 前端只負責呼叫並原樣顯示中文錯誤訊息。
+export async function selfCheckIn(registrationId: string): Promise<ActionResult> {
+  const supabase = await createClient();
+  const user = await getCachedUser();
+  if (!user) return { error: "請先登入。" };
+
+  const { error } = await supabase.rpc("rpc_self_check_in", {
+    p_registration_id: registrationId,
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 export interface HoursSummaryEntry {
   registration_id: string;
   activity_title: string;
