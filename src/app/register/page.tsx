@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
@@ -13,7 +13,10 @@ import {
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
 import { setFlashToast, useToast } from "@/components/ui/toast";
-import { TurnstileWidget } from "@/components/support/turnstile-widget";
+import {
+  TurnstileWidget,
+  type TurnstileHandle,
+} from "@/components/support/turnstile-widget";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -45,6 +48,7 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -130,6 +134,8 @@ export default function RegisterPage() {
     });
 
     if (result.error) {
+      // token 已被伺服器端 siteverify 消耗（一次性），失敗重試前需重置取得新 token。
+      turnstileRef.current?.reset();
       toast.error(result.error);
       setIsLoading(false);
       return;
@@ -353,7 +359,11 @@ export default function RegisterPage() {
           </div>
 
           {TURNSTILE_SITE_KEY && (
-            <TurnstileWidget siteKey={TURNSTILE_SITE_KEY} onToken={setTurnstileToken} />
+            <TurnstileWidget
+              ref={turnstileRef}
+              siteKey={TURNSTILE_SITE_KEY}
+              onToken={setTurnstileToken}
+            />
           )}
 
           {/* 送出 */}

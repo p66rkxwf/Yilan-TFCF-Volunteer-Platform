@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { submitSupportRequest } from "@/lib/actions/support";
-import { TurnstileWidget } from "@/components/support/turnstile-widget";
+import {
+  TurnstileWidget,
+  type TurnstileHandle,
+} from "@/components/support/turnstile-widget";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
@@ -41,6 +44,7 @@ export function SupportContent() {
   const toast = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle>(null);
   const [formData, setFormData] = useState<{
     name: string;
     email: string;
@@ -74,26 +78,32 @@ export function SupportContent() {
     }
 
     setIsSubmitting(true);
-    const result = await submitSupportRequest({ ...formData, turnstileToken });
-    setIsSubmitting(false);
+    try {
+      const result = await submitSupportRequest({ ...formData, turnstileToken });
 
-    if (result.error) {
-      toast.error(result.error, "送出失敗");
-      return;
+      // 不論成敗，token 都已被伺服器端 siteverify 消耗（一次性），
+      // 必須重置 widget 取得新 token，否則同頁第二次送出必被擋下。
+      turnstileRef.current?.reset();
+
+      if (result.error) {
+        toast.error(result.error, "送出失敗");
+        return;
+      }
+
+      toast.success(
+        "我們已收到您的訊息。若需補充資料，平台管理團隊會再與您聯繫。",
+        "已送出"
+      );
+
+      setFormData({
+        name: "",
+        email: "",
+        topic: TOPICS[0],
+        message: "",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    toast.success(
-      "我們已收到您的訊息。若需補充資料，平台管理團隊會再與您聯繫。",
-      "已送出"
-    );
-
-    setTurnstileToken(null);
-    setFormData({
-      name: "",
-      email: "",
-      topic: TOPICS[0],
-      message: "",
-    });
   };
 
   const fieldCls =
@@ -156,7 +166,11 @@ export function SupportContent() {
         </label>
 
         {TURNSTILE_SITE_KEY && (
-          <TurnstileWidget siteKey={TURNSTILE_SITE_KEY} onToken={setTurnstileToken} />
+          <TurnstileWidget
+            ref={turnstileRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            onToken={setTurnstileToken}
+          />
         )}
 
         <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 md:flex-row md:items-center md:justify-between">

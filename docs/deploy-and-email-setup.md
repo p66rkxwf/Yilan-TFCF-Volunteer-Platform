@@ -197,12 +197,18 @@ Dashboard → **Authentication → Emails → SMTP Settings → Enable Custom SM
 
 # Part C — Turnstile 防機器人（選用）
 
-保護 `/support`、`/register`、`/forgot-password`（程式已接好，未設金鑰時自動停用、表單照常）。
+保護 `/support`、`/register`（程式已接好，兩把金鑰皆未設時自動停用、表單照常。
+`/forgot-password` 已改為導向 /support 的靜態說明頁，不再有表單）。
 
 1. Cloudflare Dashboard → **Turnstile → 新增網站** → 取得 **Site Key** 與 **Secret Key**。
 2. 設定變數：
    - `NEXT_PUBLIC_TURNSTILE_SITE_KEY`（build-time）→ 填進 A3 的 GitHub **Variables**，重跑一次部署。
    - `TURNSTILE_SECRET_KEY`（runtime）→ `npx wrangler secret put TURNSTILE_SECRET_KEY`（app worker）。
+
+> ⚠️ **兩把金鑰必須成對設定／成對留空**：只設 site key 不設 secret 時，伺服器端驗證
+> 一律拒絕（fail-closed，防護不會靜默失效），/support 與 /register 會**全部無法送出**
+> 並顯示「人機驗證失敗」。只設 secret 不設 site key 則前端不會出現驗證框、送不出
+> token，同樣全部被擋。啟用時兩者一起設好並重跑部署；停用時兩者一起清空。
 
 ---
 
