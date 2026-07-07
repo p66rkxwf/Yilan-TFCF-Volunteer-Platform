@@ -82,11 +82,11 @@ npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 #   貼：.env.local 裡（ncygf 專案）那把 service role key
 ```
 
-> 需先完成過一次 A4 部署（Worker 存在）才能設 secret。或改在 Cloudflare Dashboard → Workers & Pages → `volunteer-platform` → Settings → Variables and Secrets 設定。
+> 需先完成過一次 A4 部署（Worker 存在）才能設 secret。或改在 Cloudflare Dashboard → Workers & Pages → `volunteer` → Settings → Variables and Secrets 設定。
 
 ## A6. 接自訂網域 `volunteer.sekinv.com`
 
-Cloudflare Dashboard → **Workers & Pages → `volunteer-platform` → Settings → Domains & Routes → Add → Custom Domain** → 輸入 `volunteer.sekinv.com` → Add。因為 DNS 已在 Cloudflare，會自動建 DNS + 憑證，幾分鐘後就會通。（此為一次性設定，之後 CI 部署不會動到它。）
+Cloudflare Dashboard → **Workers & Pages → `volunteer` → Settings → Domains & Routes → Add → Custom Domain** → 輸入 `volunteer.sekinv.com` → Add。因為 DNS 已在 Cloudflare，會自動建 DNS + 憑證，幾分鐘後就會通。（此為一次性設定，之後 CI 部署不會動到它。）
 
 ## A7. 驗證
 
