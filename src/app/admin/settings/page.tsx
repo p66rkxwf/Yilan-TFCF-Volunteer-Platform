@@ -210,7 +210,7 @@ export default function SettingsPage() {
         )}
 
         {settings && (
-          <Panel title="系統參數" description="全機構統一設定（單列）。">
+          <Panel title="系統參數">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {numField(
                 "黑名單自動解除天數",
@@ -248,7 +248,7 @@ export default function SettingsPage() {
           </Panel>
         )}
 
-        <Panel title="期間管理" description="半年一期，期間不得重疊（資料庫強制）。" padded={false}>
+        <Panel title="期間管理" description="半年一期，期間不得重疊。" padded={false}>
           <TableShell>
             <thead>
               <tr>

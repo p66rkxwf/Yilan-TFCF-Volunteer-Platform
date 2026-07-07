@@ -364,7 +364,6 @@ export default function VolunteerDetailPage() {
 
         <Panel
           title="黑名單事件"
-          description="事件表為唯一事實來源；學生檔案的黑名單旗標為系統維護的鏡像。"
           padded={false}
           action={
             isAdmin && volunteer.is_blacklisted ? (

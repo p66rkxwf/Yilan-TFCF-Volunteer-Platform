@@ -99,7 +99,6 @@ export default function StaffPage() {
     <>
       <PageHeader
         title="職員管理"
-        description="職員永不硬刪（改停權）；聯絡電話必填（主辦人電話公開於前台）。"
         actions={
           isSystemAdmin ? (
             <Link
