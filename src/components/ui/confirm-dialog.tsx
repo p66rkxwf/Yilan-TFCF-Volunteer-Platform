@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 
 export type ConfirmDialogProps = {
   open: boolean;
@@ -25,6 +25,8 @@ export function ConfirmDialog({
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
+  const titleId = useId();
+
   useEffect(() => {
     if (!open) return;
 
@@ -46,9 +48,14 @@ export function ConfirmDialog({
         onClick={onClose}
         aria-label="關閉對話框"
       />
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="relative w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+      >
         <div className="px-6 py-5">
-          <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+          <h3 id={titleId} className="text-lg font-bold text-slate-900">{title}</h3>
           {description ? (
             <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
           ) : null}

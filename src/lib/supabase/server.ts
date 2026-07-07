@@ -1,7 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
-export async function createClient() {
+// React cache(): 同一個 RSC render / Server Action 請求內，
+// 所有 createClient() 呼叫共用同一個 client 實例（request 範圍去重）。
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -25,4 +28,4 @@ export async function createClient() {
       },
     }
   );
-}
+});

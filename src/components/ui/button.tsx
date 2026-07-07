@@ -25,15 +25,15 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       "inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-0 active:outline-none whitespace-nowrap shrink-0";
     const variants = {
       primary:
-        "bg-foreground text-background hover:opacity-90 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 dark:bg-foreground dark:text-background",
+        "bg-primary text-white hover:bg-primary/90 hover:shadow-md hover:-translate-y-0.5 active:translate-y-0",
       secondary:
-        "bg-zinc-200 text-zinc-900 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600",
+        "bg-zinc-200 text-zinc-900 hover:bg-zinc-300",
       outline:
-        "border-2 border-zinc-300 text-foreground bg-transparent hover:bg-zinc-100 dark:border-zinc-600 dark:hover:bg-zinc-800",
+        "border-2 border-zinc-300 text-foreground bg-transparent hover:bg-zinc-100",
       danger:
         "bg-red-600 text-white hover:bg-red-700 hover:shadow-md active:bg-red-800",
       ghost:
-        "text-foreground hover:bg-zinc-100 active:bg-zinc-200 dark:hover:bg-zinc-800 dark:active:bg-zinc-700",
+        "text-foreground hover:bg-zinc-100 active:bg-zinc-200",
     };
 
     const sizes = {

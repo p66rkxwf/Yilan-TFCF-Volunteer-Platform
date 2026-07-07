@@ -1,0 +1,338 @@
+"use client";
+
+// 後台共用 UI 原語：頁首、面板、狀態徽章、表格、工具列、分頁、批次列。
+// 全後台頁面一律使用這裡的元件，維持一致的版面語言。
+
+import Link from "next/link";
+import React from "react";
+import type { StatusMeta } from "@/lib/admin/labels";
+
+export function PageHeader({
+  title,
+  description,
+  backHref,
+  backLabel,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  backHref?: string;
+  backLabel?: string;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <div className="border-b border-slate-200 bg-white px-4 py-5 sm:px-6">
+      {backHref && (
+        <Link
+          href={backHref}
+          className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
+        >
+          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          {backLabel ?? "返回"}
+        </Link>
+      )}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-slate-900">{title}</h1>
+          {description && <p className="mt-1 text-sm text-slate-500">{description}</p>}
+        </div>
+        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      </div>
+    </div>
+  );
+}
+
+export function Panel({
+  title,
+  description,
+  action,
+  children,
+  padded = true,
+  className = "",
+}: {
+  title?: string;
+  description?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  padded?: boolean;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}
+    >
+      {(title || action) && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
+          <div className="min-w-0">
+            {title && <h2 className="text-sm font-bold text-slate-900">{title}</h2>}
+            {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
+          </div>
+          {action}
+        </div>
+      )}
+      <div className={padded ? "p-4 sm:p-5" : ""}>{children}</div>
+    </section>
+  );
+}
+
+export function StatusPill({ meta }: { meta: StatusMeta }) {
+  return (
+    <span
+      className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${meta.badge}`}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+// ===== 表格 =====
+
+export function TableShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-left">{children}</table>
+    </div>
+  );
+}
+
+export function Th({
+  children,
+  className = "",
+}: {
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <th
+      className={`whitespace-nowrap border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500 ${className}`}
+    >
+      {children}
+    </th>
+  );
+}
+
+export function Td({
+  children,
+  className = "",
+  colSpan,
+}: {
+  children?: React.ReactNode;
+  className?: string;
+  colSpan?: number;
+}) {
+  return (
+    <td colSpan={colSpan} className={`border-b border-slate-100 px-4 py-3 text-sm text-slate-700 ${className}`}>
+      {children}
+    </td>
+  );
+}
+
+export function EmptyRow({ colSpan, message = "目前沒有資料" }: { colSpan: number; message?: string }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-4 py-14 text-center text-sm text-slate-400">
+        <span className="material-symbols-outlined mb-2 block text-4xl">inbox</span>
+        {message}
+      </td>
+    </tr>
+  );
+}
+
+export function LoadingRow({ colSpan }: { colSpan: number }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-4 py-14 text-center text-sm text-slate-400">
+        資料載入中…
+      </td>
+    </tr>
+  );
+}
+
+// ===== 工具列（搜尋＋篩選） =====
+
+export function Toolbar({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
+      {children}
+    </div>
+  );
+}
+
+export function SearchInput({
+  value,
+  onChange,
+  placeholder = "搜尋…",
+  className = "",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+        search
+      </span>
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+      />
+    </div>
+  );
+}
+
+// ===== 分頁（client-side） =====
+
+export function Pagination({
+  page,
+  pageCount,
+  onPageChange,
+  totalCount,
+}: {
+  page: number;
+  pageCount: number;
+  onPageChange: (page: number) => void;
+  totalCount?: number;
+}) {
+  if (pageCount <= 1) return null;
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:px-5">
+      <p className="text-xs text-slate-500">
+        第 {page} / {pageCount} 頁{totalCount != null ? `，共 ${totalCount} 筆` : ""}
+      </p>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          上一頁
+        </button>
+        <button
+          type="button"
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(page + 1)}
+          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          下一頁
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===== 批次操作列 =====
+
+export function BatchBar({
+  count,
+  onClear,
+  children,
+}: {
+  count: number;
+  onClear: () => void;
+  children: React.ReactNode;
+}) {
+  if (count === 0) return null;
+  return (
+    <div className="sticky bottom-3 z-20 mx-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-white shadow-lg sm:mx-5">
+      <div className="flex items-center gap-2 text-sm">
+        <span className="font-bold">已選 {count} 筆</span>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-xs text-slate-300 underline-offset-2 hover:underline"
+        >
+          清除
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </div>
+  );
+}
+
+// ===== 頁籤（同頁分段切換，URL query 驅動） =====
+
+export function TabBar<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { key: T; label: string; count?: number }[];
+  active: T;
+  onChange: (key: T) => void;
+}) {
+  return (
+    <div className="scroll-x flex gap-1 border-b border-slate-200 bg-white px-4 sm:px-6">
+      {tabs.map((tab) => {
+        const isActive = tab.key === active;
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => onChange(tab.key)}
+            className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-3 text-sm font-semibold transition-colors ${
+              isActive
+                ? "border-primary text-primary"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            {tab.label}
+            {tab.count != null && (
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold leading-none ${
+                  isActive ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {tab.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ===== 表單欄位包裝 =====
+
+export function Field({
+  label,
+  required,
+  hint,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+        {label}
+        {required && <span className="ml-0.5 text-rose-500">*</span>}
+      </label>
+      {children}
+      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+    </div>
+  );
+}
+
+export const inputClass =
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400";
+
+// ===== 描述清單（詳情頁用） =====
+
+export function DescriptionItem({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
+      <dt className="w-32 shrink-0 text-sm font-semibold text-slate-500">{label}</dt>
+      <dd className="min-w-0 text-sm text-slate-800">{children}</dd>
+    </div>
+  );
+}

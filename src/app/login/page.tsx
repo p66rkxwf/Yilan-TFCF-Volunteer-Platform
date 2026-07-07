@@ -3,7 +3,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "@/lib/actions/auth";
+import { login } from "@/lib/actions/auth";
+import { createClient } from "@/lib/supabase/client";
+import { safeInternalPath } from "@/lib/url";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 
 export default function LoginPage() {
@@ -17,16 +19,16 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get("redirect") || "/";
+  const redirectTo = safeInternalPath(searchParams.get("redirect"));
   const registered = searchParams.get("registered");
   const toast = useToast();
+  const supabase = createClient();
 
   const [formData, setFormData] = useState({
     account: "",
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -58,10 +60,21 @@ function LoginForm() {
 
     setIsLoading(true);
 
-    const result = await signIn(formData);
+    // 密碼驗證在伺服器端完成（login），前端不再取得任何帳號的 email。
+    const { session, error } = await login(formData.account, formData.password);
 
-    if (result.error) {
-      toast.error(result.error);
+    if (error || !session) {
+      toast.error(error ?? "帳號或密碼錯誤，請重新輸入。");
+      setIsLoading(false);
+      return;
+    }
+
+    // 用瀏覽器端 client 設定 session，讓 Header 等元件的 onAuthStateChange
+    // 立即收到登入事件，不用整頁重新整理。
+    const { error: setError } = await supabase.auth.setSession(session);
+
+    if (setError) {
+      toast.error("登入失敗，請稍後再試。");
       setIsLoading(false);
       return;
     }
@@ -149,22 +162,6 @@ function LoginForm() {
             {errors.password && (
               <p className="text-red-500 text-xs mt-1">{errors.password}</p>
             )}
-          </div>
-
-          <div className="flex items-center gap-3 py-1">
-            <input
-              className="h-5 w-5 rounded border-slate-300 bg-transparent text-primary focus:ring-0 focus:ring-offset-0 transition-colors"
-              id="remember"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-            />
-            <label
-              className="text-slate-600 text-sm select-none"
-              htmlFor="remember"
-            >
-              記住我 30 天
-            </label>
           </div>
 
           <button

@@ -16,8 +16,11 @@
 *.log
 npm-debug.log*
 
-# env files
-.env.local
+# env files (never commit real secrets; opt-in a non-secret template via .env.example)
+.env*
+!.env.example
+
+.dev.vars
 
 # vercel
 .vercel
@@ -34,5 +37,15 @@ next-env.d.ts
 public/storage/attachments/*
 !public/storage/attachments/.gitkeep
 
+# local-only business spec docs (not committed)
+/files/
+
 # backups
 /backups/
+
+# OpenNext build output
+/.open-next/
+
+# wrangler local dev cache
+/.wrangler/
+

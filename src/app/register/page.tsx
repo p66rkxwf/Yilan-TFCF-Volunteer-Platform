@@ -1,28 +1,30 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
-import { getSocialWorkers } from "@/lib/actions/profiles";
 import { Select } from "@/components/ui/select";
 import {
   getBirthdayValidationError,
   normalizeBirthdayForSubmit,
   normalizeBirthdayInput,
 } from "@/lib/birthday";
-import type { YilanRegion } from "@/lib/types/database";
+import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
+import type { GradeLevel, YilanRegion } from "@/lib/types/database";
 import { setFlashToast, useToast } from "@/components/ui/toast";
+import { TurnstileWidget } from "@/components/support/turnstile-widget";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 const REGIONS: YilanRegion[] = [
   "宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉",
   "壯圍鄉", "員山鄉", "冬山鄉", "五結鄉", "三星鄉", "大同鄉", "南澳鄉",
 ];
 
-interface SocialWorker {
-  id: string;
-  full_name: string;
-}
+const GRADE_LEVELS: GradeLevel[] = [
+  "junior_high", "senior_high", "university", "graduate_school", "doctorate",
+];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,27 +36,15 @@ export default function RegisterPage() {
     confirmPassword: "",
     name: "",
     email: "",
+    phone: "",
+    grade: "" as GradeLevel | "",
     region: "" as YilanRegion | "",
-    socialWorkerId: "",
     birthday: "",
   });
 
-  const [interests, setInterests] = useState({
-    scholarships: false,
-    volunteering: false,
-  });
-
-  const [socialWorkers, setSocialWorkers] = useState<SocialWorker[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    getSocialWorkers()
-      .then(setSocialWorkers)
-      .catch(() => {
-        toast.error("社工名單載入失敗，請稍後再試。");
-      });
-  }, [toast]);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -69,6 +59,8 @@ export default function RegisterPage() {
       newErrors.confirmPassword = "兩次輸入的密碼不一致";
     }
     if (!formData.name.trim()) newErrors.name = "姓名為必填欄位";
+    if (!formData.phone.trim()) newErrors.phone = "電話為必填欄位";
+    if (!formData.grade) newErrors.grade = "請選擇學制階段";
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
@@ -99,8 +91,11 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSelectChange = (name: "region" | "socialWorkerId", value: string) => {
+  const handleSelectChange = (name: "region" | "grade", value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+    }
   };
 
   const handleBirthdayBlur = () => {
@@ -114,6 +109,11 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      toast.error("請先完成人機驗證後再送出。", "驗證未完成");
+      return;
+    }
+
     setIsLoading(true);
 
     const result = await signUp({
@@ -121,9 +121,11 @@ export default function RegisterPage() {
       password: formData.password,
       name: formData.name,
       email: formData.email,
+      phone: formData.phone,
+      grade: formData.grade as GradeLevel,
       region: formData.region || undefined,
-      socialWorkerId: formData.socialWorkerId || undefined,
       birthday: normalizeBirthdayForSubmit(formData.birthday),
+      turnstileToken,
     });
 
     if (result.error) {
@@ -135,18 +137,10 @@ export default function RegisterPage() {
     setFlashToast({
       variant: "success",
       title: "註冊成功",
-      description: "帳號已建立，請登入繼續。",
+      description: "帳號已建立，待管理員審核通過後即可報名志工活動。",
     });
     router.push("/login");
   };
-
-  const requiredFields = ["account", "password", "confirmPassword", "name", "email", "birthday"];
-  const optionalFields = ["region", "socialWorkerId"];
-  const allFields = [...requiredFields, ...optionalFields];
-  const filledCount = allFields.filter(
-    (k) => formData[k as keyof typeof formData].toString().trim() !== ""
-  ).length;
-  const progressPercent = Math.round((filledCount / allFields.length) * 100);
 
   function FieldError({ field }: { field: string }) {
     return errors[field] ? (
@@ -164,21 +158,6 @@ export default function RegisterPage() {
           <p className="text-slate-600 text-lg">
             掌握最新的服務機會與獎學金資訊。
           </p>
-        </div>
-
-        <div className="flex flex-col gap-3 bg-white p-6 rounded-xl shadow-sm border border-primary/5">
-          <div className="flex justify-between items-center">
-            <p className="text-slate-900 text-sm font-semibold uppercase tracking-wider">
-              填寫進度
-            </p>
-            <p className="text-primary text-sm font-bold">{progressPercent}%</p>
-          </div>
-          <div className="w-full h-2 rounded-full bg-primary/10">
-            <div
-              className="h-2 rounded-full bg-primary transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
         </div>
 
         <form
@@ -266,58 +245,71 @@ export default function RegisterPage() {
             <FieldError field="birthday" />
           </div>
 
-          {/* 區域 + 負責社工（非必填） */}
+          {/* 電話 + 學制階段 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-slate-900 text-sm font-bold">
-                區域
-                <span className="text-slate-400 font-normal ml-1">（選填）</span>
-              </label>
+              <label className="text-slate-900 text-sm font-bold">電話</label>
               <div className="relative">
-                <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
-                  location_on
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  call
                 </span>
-                <Select
-                  className="w-full"
-                  triggerClassName="w-full rounded-lg border border-slate-200 bg-background-light py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary"
-                  menuClassName="bg-background-light"
-                  name="region"
-                  value={formData.region}
-                  ariaLabel="區域"
-                  onValueChange={(value) => handleSelectChange("region", value)}
-                  options={[
-                    { value: "", label: "請選擇區域" },
-                    ...REGIONS.map((region) => ({ value: region, label: region })),
-                  ]}
+                <input
+                  className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.phone ? "border-red-400" : "border-slate-200"} bg-background-light focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                  name="phone"
+                  placeholder="請輸入聯絡電話"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
                 />
               </div>
+              <FieldError field="phone" />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-slate-900 text-sm font-bold">
-                負責社工
-                <span className="text-slate-400 font-normal ml-1">（選填）</span>
-              </label>
+              <label className="text-slate-900 text-sm font-bold">學制階段</label>
               <div className="relative">
                 <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
-                  support_agent
+                  school
                 </span>
                 <Select
                   className="w-full"
-                  triggerClassName="w-full rounded-lg border border-slate-200 bg-background-light py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary"
+                  triggerClassName={`w-full rounded-lg border ${errors.grade ? "border-red-400" : "border-slate-200"} bg-background-light py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary`}
                   menuClassName="bg-background-light"
-                  name="socialWorkerId"
-                  value={formData.socialWorkerId}
-                  ariaLabel="負責社工"
-                  onValueChange={(value) => handleSelectChange("socialWorkerId", value)}
-                  options={[
-                    { value: "", label: "請選擇負責社工" },
-                    ...socialWorkers.map((worker) => ({
-                      value: worker.id,
-                      label: worker.full_name,
-                    })),
-                  ]}
+                  name="grade"
+                  value={formData.grade}
+                  placeholder="請選擇學制階段"
+                  ariaLabel="學制階段"
+                  onValueChange={(value) => handleSelectChange("grade", value)}
+                  options={GRADE_LEVELS.map((grade) => ({
+                    value: grade,
+                    label: GRADE_LEVEL_LABELS[grade],
+                  }))}
                 />
               </div>
+              <FieldError field="grade" />
+            </div>
+          </div>
+
+          {/* 區域（非必填） */}
+          <div className="flex flex-col gap-2">
+            <label className="text-slate-900 text-sm font-bold">
+              區域
+              <span className="text-slate-400 font-normal ml-1">（選填）</span>
+            </label>
+            <div className="relative">
+              <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
+                location_on
+              </span>
+              <Select
+                className="w-full"
+                triggerClassName="w-full rounded-lg border border-slate-200 bg-background-light py-3 pl-10 pr-4 text-slate-900 focus:border-transparent focus:ring-2 focus:ring-primary"
+                menuClassName="bg-background-light"
+                name="region"
+                value={formData.region}
+                placeholder="請選擇區域"
+                ariaLabel="區域"
+                onValueChange={(value) => handleSelectChange("region", value)}
+                options={REGIONS.map((region) => ({ value: region, label: region }))}
+              />
             </div>
           </div>
 
@@ -361,40 +353,9 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* 興趣 */}
-          <div className="flex flex-col gap-4 mt-2">
-            <p className="text-slate-900 text-sm font-bold">您的感興趣項目</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 cursor-pointer hover:bg-primary/5 transition-colors">
-                <input
-                  className="w-5 h-5 rounded text-primary focus:ring-primary bg-background-light border-slate-300"
-                  type="checkbox"
-                  checked={interests.scholarships}
-                  onChange={(e) =>
-                    setInterests((p) => ({ ...p, scholarships: e.target.checked }))
-                  }
-                />
-                <div className="flex flex-col">
-                  <span className="font-bold text-slate-900">獎學金</span>
-                  <span className="text-xs text-slate-500">接收獎學金申請通知</span>
-                </div>
-              </label>
-              <label className="flex items-center gap-3 p-4 rounded-lg border border-slate-200 cursor-pointer hover:bg-primary/5 transition-colors">
-                <input
-                  className="w-5 h-5 rounded text-primary focus:ring-primary bg-background-light border-slate-300"
-                  type="checkbox"
-                  checked={interests.volunteering}
-                  onChange={(e) =>
-                    setInterests((p) => ({ ...p, volunteering: e.target.checked }))
-                  }
-                />
-                <div className="flex flex-col">
-                  <span className="font-bold text-slate-900">志工服務</span>
-                  <span className="text-xs text-slate-500">接收志工活動通知</span>
-                </div>
-              </label>
-            </div>
-          </div>
+          {TURNSTILE_SITE_KEY && (
+            <TurnstileWidget siteKey={TURNSTILE_SITE_KEY} onToken={setTurnstileToken} />
+          )}
 
           {/* 送出 */}
           <div className="pt-4">

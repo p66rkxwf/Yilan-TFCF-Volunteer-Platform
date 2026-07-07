@@ -1,102 +1,94 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Registration } from "@/lib/types/database";
+import { getCachedUser } from "@/lib/supabase/cached-auth";
+import type { RegistrationStatus } from "@/lib/types/database";
 
 interface ActionResult {
   error?: string;
   success?: boolean;
 }
 
-export async function registerForActivity(
-  activityId: string
-): Promise<ActionResult> {
+// V2 報名一律走 RPC（registrations 無直寫 policy）；RPC 內含 advisory lock、
+// 名額鎖內即時計數、時間衝突檢查、帳號狀態檢查，前端不再重複這些邏輯。
+// RPC 用 RAISE EXCEPTION 拋出的中文訊息會透過 error.message 原樣帶回。
+export async function registerForSession(sessionId: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCachedUser();
   if (!user) return { error: "請先登入。" };
 
-  const { data: existing } = await supabase
-    .from("registrations")
-    .select("id, status")
-    .eq("activity_id", activityId)
-    .eq("volunteer_id", user.id)
-    .in("status", ["pending", "approved"])
-    .single();
-
-  if (existing) return { error: "您已報名此活動。" };
-
-  const { count } = await supabase
-    .from("registrations")
-    .select("*", { count: "exact", head: true })
-    .eq("activity_id", activityId)
-    .in("status", ["pending", "approved"]);
-
-  const { data: activity } = await supabase
-    .from("activities")
-    .select("capacity, is_cancelled")
-    .eq("id", activityId)
-    .single();
-
-  if (!activity) return { error: "活動不存在。" };
-  if (activity.is_cancelled) return { error: "此活動已取消。" };
-  if ((count ?? 0) >= activity.capacity) return { error: "名額已滿。" };
-
-  const { error } = await supabase.from("registrations").insert({
-    activity_id: activityId,
-    volunteer_id: user.id,
-    status: "pending",
+  const { error } = await supabase.rpc("rpc_register_for_session", {
+    p_session_id: sessionId,
   });
 
-  if (error) return { error: `報名失敗：${error.message}` };
-
+  if (error) return { error: error.message };
   return { success: true };
 }
 
 export async function cancelRegistration(
-  activityId: string
-): Promise<ActionResult> {
+  registrationId: string
+): Promise<ActionResult & { status?: RegistrationStatus }> {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCachedUser();
   if (!user) return { error: "請先登入。" };
 
-  const { error } = await supabase
-    .from("registrations")
-    .update({ status: "cancelled" })
-    .eq("activity_id", activityId)
-    .eq("volunteer_id", user.id)
-    .in("status", ["pending", "approved"]);
+  const { data, error } = await supabase.rpc("rpc_request_cancel", {
+    p_registration_id: registrationId,
+  });
 
-  if (error) return { error: `取消失敗：${error.message}` };
-
-  return { success: true };
+  if (error) return { error: error.message };
+  return { success: true, status: data as RegistrationStatus };
 }
 
-export async function getMyRegistrations(): Promise<
-  (Registration & { activity_title?: string })[]
-> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export interface HoursSummaryEntry {
+  registration_id: string;
+  activity_title: string;
+  session_start_at: string | null;
+  hours: number;
+}
 
-  if (!user) return [];
+export interface HoursSummary {
+  totalHours: number;
+  attendedCount: number;
+  entries: HoursSummaryEntry[];
+}
+
+// 取得目前使用者的累計服務時數與出席明細（含 attended／makeup_attended）
+export async function getMyHoursSummary(): Promise<HoursSummary> {
+  const empty: HoursSummary = { totalHours: 0, attendedCount: 0, entries: [] };
+
+  const supabase = await createClient();
+  const user = await getCachedUser();
+
+  if (!user) return empty;
 
   const { data } = await supabase
     .from("registrations")
-    .select("*, activities(title)")
+    .select("id, service_hours, attendance, created_at, activity_sessions(start_at, activities(title))")
     .eq("volunteer_id", user.id)
+    .in("attendance", ["attended", "makeup_attended"])
     .order("created_at", { ascending: false });
 
-  return (
-    data?.map((r) => ({
-      ...r,
-      activity_title: (r.activities as unknown as { title: string })?.title,
-    })) ?? []
-  );
+  if (!data) return empty;
+
+  const entries: HoursSummaryEntry[] = data.map((r) => {
+    const session = r.activity_sessions as unknown as {
+      start_at: string;
+      activities: { title: string } | null;
+    } | null;
+    return {
+      registration_id: r.id,
+      activity_title: session?.activities?.title ?? "未知活動",
+      session_start_at: session?.start_at ?? null,
+      hours: Number(r.service_hours ?? 0),
+    };
+  });
+
+  const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
+
+  return {
+    totalHours,
+    attendedCount: entries.length,
+    entries,
+  };
 }

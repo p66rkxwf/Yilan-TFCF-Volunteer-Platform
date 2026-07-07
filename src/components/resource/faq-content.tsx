@@ -16,7 +16,7 @@ const FAQ_ITEMS = [
     category: "帳號與登入",
     question: "如何建立志工帳號？",
     answer:
-      "前往註冊頁填寫姓名、帳號、Email、生日與密碼即可建立帳號。若您已有負責社工，也可以在註冊時一併選擇，方便後續資料確認。",
+      "前往註冊頁填寫姓名、帳號、Email、生日與密碼即可建立帳號。註冊送出後帳號會進入待審核狀態，管理員審核通過並指派負責社工後即可開始報名。",
   },
   {
     category: "帳號與登入",
@@ -46,7 +46,7 @@ const FAQ_ITEMS = [
     category: "個人資料",
     question: "我可以修改 Email 或其他基本資料嗎？",
     answer:
-      "可以。登入後前往個人資料與設定頁面，即可更新姓名、生日、區域、Email 等資訊；修改後會立即套用到後續通知與聯繫資料。",
+      "登入後可於個人資料頁更新姓名、電話與地區；Email 請至帳號設定頁修改（需至新信箱完成驗證）。生日為管理員維護欄位，如需修改請聯絡管理員。",
   },
   {
     category: "個人資料",
@@ -118,150 +118,95 @@ export function FaqContent() {
   });
 
   return (
-    <div className="space-y-10">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/5 md:p-8">
-          <div className="flex h-14 items-center rounded-2xl border border-slate-200 bg-background-light px-4 shadow-sm shadow-slate-900/5">
-            <span className="material-symbols-outlined text-slate-400">
-              search
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="搜尋帳號、報名、收藏、通知..."
-              className="w-full border-none bg-transparent px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
-            />
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-2">
-            {CATEGORIES.map((category) => {
-              const isActive = category === selectedCategory;
-
-              return (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => setSelectedCategory(category)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                    isActive
-                      ? "bg-primary text-white shadow-md shadow-primary/20"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {category}
-                </button>
-              );
-            })}
-          </div>
+    <div className="space-y-8">
+      {/* 搜尋 + 分類 */}
+      <div>
+        <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3">
+          <span className="material-symbols-outlined text-[20px] text-slate-400">search</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="搜尋帳號、報名、收藏、通知..."
+            className="w-full border-none bg-transparent px-3 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+          />
         </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {CATEGORIES.map((category) => {
+            const isActive = category === selectedCategory;
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setSelectedCategory(category)}
+                className={`rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  isActive ? "bg-primary text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {category}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+      {/* FAQ 清單（扁平 accordion） */}
+      <div>
+        <p className="mb-3 border-b border-slate-200 pb-2 text-sm text-slate-500">
+          共找到 {filteredItems.length} 筆常見問題
+        </p>
+        {filteredItems.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {filteredItems.map((item, index) => (
+              <details key={item.question} open={index === 0} className="group py-1">
+                <summary className="flex cursor-pointer items-center justify-between gap-4 py-3 text-left">
+                  <span className="flex items-center gap-2">
+                    <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                      {item.category}
+                    </span>
+                    <h3 className="text-sm font-bold text-slate-900">{item.question}</h3>
+                  </span>
+                  <span className="material-symbols-outlined shrink-0 text-[20px] text-slate-400 transition-transform group-open:rotate-180">
+                    expand_more
+                  </span>
+                </summary>
+                <div className="pb-3 pl-1 text-sm leading-6 text-slate-600">{item.answer}</div>
+              </details>
+            ))}
+          </div>
+        ) : (
+          <div className="py-12 text-center">
+            <span className="material-symbols-outlined text-4xl text-slate-300">search_off</span>
+            <h3 className="mt-3 text-base font-bold text-slate-900">找不到符合條件的問題</h3>
+            <p className="mt-1 text-sm text-slate-500">可嘗試更換關鍵字，或直接前往聯絡支援頁回報。</p>
+            <Link
+              href="/support"
+              className="mt-4 inline-flex items-center rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+            >
+              前往聯絡支援
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* 相關文件 + 支援 */}
+      <div className="border-t border-slate-200 pt-6">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">相關文件</p>
+        <div className="mt-2 flex flex-col">
           {QUICK_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5 transition-all hover:-translate-y-0.5 hover:shadow-md"
+              className="flex items-center gap-2.5 rounded px-2 py-2 transition-colors hover:bg-primary/5"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <span className="material-symbols-outlined">{link.icon}</span>
-              </div>
-              <h2 className="mt-4 text-base font-bold text-slate-900">
-                {link.title}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {link.description}
-              </p>
+              <span className="material-symbols-outlined text-[20px] text-primary">{link.icon}</span>
+              <span>
+                <span className="text-sm font-semibold text-slate-800">{link.title}</span>
+                <span className="ml-2 text-xs text-slate-500">{link.description}</span>
+              </span>
             </Link>
           ))}
         </div>
-      </div>
-
-      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm shadow-slate-900/5 md:p-8">
-        <div className="flex flex-col gap-2 border-b border-slate-100 pb-5">
-          <p className="text-sm font-semibold text-slate-500">
-            共找到 {filteredItems.length} 筆常見問題
-          </p>
-          <p className="text-sm text-slate-400">
-            先從 FAQ 排查，可減少等待客服回覆的時間。
-          </p>
-        </div>
-
-        <div className="mt-6 space-y-4">
-          {filteredItems.length > 0 ? (
-            filteredItems.map((item, index) => (
-              <details
-                key={item.question}
-                open={index === 0}
-                className="group overflow-hidden rounded-2xl border border-slate-200 bg-background-light/70"
-              >
-                <summary className="flex cursor-pointer items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-white">
-                  <div>
-                    <span className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-bold text-primary shadow-sm">
-                      {item.category}
-                    </span>
-                    <h3 className="mt-3 text-base font-bold leading-7 text-slate-900 md:text-lg">
-                      {item.question}
-                    </h3>
-                  </div>
-                  <span className="material-symbols-outlined shrink-0 text-slate-400 transition-transform group-open:rotate-180">
-                    expand_more
-                  </span>
-                </summary>
-                <div className="px-5 pb-5 pt-1 text-sm leading-7 text-slate-600 md:text-base">
-                  {item.answer}
-                </div>
-              </details>
-            ))
-          ) : (
-            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center">
-              <span className="material-symbols-outlined text-5xl text-slate-300">
-                search_off
-              </span>
-              <h3 className="mt-4 text-lg font-bold text-slate-900">
-                找不到符合條件的問題
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                可嘗試更換關鍵字，或直接前往聯絡支援頁回報。
-              </p>
-              <Link
-                href="/support"
-                className="mt-5 inline-flex items-center rounded-full bg-primary px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-primary/90"
-              >
-                前往聯絡支援
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-3xl bg-slate-900 p-6 text-white md:col-span-2">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-white/60">
-            Still Need Help
-          </p>
-          <h2 className="mt-3 text-2xl font-black tracking-tight">
-            問題涉及帳號權限、活動審核或資料異常？
-          </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-white/70 md:text-base">
-            建議附上活動名稱、操作步驟與錯誤截圖，平台管理團隊會更快協助定位問題。
-          </p>
-        </div>
-
-        <Link
-          href="/support"
-          className="flex flex-col justify-between rounded-3xl bg-primary p-6 text-white transition-transform hover:-translate-y-0.5"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
-            <span className="material-symbols-outlined">support_agent</span>
-          </div>
-          <div className="mt-10">
-            <h3 className="text-xl font-bold">聯絡平台支援</h3>
-            <p className="mt-2 text-sm leading-6 text-white/80">
-              需要人工協助時，直接填寫支援表單即可。
-            </p>
-          </div>
-        </Link>
       </div>
     </div>
   );

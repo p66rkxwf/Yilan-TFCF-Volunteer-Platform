@@ -1,0 +1,151 @@
+"use client";
+
+// 新增職員（僅系統管理員）：伺服器端 Admin API 建帳號並寫入 staff_profiles。
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/toast";
+import { useAdminProfile } from "../../admin-context";
+import { createStaff } from "@/lib/actions/admin-users";
+import { Button } from "@/components/ui/button";
+import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
+import { Select } from "@/components/ui/select";
+import { STAFF_ROLE, STAFF_JOB_TITLE } from "@/lib/admin/labels";
+import { YILAN_REGIONS } from "@/lib/types/database";
+import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
+
+export default function NewStaffPage() {
+  const router = useRouter();
+  const toast = useToast();
+  const profile = useAdminProfile();
+
+  const [form, setForm] = useState({
+    fullName: "",
+    username: "",
+    email: "",
+    password: "",
+    phone: "",
+    role: "staff" as StaffRole,
+    jobTitle: "other" as StaffJobTitle,
+    region: "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // 非系統管理員不應進入此頁；導回名冊。
+  useEffect(() => {
+    if (profile.role !== "system_admin") {
+      toast.error("僅系統管理員可新增職員");
+      router.replace("/admin/staff");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const set = (key: keyof typeof form, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const result = await createStaff(form);
+    setIsSaving(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success("職員帳號已建立");
+    router.push("/admin/staff");
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="新增職員"
+        description="建立後即為在職狀態。角色與職稱可日後於名冊調整。"
+        backHref="/admin/staff"
+        backLabel="職員管理"
+      />
+
+      <div className="flex-1 p-4 sm:p-6">
+        <form onSubmit={handleSubmit} className="max-w-3xl space-y-5">
+          <Panel title="登入資訊">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="帳號" required>
+                <input
+                  className={inputClass}
+                  value={form.username}
+                  onChange={(e) => set("username", e.target.value)}
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="Email" required>
+                <input
+                  type="email"
+                  className={inputClass}
+                  value={form.email}
+                  onChange={(e) => set("email", e.target.value)}
+                  autoComplete="off"
+                />
+              </Field>
+              <Field label="初始密碼" required hint="至少 8 字元。">
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={form.password}
+                  onChange={(e) => set("password", e.target.value)}
+                  autoComplete="off"
+                />
+              </Field>
+            </div>
+          </Panel>
+
+          <Panel title="基本資料與權限">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="姓名" required>
+                <input
+                  className={inputClass}
+                  value={form.fullName}
+                  onChange={(e) => set("fullName", e.target.value)}
+                />
+              </Field>
+              <Field label="聯絡電話" required hint="主辦人電話會公開於前台。">
+                <input
+                  className={inputClass}
+                  value={form.phone}
+                  onChange={(e) => set("phone", e.target.value)}
+                />
+              </Field>
+              <Field label="角色" required>
+                <Select
+                  value={form.role}
+                  onValueChange={(v) => set("role", v)}
+                  options={Object.entries(STAFF_ROLE).map(([value, label]) => ({ value, label }))}
+                />
+              </Field>
+              <Field label="職稱" required hint="社工才能被指派為學生的負責社工。">
+                <Select
+                  value={form.jobTitle}
+                  onValueChange={(v) => set("jobTitle", v)}
+                  options={Object.entries(STAFF_JOB_TITLE).map(([value, label]) => ({ value, label }))}
+                />
+              </Field>
+              <Field label="地區">
+                <Select
+                  value={form.region}
+                  onValueChange={(v) => set("region", v)}
+                  placeholder="請選擇地區"
+                  options={YILAN_REGIONS.map((r) => ({ value: r, label: r }))}
+                />
+              </Field>
+            </div>
+          </Panel>
+
+          <div className="flex items-center gap-2">
+            <Button type="submit" size="sm" isLoading={isSaving}>
+              建立職員帳號
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => router.back()}>
+              取消
+            </Button>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+}
