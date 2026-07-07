@@ -21,6 +21,13 @@ async function getSiteOrigin(): Promise<string> {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) return configured.replace(/\/+$/, "");
 
+  // 正式環境「只」信任 NEXT_PUBLIC_SITE_URL：Host / Origin 標頭皆可由發起請求者
+  // 偽造，若拿來組重設密碼連結，攻擊者能把寄給受害者的連結指向自己的網域，
+  // 竊取 reset code（host header injection）。故正式環境不回退到任何請求標頭——
+  // 未設定即回傳空字串，讓 Supabase 以其 Site URL allowlist 兜底（連結會失效而非被劫持）。
+  // 僅本機開發為便利才回退到請求標頭。
+  if (process.env.NODE_ENV === "production") return "";
+
   const headersList = await headers();
   const origin = headersList.get("origin");
   if (origin) return origin;
@@ -135,6 +142,12 @@ export async function signUp(formData: {
 
   if (!formData.region) {
     return { error: "區域為必填欄位" };
+  }
+
+  // 聯絡 Email 伺服器端格式驗證（與 updateEmail / createStaff 等其他入口一致；
+  // 前端亦有驗證，此處防繞過前端直呼 action 寫入不合法格式）。
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+    return { error: "請輸入有效的 Email 地址。" };
   }
 
   const admin = adminClient();

@@ -2,10 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // 統一套用 HTTP 安全標頭（縱深防禦）。套在每一個回傳分支（含 redirect），
-// 確保任何回應都帶標頭。CSP 先以 Report-Only 觀察，避免直接擋掉 Next/RSC 的
-// inline script/style；字型與圖示皆自 same-origin 提供（next/font 自帶主機、
-// Material Symbols 由 /fonts 供應），故 font/style 僅需 'self'；connect-src 另放行
-// Supabase（前端 anon client 直連 *.supabase.co）。
+// 確保任何回應都帶標頭。CSP 採「強制」模式：script/style 保留 'unsafe-inline'
+// （'unsafe-eval' 亦保留）以相容 Next/RSC 的 inline script/style，故本站既有
+// 行為不受影響；但 object-src 'none'、base-uri 'self'、form-action 'self'、
+// frame-ancestors 'none' 與各 *-src 白名單自此「實際生效」而非僅回報。
+// 資源皆 same-origin：字型自 /fonts、無外部圖片（img 僅 self/data/blob）、
+// connect-src 放行 Supabase（前端 anon client 直連 *.supabase.co）、
+// script/frame 放行 Cloudflare Turnstile。
+// 註：待 RSC inline-script 的 nonce 方案成熟後，可再移除 script 'unsafe-inline'。
 function applySecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
@@ -19,7 +23,7 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
     "max-age=63072000; includeSubDomains"
   );
   response.headers.set(
-    "Content-Security-Policy-Report-Only",
+    "Content-Security-Policy",
     [
       "default-src 'self'",
       "base-uri 'self'",
@@ -32,7 +36,12 @@ function applySecurityHeaders(response: NextResponse): NextResponse {
       // challenges.cloudflare.com：Cloudflare Turnstile（/support 人機驗證，選用）
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
       "frame-src 'self' https://challenges.cloudflare.com",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+      // Turnstile 部分挑戰會以 blob: URL 起 Web Worker；無 worker-src 時會
+      // fallback 到 default-src 'self' 而被強制 CSP 擋下，widget 將驗證失敗。
+      "worker-src 'self' blob:",
+      // challenges.cloudflare.com：Turnstile widget 在瀏覽器端亦會對此發出 API 請求，
+      // CSP 強制後若不放行會擋掉人機驗證流程（與 script-src/frame-src 一致）。
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com",
     ].join("; ")
   );
   return response;

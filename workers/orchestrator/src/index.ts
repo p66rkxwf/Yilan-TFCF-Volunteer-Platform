@@ -33,6 +33,16 @@ export interface Env {
 const BATCH_SIZE = 50;
 const DEFAULT_MAIL_FROM = "宜蘭家扶志工平台 <noreply@example.org>";
 
+// 手動觸發入口（fetch ?job=）僅允許這 5 支排程函式；避免把外部傳入的字串
+// 當函式名直接丟給 admin.rpc()（縱深防禦，即使 secret 外洩也限縮可觸發範圍）。
+const ALLOWED_JOBS = new Set<string>([
+  "job_advance_activity_status",
+  "job_attendance_scan",
+  "job_release_blacklists",
+  "job_send_review_reminders",
+  "job_send_activity_reminders",
+]);
+
 interface OutboxRow {
   id: string;
   recipient_user_id: string;
@@ -327,6 +337,12 @@ export default {
       return new Response("forbidden", { status: 403 });
     }
     const job = new URL(req.url).searchParams.get("job");
+    if (job && !ALLOWED_JOBS.has(job)) {
+      return Response.json(
+        { ok: false, error: `未知的排程：${job}` },
+        { status: 400 }
+      );
+    }
     try {
       if (job) await runJob(env, job);
       else await drainOutbox(env);

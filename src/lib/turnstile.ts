@@ -14,7 +14,20 @@ const SITEVERIFY_URL =
 
 export async function verifyTurnstile(token: string | null): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY?.trim();
-  if (!secret) return true; // 功能未啟用
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
+
+  if (!secret) {
+    // 只有「site key 與 secret 皆未設定」＝功能刻意停用，才 fail-open 放行。
+    // 若前端已掛上 widget（site key 有設）卻獨缺 secret，屬設定錯誤：此時
+    // 不可靜默放行（否則機器人防護形同虛設），一律 fail-closed 擋下並記錄。
+    if (siteKey) {
+      console.error(
+        "[turnstile] 已設定 NEXT_PUBLIC_TURNSTILE_SITE_KEY 但缺少 TURNSTILE_SECRET_KEY，人機驗證一律拒絕。"
+      );
+      return false;
+    }
+    return true; // 功能未啟用（兩者皆未設定）
+  }
   if (!token) return false;
 
   try {

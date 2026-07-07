@@ -8,6 +8,9 @@
     "global_fetch_strictly_public"
   ],
   "workers_dev": true,
+  // 線上曾出現 error 1101（Worker threw exception）且無法穩定重現；
+  // 開啟 observability 後，例外堆疊會留存於 Cloudflare Dashboard → Workers → volunteer → Logs。
+  "observability": { "enabled": true },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
