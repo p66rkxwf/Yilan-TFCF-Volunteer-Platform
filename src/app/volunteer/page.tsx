@@ -292,9 +292,9 @@ export default function VolunteerPage() {
                       </span>
                     </div>
 
-                    {/* 中排：逐行帶標籤（日期／場次／地點），比照詳情頁的「地點：」樣式 */}
-                    <div className="mt-3 space-y-2 text-sm text-slate-700">
-                      <p className="flex items-center gap-1.5">
+                    {/* 中排：帶標籤橫向排列（日期／場次／地點），窄螢幕自動換行 */}
+                    <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-2 text-sm text-slate-700">
+                      <span className="inline-flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[18px] text-slate-400">
                           calendar_today
                         </span>
@@ -302,9 +302,9 @@ export default function VolunteerPage() {
                           <span className="font-medium text-slate-500">日期：</span>
                           {formatRange(a.firstStart, a.lastEnd)}
                         </span>
-                      </p>
+                      </span>
                       {a.sessionCount > 0 && (
-                        <p className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[18px] text-slate-400">
                             event_repeat
                           </span>
@@ -312,9 +312,9 @@ export default function VolunteerPage() {
                             <span className="font-medium text-slate-500">場次：</span>
                             {a.sessionCount} 場
                           </span>
-                        </p>
+                        </span>
                       )}
-                      <p className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1.5">
                         <span className="material-symbols-outlined text-[18px] text-slate-400">
                           location_on
                         </span>
@@ -322,7 +322,7 @@ export default function VolunteerPage() {
                           <span className="font-medium text-slate-500">地點：</span>
                           {a.location}
                         </span>
-                      </p>
+                      </span>
                     </div>
 
                     <div className="my-4 border-t border-slate-100" />

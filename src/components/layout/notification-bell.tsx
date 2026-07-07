@@ -120,16 +120,17 @@ export function NotificationBell() {
 
   return (
     <div ref={rootRef} className="relative">
+      {/* 導覽列以純文字呈現（不放圖示），樣式比照其他 header 連結；未讀數以上標小徽章顯示 */}
       <button
         type="button"
         onClick={toggleOpen}
         aria-label={unreadCount > 0 ? `通知（${unreadCount} 則未讀）` : "通知"}
         aria-expanded={open}
-        className="relative flex items-center justify-center rounded-full p-1.5 text-slate-600 transition-colors hover:bg-slate-100 hover:text-primary"
+        className="relative text-slate-600 text-sm font-medium hover:text-primary transition-colors"
       >
-        <span className="material-symbols-outlined text-[24px]">notifications</span>
+        通知
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+          <span className="absolute -right-3.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
