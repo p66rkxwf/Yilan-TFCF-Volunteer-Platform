@@ -114,7 +114,7 @@ export function AdminShell({
             <span className="material-symbols-outlined text-[20px]">volunteer_activism</span>
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-white">學生服務管理系統</p>
+            <p className="truncate text-sm font-bold text-white">後台管理系統</p>
             <p className="text-[11px] text-slate-400">宜蘭家扶中心</p>
           </div>
         </div>
@@ -198,7 +198,7 @@ export function AdminShell({
           >
             <span className="material-symbols-outlined">menu</span>
           </button>
-          <span className="text-sm font-bold text-slate-900">學生服務管理系統</span>
+          <span className="text-sm font-bold text-slate-900">後台管理系統</span>
         </div>
 
         <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
