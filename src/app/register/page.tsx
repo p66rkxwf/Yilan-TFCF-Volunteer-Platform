@@ -13,6 +13,9 @@ import {
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
 import { setFlashToast, useToast } from "@/components/ui/toast";
+import { TurnstileWidget } from "@/components/support/turnstile-widget";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 const REGIONS: YilanRegion[] = [
   "宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉",
@@ -41,6 +44,7 @@ export default function RegisterPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -105,6 +109,11 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      toast.error("請先完成人機驗證後再送出。", "驗證未完成");
+      return;
+    }
+
     setIsLoading(true);
 
     const result = await signUp({
@@ -116,6 +125,7 @@ export default function RegisterPage() {
       grade: formData.grade as GradeLevel,
       region: formData.region || undefined,
       birthday: normalizeBirthdayForSubmit(formData.birthday),
+      turnstileToken,
     });
 
     if (result.error) {
@@ -342,6 +352,10 @@ export default function RegisterPage() {
               <FieldError field="confirmPassword" />
             </div>
           </div>
+
+          {TURNSTILE_SITE_KEY && (
+            <TurnstileWidget siteKey={TURNSTILE_SITE_KEY} onToken={setTurnstileToken} />
+          )}
 
           {/* 送出 */}
           <div className="pt-4">

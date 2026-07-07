@@ -201,27 +201,24 @@ REVOKE EXECUTE ON FUNCTION
 FROM PUBLIC, anon, authenticated;
 
 -- ---------------------------------------------------------
--- G. pg_cron 排程註冊（啟用 pg_cron 後執行；時區為 UTC，
---    台灣時間 = UTC+8，下列時間已換算：03:10 UTC = 11:10 台灣 → 依需求調整）
--- ---------------------------------------------------------
--- SELECT cron.schedule('advance-activity-status', '*/15 * * * *',
---   $$SELECT public.job_advance_activity_status()$$);
--- SELECT cron.schedule('attendance-scan',         '10 19 * * *',   -- 每日 03:10 台灣時間
---   $$SELECT public.job_attendance_scan()$$);
--- SELECT cron.schedule('blacklist-release',       '20 19 * * *',   -- 每日 03:20 台灣時間
---   $$SELECT public.job_release_blacklists()$$);
--- SELECT cron.schedule('review-reminders',        '0 1 * * *',     -- 每日 09:00 台灣時間
---   $$SELECT public.job_send_review_reminders()$$);
--- SELECT cron.schedule('activity-reminders',      '0 10 * * *',    -- 每日 18:00 台灣時間
---   $$SELECT public.job_send_activity_reminders()$$);
+-- G. 排程觸發（不在 SQL 層｜Cloudflare-first）
+-- 本專案不使用 pg_cron。上述 5 支 job_* 改由 Cloudflare Cron Worker
+-- （workers/orchestrator/）以 service_role RPC 觸發，時程如下（UTC；台灣 = UTC+8）：
+--   */15 * * * *  job_advance_activity_status  （每 15 分）
+--   10 19 * * *   job_attendance_scan          （每日 03:10 台灣）
+--   20 19 * * *   job_release_blacklists        （每日 03:20 台灣）
+--   0 1 * * *     job_send_review_reminders     （每日 09:00 台灣）
+--   0 10 * * *    job_send_activity_reminders   （每日 18:00 台灣）
+-- 授權（GRANT EXECUTE ... TO service_role）見 12_enable_scheduled_jobs.sql。
 
 -- ---------------------------------------------------------
 -- H. 發信 worker（不在 SQL 層）
--- 以 Supabase Scheduled Edge Function（service_role）每 1-5 分鐘執行：
+-- 以 Cloudflare Cron Worker（workers/orchestrator/，service_role）每分鐘執行：
 --   1. SELECT * FROM notification_outbox WHERE status='pending'
---      ORDER BY created_at LIMIT 50 FOR UPDATE SKIP LOCKED
---   2. 依 notification_type/payload 組信寄出（Resend / SES / SMTP）
+--      ORDER BY created_at LIMIT 50
+--   2. 依 notification_type/payload 組信，透過 Resend HTTPS API 寄出
 --   3. 成功 → status='sent', sent_at=now()；失敗 → status='failed', error=...
 -- 交易內只寫 outbox、發信永遠在交易外 —— 這是黑名單多步驟流程
 -- 交易邊界問題的最終解（transactional outbox pattern）。
+-- （批量小、單一每分鐘排程，故以 .eq('status','pending') 樂觀防護取代佇列鎖。）
 -- ---------------------------------------------------------
