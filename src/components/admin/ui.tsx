@@ -59,7 +59,11 @@ export function Panel({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${className}`}
+      // 表格/清單面板（padded=false）給最小高度：短清單時篩選下拉（Select）不會被
+      // 面板的 overflow-hidden 裁掉，選項才看得到。
+      className={`overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${
+        padded ? "" : "min-h-96"
+      } ${className}`}
     >
       {(title || action) && (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
