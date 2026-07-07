@@ -39,7 +39,7 @@ export function Header() {
           href="/admin"
           className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
         >
-          後台管理系統
+          後台管理
         </Link>
       )}
       {!volunteerBlocked && (
@@ -74,7 +74,7 @@ export function Header() {
           className="text-slate-700 text-base font-medium hover:text-primary transition-colors py-2"
           onClick={() => setMobileMenuOpen(false)}
         >
-          後台管理系統
+          後台管理
         </Link>
       )}
       {!volunteerBlocked && (
@@ -116,7 +116,7 @@ export function Header() {
           className="h-10 w-auto"
         />
         <h2 className="text-slate-900 text-xl font-bold tracking-tight">
-          宜蘭家扶中心志工平台
+          宜蘭家扶中心
         </h2>
       </Link>
 

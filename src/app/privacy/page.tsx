@@ -86,15 +86,15 @@ const RELATED_LINKS = [
 ] as const;
 
 export const metadata: Metadata = {
-  title: "隱私政策 | 宜蘭家扶中心志工平台",
-  description: "了解宜蘭家扶中心志工平台如何蒐集、使用、保存與保護個人資料。",
+  title: "隱私政策 | 宜蘭家扶中心",
+  description: "了解宜蘭家扶中心如何蒐集、使用、保存與保護個人資料。",
 };
 
 export default function PrivacyPage() {
   return (
     <InfoPageShell
       title="隱私政策"
-      description="本政策說明宜蘭家扶中心志工平台如何蒐集、使用、保存與保護您在使用帳號與活動報名功能時提供的資料。"
+      description="本政策說明宜蘭家扶中心如何蒐集、使用、保存與保護您在使用帳號與活動報名功能時提供的資料。"
       meta={
         <>
           <span>最後更新：2026年3月11日</span>

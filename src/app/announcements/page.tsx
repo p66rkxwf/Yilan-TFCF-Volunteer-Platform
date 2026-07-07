@@ -34,7 +34,7 @@ export default async function AnnouncementsPage() {
       <div className="w-full px-4 py-6 sm:px-6">
       <div className="mb-5 border-b border-slate-200 pb-3">
         <h1 className="text-xl font-bold tracking-tight text-slate-900">最新消息</h1>
-        <p className="mt-1 text-sm text-slate-500">宜蘭家扶中心志工平台的公告與通知，置頂消息優先顯示。</p>
+        <p className="mt-1 text-sm text-slate-500">宜蘭家扶中心的公告與通知，置頂消息優先顯示。</p>
       </div>
 
       {rows.length === 0 ? (

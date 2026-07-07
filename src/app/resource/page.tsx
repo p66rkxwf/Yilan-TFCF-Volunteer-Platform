@@ -3,15 +3,15 @@ import { InfoPageShell } from "@/components/shells/info-page-shell";
 import { FaqContent } from "@/components/resource/faq-content";
 
 export const metadata: Metadata = {
-  title: "常見問題 | 宜蘭家扶中心志工平台",
-  description: "查看宜蘭家扶中心志工平台的帳號、報名、收藏與通知常見問題。",
+  title: "常見問題 | 宜蘭家扶中心",
+  description: "查看宜蘭家扶中心的帳號、報名、收藏與通知常見問題。",
 };
 
 export default function ResourcePage() {
   return (
     <InfoPageShell
       title="常見問題"
-      description="整理志工平台最常見的操作與使用疑問，包含帳號註冊、活動報名、收藏功能與資料維護。"
+      description="整理本平台最常見的操作與使用疑問，包含帳號註冊、活動報名、收藏功能與資料維護。"
       meta={
         <>
           <span>文件範圍：FAQ / 操作排查 / 快速入口</span>

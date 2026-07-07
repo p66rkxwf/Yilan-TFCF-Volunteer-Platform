@@ -9,8 +9,8 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "宜蘭家扶中心志工平台",
-  description: "宜蘭家扶中心志工管理與報名平台",
+  title: "宜蘭家扶中心",
+  description: "宜蘭家扶中心活動報名與管理平台",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

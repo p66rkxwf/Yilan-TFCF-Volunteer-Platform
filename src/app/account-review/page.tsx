@@ -61,7 +61,7 @@ export default async function AccountReviewPage() {
         </button>
       </form>
 
-      <p className="mt-6 text-xs text-slate-400">宜蘭家扶中心志工平台 · 帳號：{user.email}</p>
+      <p className="mt-6 text-xs text-slate-400">宜蘭家扶中心 · 帳號：{user.email}</p>
     </main>
   );
 }

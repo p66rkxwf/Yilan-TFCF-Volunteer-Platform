@@ -41,8 +41,8 @@ export async function generateMetadata({
   const announcement = await fetchAnnouncement(announcementId);
   return {
     title: announcement
-      ? `${announcement.title} | 宜蘭家扶中心志工平台`
-      : "最新消息 | 宜蘭家扶中心志工平台",
+      ? `${announcement.title} | 宜蘭家扶中心`
+      : "最新消息 | 宜蘭家扶中心",
   };
 }
 
