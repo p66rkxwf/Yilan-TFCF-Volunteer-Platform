@@ -161,6 +161,13 @@ export async function signUp(formData: {
     return { error: "註冊失敗，請稍後再試。" };
   }
 
+  // 若 Email 已存在，開啟 Email 驗證時 Supabase 會回傳「混淆使用者」（identities 為空、
+  // 不真的建立帳號）以防帳號列舉；此時若再 insert profile，其 id 不在 auth.users 會違反
+  // 外鍵 volunteer_profiles_id_fkey。改為直接回報 Email 已被註冊。
+  if ((authData.user.identities?.length ?? 0) === 0) {
+    return { error: "此 Email 已被註冊。" };
+  }
+
   // V2 沒有 handle_new_user trigger 自動建立 profile，signUp 成功後
   // 需自行寫入 volunteer_profiles。若 Supabase 專案開啟 Email 驗證，
   // 此時使用者尚無 session，一般 RLS client 無法通過

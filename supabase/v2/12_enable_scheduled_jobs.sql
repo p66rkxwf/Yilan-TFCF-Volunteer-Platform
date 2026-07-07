@@ -40,7 +40,7 @@ NOTIFY pgrst, 'reload schema';
 --   見 workers/orchestrator/README.md：
 --     1. 設定 secrets：SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / RESEND_API_KEY /
 --        MAIL_FROM / SITE_URL（`wrangler secret put`）。
---     2. `wrangler deploy`（wrangler.jsonc 已含 6 個 cron trigger）。
+--     2. `wrangler deploy`（單一每分鐘 cron，各排程於 worker 內依 UTC 時間分派）。
 --   發信一律先寫入 notification_outbox（Transactional Outbox），由 Worker 每分鐘消化。
 -- ---------------------------------------------------------
 
