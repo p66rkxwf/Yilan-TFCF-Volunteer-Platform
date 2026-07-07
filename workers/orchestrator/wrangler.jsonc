@@ -6,22 +6,9 @@
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
   "observability": { "enabled": true },
-  // 多個 cron trigger；於 scheduled(controller) 內以 controller.cron 分流。
-  // 時間為 UTC（台灣 = UTC+8）。
-  //   "* * * * *"    每分鐘：消化 notification_outbox → Resend 寄出
-  //   "*/15 * * * *" 每15分：job_advance_activity_status
-  //   "10 19 * * *"  03:10 台灣：job_attendance_scan
-  //   "20 19 * * *"  03:20 台灣：job_release_blacklists
-  //   "0 1 * * *"    09:00 台灣：job_send_review_reminders
-  //   "0 10 * * *"   18:00 台灣：job_send_activity_reminders
+  // 只註冊「每分鐘」單一 cron（Cloudflare Free 方案每個 Worker 最多 3 個 cron
+  // trigger）。實際各排程於 src/index.ts 的 runScheduled() 內依 UTC 時間分派。
   "triggers": {
-    "crons": [
-      "* * * * *",
-      "*/15 * * * *",
-      "10 19 * * *",
-      "20 19 * * *",
-      "0 1 * * *",
-      "0 10 * * *"
-    ]
+    "crons": ["* * * * *"]
   }
 }

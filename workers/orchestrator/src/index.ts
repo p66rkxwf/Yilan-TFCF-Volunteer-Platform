@@ -1,12 +1,14 @@
 // Cloudflare Cron Worker：志工平台背景編排器（orchestrator）
 //
-// 單一 worker 以多個 cron trigger 統包所有排程（於 scheduled() 內用 event.cron 分流）：
-//   "* * * * *"    每分鐘：消化 notification_outbox（status='pending'）→ Resend 寄出
-//   "*/15 * * * *" 每15分：rpc job_advance_activity_status（活動 open→closed→completed）
-//   "10 19 * * *"  每日 03:10 台灣：rpc job_attendance_scan（缺席判定＋黑名單觸發＋級聯取消）
-//   "20 19 * * *"  每日 03:20 台灣：rpc job_release_blacklists（黑名單到期自動解除）
-//   "0 1 * * *"    每日 09:00 台灣：rpc job_send_review_reminders（主辦審核提醒→入列）
-//   "0 10 * * *"   每日 18:00 台灣：rpc job_send_activity_reminders（活動開始前提醒→入列）
+// 只用「單一每分鐘 cron」，在 scheduled() 內依 UTC 時間自行分派——因為
+// Cloudflare Free 方案每個 Worker 最多 3 個 cron trigger，逐一註冊 6 個會失敗。
+// 時間為 UTC（台灣 = UTC+8）：
+//   每分鐘         ：消化 notification_outbox（status='pending'）→ Resend 寄出
+//   每 15 分       ：job_advance_activity_status（活動 open→closed→completed）
+//   19:10 UTC(03:10)：job_attendance_scan（缺席判定＋黑名單觸發＋級聯取消）
+//   19:20 UTC(03:20)：job_release_blacklists（黑名單到期自動解除）
+//   01:00 UTC(09:00)：job_send_review_reminders（主辦審核提醒→入列）
+//   10:00 UTC(18:00)：job_send_activity_reminders（活動開始前提醒→入列）
 //
 // 設計沿革：原為 Supabase Edge Function（Deno）＋ pg_cron/pg_net 每分鐘觸發；
 //   為「以 Cloudflare 為中心、少綁 Supabase」改為本 worker，pg_cron 已移除。
@@ -30,15 +32,6 @@ export interface Env {
 
 const BATCH_SIZE = 50;
 const DEFAULT_MAIL_FROM = "宜蘭家扶志工平台 <noreply@example.org>";
-
-// event.cron → 對應的 job RPC 名稱（"* * * * *" 另行處理為 outbox 消化）
-const JOB_BY_CRON: Record<string, string> = {
-  "*/15 * * * *": "job_advance_activity_status",
-  "10 19 * * *": "job_attendance_scan",
-  "20 19 * * *": "job_release_blacklists",
-  "0 1 * * *": "job_send_review_reminders",
-  "0 10 * * *": "job_send_activity_reminders",
-};
 
 interface OutboxRow {
   id: string;
@@ -290,17 +283,29 @@ async function runJob(env: Env, fn: string): Promise<void> {
   console.log(`[orchestrator] ${fn} ok`, data ?? "");
 }
 
-async function dispatch(cron: string, env: Env): Promise<void> {
-  if (cron === "* * * * *") {
-    await drainOutbox(env);
-    return;
+// 依 scheduled 觸發時間（UTC）決定這一分鐘要跑哪些 job，最後統一消化 outbox
+// （job 可能寫入新通知，放最後清一次即可同分鐘寄出）。job_* 皆冪等，偶發
+// 重跑或延遲可容忍。
+async function runScheduled(scheduledTime: number, env: Env): Promise<void> {
+  const d = new Date(scheduledTime);
+  const hh = d.getUTCHours();
+  const mm = d.getUTCMinutes();
+
+  const jobs: string[] = [];
+  if (mm % 15 === 0) jobs.push("job_advance_activity_status"); // 每 15 分
+  if (hh === 19 && mm === 10) jobs.push("job_attendance_scan"); // 03:10 台灣
+  if (hh === 19 && mm === 20) jobs.push("job_release_blacklists"); // 03:20 台灣
+  if (hh === 1 && mm === 0) jobs.push("job_send_review_reminders"); // 09:00 台灣
+  if (hh === 10 && mm === 0) jobs.push("job_send_activity_reminders"); // 18:00 台灣
+
+  for (const fn of jobs) {
+    try {
+      await runJob(env, fn);
+    } catch {
+      // runJob 內已 log；單支失敗不影響其餘與 outbox 消化
+    }
   }
-  const fn = JOB_BY_CRON[cron];
-  if (fn) {
-    await runJob(env, fn);
-    return;
-  }
-  console.warn(`[orchestrator] 未對應的 cron：${cron}`);
+  await drainOutbox(env);
 }
 
 export default {
@@ -309,23 +314,26 @@ export default {
     env: Env,
     ctx: ExecutionContext
   ): Promise<void> {
-    ctx.waitUntil(dispatch(controller.cron, env));
+    ctx.waitUntil(runScheduled(controller.scheduledTime, env));
   },
 
   // 手動測試入口（本機 `wrangler dev` 或臨時排錯用）；未設定 MANUAL_TRIGGER_SECRET
   // 一律拒絕，正式環境的實際觸發一律走上方 scheduled()。
+  //   無參數        → 消化 outbox
+  //   ?job=job_xxx  → 觸發指定排程函式
   async fetch(req: Request, env: Env): Promise<Response> {
     const secret = env.MANUAL_TRIGGER_SECRET?.trim();
     if (!secret || req.headers.get("x-trigger-secret") !== secret) {
       return new Response("forbidden", { status: 403 });
     }
-    const cron = new URL(req.url).searchParams.get("cron") ?? "* * * * *";
+    const job = new URL(req.url).searchParams.get("job");
     try {
-      await dispatch(cron, env);
-      return Response.json({ ok: true, cron });
+      if (job) await runJob(env, job);
+      else await drainOutbox(env);
+      return Response.json({ ok: true, ran: job ?? "drainOutbox" });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      return Response.json({ ok: false, cron, error: message }, { status: 500 });
+      return Response.json({ ok: false, error: message }, { status: 500 });
     }
   },
 };
