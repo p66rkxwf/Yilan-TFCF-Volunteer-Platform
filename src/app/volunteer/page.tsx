@@ -19,7 +19,7 @@ const MD_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
 });
 
 const ACCOUNT_STATUS_BANNER: Partial<Record<VolunteerStatus, { label: string; color: string }>> = {
-  suspended: { label: "帳號已停權，暫無法報名或收藏活動", color: "bg-red-100 text-red-700" },
+  suspended: { label: "帳號已停權，暫無法報名或收藏活動", color: "bg-amber-100 text-amber-700" },
   graduated: { label: "帳號已結案，暫無法報名或收藏活動", color: "bg-slate-200 text-slate-600" },
 };
 
@@ -39,7 +39,7 @@ interface ActivityListItem {
 
 const AVAILABILITY_META: Record<Availability, { label: string; className: string }> = {
   open: { label: "可報名", className: "bg-emerald-100 text-emerald-700" },
-  full: { label: "已額滿", className: "bg-rose-100 text-rose-700" },
+  full: { label: "已額滿", className: "bg-amber-100 text-amber-700" },
   closed: { label: "已截止", className: "bg-slate-200 text-slate-500" },
 };
 
@@ -334,14 +334,14 @@ export default function VolunteerPage() {
                           <>
                             <div className="mb-1.5 flex items-center justify-between text-xs font-medium">
                               <span className="text-slate-400">名額</span>
-                              <span className={canRegister ? "text-slate-600" : "text-rose-500"}>
+                              <span className={canRegister ? "text-slate-600" : "text-amber-600"}>
                                 {canRegister ? `剩餘 ${a.openSlots} / ${a.totalSlots} 名` : "已額滿"}
                               </span>
                             </div>
                             <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
                               <div
                                 className={`h-full rounded-full transition-all ${
-                                  canRegister ? "bg-primary" : "bg-rose-400"
+                                  canRegister ? "bg-primary" : "bg-amber-400"
                                 }`}
                                 style={{ width: `${filledPct}%` }}
                               />

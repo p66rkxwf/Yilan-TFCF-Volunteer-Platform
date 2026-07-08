@@ -108,7 +108,7 @@ function LoginForm() {
             </label>
             <input
               className={`w-full h-12 px-4 rounded-lg border ${
-                errors.account ? "border-red-400" : "border-slate-200"
+                errors.account ? "border-amber-400" : "border-slate-200"
               } bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400`}
               id="account"
               name="account"
@@ -118,7 +118,7 @@ function LoginForm() {
               onChange={handleChange}
             />
             {errors.account && (
-              <p className="text-red-500 text-xs mt-1">{errors.account}</p>
+              <p className="text-amber-600 text-xs mt-1">{errors.account}</p>
             )}
           </div>
 
@@ -140,7 +140,7 @@ function LoginForm() {
             <div className="relative flex items-center">
               <input
                 className={`w-full h-12 px-4 pr-12 rounded-lg border ${
-                  errors.password ? "border-red-400" : "border-slate-200"
+                  errors.password ? "border-amber-400" : "border-slate-200"
                 } bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all placeholder:text-slate-400`}
                 id="password"
                 name="password"
@@ -160,7 +160,7 @@ function LoginForm() {
               </button>
             </div>
             {errors.password && (
-              <p className="text-red-500 text-xs mt-1">{errors.password}</p>
+              <p className="text-amber-600 text-xs mt-1">{errors.password}</p>
             )}
           </div>
 

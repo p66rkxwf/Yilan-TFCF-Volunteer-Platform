@@ -24,7 +24,7 @@ export default async function AccountReviewPage() {
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-16 text-center">
       <div
         className={`mb-5 flex h-14 w-14 items-center justify-center rounded-full ${
-          isRejected ? "bg-rose-100 text-rose-600" : "bg-amber-100 text-amber-600"
+          isRejected ? "bg-amber-100 text-amber-600" : "bg-amber-100 text-amber-600"
         }`}
       >
         <span className="material-symbols-outlined text-[28px]">

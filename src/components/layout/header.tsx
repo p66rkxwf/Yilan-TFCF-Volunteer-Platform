@@ -54,7 +54,7 @@ export function Header() {
       )}
       <button
         onClick={handleSignOut}
-        className="text-slate-600 text-sm font-medium hover:text-red-500 transition-colors"
+        className="text-slate-600 text-sm font-medium hover:text-primary transition-colors"
       >
         登出
       </button>
@@ -99,7 +99,7 @@ export function Header() {
       )}
       <button
         onClick={handleSignOut}
-        className="text-left text-red-500 text-base font-medium py-2"
+        className="text-left text-slate-700 hover:text-primary text-base font-medium py-2 transition-colors"
       >
         登出
       </button>

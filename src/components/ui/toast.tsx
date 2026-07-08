@@ -59,9 +59,9 @@ const TOAST_STYLES: Record<
     title: "成功",
   },
   error: {
-    border: "border-rose-200",
-    iconBg: "bg-rose-100",
-    iconColor: "text-rose-700",
+    border: "border-amber-200",
+    iconBg: "bg-amber-100",
+    iconColor: "text-amber-700",
     icon: "error",
     title: "發生錯誤",
   },

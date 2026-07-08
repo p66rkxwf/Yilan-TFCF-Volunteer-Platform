@@ -25,14 +25,14 @@ interface RegistrationRow {
 
 const ATTENDANCE_MAP: Record<string, { label: string; color: string }> = {
   attended: { label: "已出席", color: "bg-emerald-100 text-emerald-700" },
-  absent: { label: "缺席", color: "bg-rose-100 text-rose-700" },
+  absent: { label: "缺席", color: "bg-amber-100 text-amber-700" },
   makeup_attended: { label: "已出席（補登）", color: "bg-emerald-100 text-emerald-700" },
 };
 
 const STATUS_MAP: Record<string, { label: string; color: string; dot: string }> = {
   pending: { label: "待審核", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
   approved: { label: "已通過", color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  rejected: { label: "未通過", color: "bg-red-100 text-red-700", dot: "bg-red-500" },
+  rejected: { label: "未通過", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
   cancel_pending: { label: "取消審核中", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
   cancelled: { label: "已取消", color: "bg-slate-200 text-slate-600", dot: "bg-slate-400" },
   expired: { label: "已過期", color: "bg-slate-200 text-slate-600", dot: "bg-slate-400" },
@@ -288,7 +288,7 @@ export default function RegistrationsPage() {
                             e.stopPropagation();
                             handleCancel(reg);
                           }}
-                          className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
+                          className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
                         >
                           取消報名
                         </button>
@@ -311,7 +311,6 @@ export default function RegistrationsPage() {
         description="視活動的取消審核門檻，取消申請可能會立即生效，也可能需要主辦人審核後才會生效。"
         confirmText="取消報名"
         cancelText="返回"
-        isConfirmDanger
         isLoading={isCancelling}
         onClose={() => {
           if (isCancelling) return;

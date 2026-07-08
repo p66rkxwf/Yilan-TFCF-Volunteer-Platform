@@ -217,7 +217,7 @@ export default function VolunteerActivityDetailPage() {
               aria-pressed={isFavorite}
               title={accountActive ? (isFavorite ? "取消收藏" : "加入收藏") : "審核通過後才能收藏"}
               className={`shrink-0 rounded-md p-2 transition-colors ${
-                isFavorite ? "text-red-500 hover:text-red-600" : "text-slate-300 hover:text-red-400"
+                isFavorite ? "text-primary hover:text-primary/80" : "text-slate-300 hover:text-primary/60"
               } ${!accountActive ? "cursor-not-allowed opacity-60" : ""}`}
             >
               <span
@@ -326,7 +326,7 @@ export default function VolunteerActivityDetailPage() {
                         {REG_STATUS[activeReg]?.label ?? "已報名"}
                       </span>
                     ) : cancelled ? (
-                      <span className="shrink-0 rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">
+                      <span className="shrink-0 rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">
                         已取消
                       </span>
                     ) : ended ? (
@@ -338,7 +338,7 @@ export default function VolunteerActivityDetailPage() {
                         已截止
                       </span>
                     ) : full ? (
-                      <span className="shrink-0 rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700">
+                      <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
                         已額滿
                       </span>
                     ) : (

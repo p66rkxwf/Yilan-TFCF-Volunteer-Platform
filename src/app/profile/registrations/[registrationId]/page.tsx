@@ -16,7 +16,7 @@ import { formatSessionRange } from "@/lib/admin/datetime";
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: "待審核", color: "bg-amber-100 text-amber-700" },
   approved: { label: "已通過", color: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "未通過", color: "bg-red-100 text-red-700" },
+  rejected: { label: "未通過", color: "bg-amber-100 text-amber-700" },
   cancel_pending: { label: "取消審核中", color: "bg-amber-100 text-amber-700" },
   cancelled: { label: "已取消", color: "bg-slate-200 text-slate-600" },
   expired: { label: "已過期", color: "bg-slate-200 text-slate-600" },
@@ -24,7 +24,7 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
 
 const ATTENDANCE_MAP: Record<string, { label: string; color: string }> = {
   attended: { label: "已出席", color: "bg-emerald-100 text-emerald-700" },
-  absent: { label: "缺席", color: "bg-rose-100 text-rose-700" },
+  absent: { label: "缺席", color: "bg-amber-100 text-amber-700" },
   makeup_attended: { label: "已出席（補登）", color: "bg-emerald-100 text-emerald-700" },
 };
 

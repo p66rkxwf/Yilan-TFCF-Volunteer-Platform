@@ -29,9 +29,9 @@ interface FavoriteActivity {
 
 const AVAILABILITY_META: Record<Availability, { label: string; className: string }> = {
   open: { label: "可報名", className: "bg-emerald-100 text-emerald-700" },
-  full: { label: "已額滿", className: "bg-rose-100 text-rose-700" },
+  full: { label: "已額滿", className: "bg-amber-100 text-amber-700" },
   closed: { label: "已截止", className: "bg-slate-200 text-slate-500" },
-  cancelled: { label: "已取消", className: "bg-rose-100 text-rose-700" },
+  cancelled: { label: "已取消", className: "bg-slate-200 text-slate-600" },
 };
 
 function formatRange(firstStart: string | null, lastEnd: string | null): string {
@@ -221,7 +221,7 @@ export default function FavoritesPage() {
                         onClick={() => handleRemove(fav)}
                         disabled={pendingIds.has(fav.favorite_id)}
                         title="取消收藏"
-                        className="shrink-0 p-1 text-red-400 transition-colors hover:text-red-600 disabled:opacity-60"
+                        className="shrink-0 p-1 text-primary transition-colors hover:text-primary/70 disabled:opacity-60"
                       >
                         <span
                           className="material-symbols-outlined text-[22px]"

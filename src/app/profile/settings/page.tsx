@@ -39,7 +39,7 @@ function SettingsSection({
       <div className="mb-4 flex items-start gap-2.5 border-b border-slate-200 pb-2.5">
         <span
           className={`material-symbols-outlined text-[20px] ${
-            danger ? "text-red-500" : "text-primary"
+            danger ? "text-amber-600" : "text-primary"
           }`}
         >
           {icon}
@@ -322,7 +322,7 @@ export default function SettingsPage() {
                 <div className="mt-4 flex justify-end">
                   <button
                     onClick={() => setShowDeactivateConfirm(true)}
-                    className="rounded-lg bg-red-600 px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+                    className="rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
                   >
                     送出停用申請
                   </button>
@@ -339,7 +339,6 @@ export default function SettingsPage() {
         description="送出後，管理員審核通過時您的帳號將轉為停權，未開始的已核准報名會一併取消。"
         confirmText="送出申請"
         cancelText="取消"
-        isConfirmDanger
         isLoading={deactivateLoading}
         onClose={() => {
           if (deactivateLoading) return;

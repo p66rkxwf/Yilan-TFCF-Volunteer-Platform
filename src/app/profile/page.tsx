@@ -18,8 +18,8 @@ const REGIONS: YilanRegion[] = [
 
 const ACCOUNT_STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending_review: { label: "帳號審核中，通過後即可報名", color: "bg-amber-100 text-amber-700" },
-  suspended: { label: "帳號已停權", color: "bg-red-100 text-red-700" },
-  rejected: { label: "帳號審核未通過", color: "bg-red-100 text-red-700" },
+  suspended: { label: "帳號已停權", color: "bg-amber-100 text-amber-700" },
+  rejected: { label: "帳號審核未通過", color: "bg-amber-100 text-amber-700" },
   graduated: { label: "帳號已結案", color: "bg-slate-200 text-slate-600" },
 };
 
@@ -165,30 +165,41 @@ export default function ProfilePage() {
             </div>
           ) : null}
 
-          {/* 基本資料（左標籤列） */}
+          {/* 基本資料（左標籤列）。canEdit＝有志工 profile 的帳號；
+              職員帳號查無 volunteer_profiles（本頁更新不會命中任何列），
+              欄位改唯讀並顯示說明，避免「可打字卻存不了」的假可編輯狀態。 */}
           <Section
             title="基本資料"
             description={profile?.username ? `帳號：${profile.username}` : undefined}
           >
+            {!profile && (
+              <div className="mb-3 rounded-lg bg-slate-100 px-3 py-2.5 text-sm text-slate-600">
+                此帳號非志工帳號，個人資料由後台職員管理維護，此頁僅供瀏覽。
+              </div>
+            )}
             <dl>
               <InfoRow label="姓名">
                 <input
-                  className={inputClass}
+                  className={profile ? inputClass : readonlyClass}
                   type="text"
                   name="full_name"
                   placeholder="例：王小明"
                   value={form.full_name}
                   onChange={handleChange}
+                  disabled={!profile}
+                  readOnly={!profile}
                 />
               </InfoRow>
               <InfoRow label="電話">
                 <input
-                  className={inputClass}
+                  className={profile ? inputClass : readonlyClass}
                   type="tel"
                   name="phone"
                   placeholder="請輸入聯絡電話"
                   value={form.phone}
                   onChange={handleChange}
+                  disabled={!profile}
+                  readOnly={!profile}
                 />
               </InfoRow>
               <InfoRow label="所在地區">
@@ -202,6 +213,7 @@ export default function ProfilePage() {
                   ariaLabel="所在地區"
                   onValueChange={handleRegionChange}
                   options={REGIONS.map((region) => ({ value: region, label: region }))}
+                  disabled={!profile}
                 />
               </InfoRow>
               <InfoRow label="生日">
@@ -230,27 +242,31 @@ export default function ProfilePage() {
               </InfoRow>
             </dl>
 
-            {(isDirty || isSaving) && (
-              <div className="mt-4 flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  disabled={isSaving}
-                  className="rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold transition-colors hover:bg-slate-50 disabled:opacity-60"
-                >
-                  取消
-                </button>
+            {/* 儲存/取消按鈕常駐顯示（僅志工帳號有可編輯欄位）；未修改時
+                停用而非隱藏，避免使用者以為「沒有儲存按鈕」。 */}
+            {profile && (
+              <div className="mt-4 flex items-center justify-end gap-2 pt-1">
+                {isDirty && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    disabled={isSaving}
+                    className="rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold transition-colors hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    取消
+                  </button>
+                )}
                 <button
                   onClick={handleSave}
-                  disabled={isSaving}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-60"
+                  disabled={isSaving || !isDirty}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSaving && (
                     <span className="material-symbols-outlined animate-spin text-[16px]">
                       progress_activity
                     </span>
                   )}
-                  儲存變更
+                  {isDirty ? "儲存變更" : "已儲存"}
                 </button>
               </div>
             )}
