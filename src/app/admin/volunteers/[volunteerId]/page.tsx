@@ -9,9 +9,14 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../../admin-context";
-import { setVolunteerStatus, resetVolunteerPassword } from "@/lib/actions/admin-users";
+import {
+  setVolunteerStatus,
+  resetVolunteerPassword,
+  setVolunteerWorker,
+} from "@/lib/actions/admin-users";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Select } from "@/components/ui/select";
 import {
   PageHeader,
   Panel,
@@ -87,6 +92,10 @@ export default function VolunteerDetailPage() {
   const [showResetPw, setShowResetPw] = useState(false);
   const [newPassword, setNewPassword] = useState("");
 
+  const [workers, setWorkers] = useState<{ id: string; full_name: string }[]>([]);
+  const [showReassign, setShowReassign] = useState(false);
+  const [reassignTo, setReassignTo] = useState("");
+
   const load = useCallback(async () => {
     setIsLoading(true);
     const [volRes, hoursRes, regsRes, blRes] = await Promise.all([
@@ -127,6 +136,17 @@ export default function VolunteerDetailPage() {
       .eq("grade", vol.grade)
       .maybeSingle();
     setThreshold(thr ? (thr as any).min_hours : null);
+
+    // 改派社工的社工清單僅管理員需要（一般職員看不到改派控制項）。
+    if (isAdmin) {
+      const { data: ws } = await supabase
+        .from("staff_profiles")
+        .select("id, full_name")
+        .eq("status", "active")
+        .eq("job_title", "social_worker")
+        .order("full_name");
+      setWorkers((ws ?? []) as { id: string; full_name: string }[]);
+    }
 
     setIsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,6 +193,25 @@ export default function VolunteerDetailPage() {
     } finally {
       setIsActing(false);
     }
+  };
+
+  const openReassign = () => {
+    setReassignTo(volunteer?.assigned_worker_id ?? "");
+    setShowReassign(true);
+  };
+
+  const handleReassign = async () => {
+    if (!reassignTo) return;
+    setIsActing(true);
+    const result = await setVolunteerWorker(volunteerId, reassignTo);
+    setIsActing(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("已更新負責社工");
+    setShowReassign(false);
+    await load();
   };
 
   const handleResetPassword = async () => {
@@ -268,7 +307,20 @@ export default function VolunteerDetailPage() {
               <DescriptionItem label="地區">{volunteer.region ?? "—"}</DescriptionItem>
               <DescriptionItem label="學制">{GRADE_LEVEL_LABELS[volunteer.grade]}</DescriptionItem>
               <DescriptionItem label="生日">{formatDate(volunteer.birth_date)}</DescriptionItem>
-              <DescriptionItem label="負責社工">{volunteer.worker?.full_name ?? "—"}</DescriptionItem>
+              <DescriptionItem label="負責社工">
+                <span className="inline-flex items-center gap-2">
+                  {volunteer.worker?.full_name ?? "—"}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={openReassign}
+                      className="rounded-lg px-2 py-0.5 text-xs font-semibold text-primary hover:bg-primary/10"
+                    >
+                      變更
+                    </button>
+                  )}
+                </span>
+              </DescriptionItem>
               <DescriptionItem label="上次階段審查">
                 {volunteer.last_grade_reviewed_at
                   ? formatDate(volunteer.last_grade_reviewed_at)
@@ -485,6 +537,55 @@ export default function VolunteerDetailPage() {
               </Button>
               <Button size="sm" variant="danger" isLoading={isActing} onClick={handleAddBlacklist}>
                 確定加入
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReassign && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/40"
+            onClick={() => !isActing && setShowReassign(false)}
+            aria-label="關閉"
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
+            <div className="px-6 py-5">
+              <h3 className="text-lg font-bold text-slate-900">變更負責社工</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                為 {volunteer.full_name} 指定新的負責社工。目前：
+                {volunteer.worker?.full_name ?? "未指派"}。
+              </p>
+              <div className="mt-4">
+                <Field label="負責社工" hint="僅列出在職社工。">
+                  <Select
+                    value={reassignTo}
+                    onValueChange={setReassignTo}
+                    placeholder={workers.length ? "選擇社工" : "無在職社工"}
+                    options={workers.map((w) => ({ value: w.id, label: w.full_name }))}
+                    menuClassName="bg-white"
+                  />
+                </Field>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={isActing}
+                onClick={() => setShowReassign(false)}
+              >
+                取消
+              </Button>
+              <Button
+                size="sm"
+                isLoading={isActing}
+                disabled={!reassignTo || reassignTo === volunteer.assigned_worker_id}
+                onClick={handleReassign}
+              >
+                確定變更
               </Button>
             </div>
           </div>

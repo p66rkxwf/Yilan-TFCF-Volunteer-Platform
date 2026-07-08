@@ -19,6 +19,7 @@ interface NavItem {
   label: string;
   exact?: boolean;
   systemAdminOnly?: boolean;
+  adminOnly?: boolean; // 單位管理員以上；否則不顯示此項（頁面本身也會擋）
 }
 
 interface NavGroup {
@@ -43,7 +44,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: "學生",
     items: [
       { href: "/admin/volunteers", icon: "groups", label: "學生名冊" },
-      { href: "/admin/volunteer-review", icon: "person_check", label: "帳號審核" },
+      { href: "/admin/volunteer-review", icon: "person_check", label: "帳號審核", adminOnly: true },
       { href: "/admin/blacklist", icon: "person_off", label: "黑名單" },
       { href: "/admin/annual-review", icon: "school", label: "年度審查" },
     ],
@@ -94,6 +95,7 @@ export function AdminShell({
   };
 
   const isSystemAdmin = profile.role === "system_admin";
+  const isAdmin = isSystemAdmin || profile.role === "unit_admin";
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100">
@@ -122,7 +124,9 @@ export function AdminShell({
         <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
           {NAV_GROUPS.map((group) => {
             const items = group.items.filter(
-              (item) => !item.systemAdminOnly || isSystemAdmin
+              (item) =>
+                (!item.systemAdminOnly || isSystemAdmin) &&
+                (!item.adminOnly || isAdmin)
             );
             if (items.length === 0) return null;
 

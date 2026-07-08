@@ -45,6 +45,9 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
     前台 header 鈴鐺與 `/profile/notifications` 頁會查無資料（RLS 拒讀）**。
 16. `16_min_service_hours.sql` — 自動帶入服務時數時設下限 0.01，避免極短場次違反
     `service_hours > 0` CHECK。
+17. `17_reassign_worker.sql` — 負責社工批量移轉：新增 `rpc_reassign_worker`（單位管理員以上），
+    把某社工名下所有學生一次改派給另一位在職社工（社工輪換／離職用），並寫稽核紀錄。
+    **未執行本檔前，職員管理頁的「移轉學生」按鈕會回錯（RPC 不存在）**。
 
 ### 部署後手動步驟
 

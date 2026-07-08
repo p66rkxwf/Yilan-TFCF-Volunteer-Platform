@@ -222,6 +222,43 @@ export async function setVolunteerStatus(
   return { success: true };
 }
 
+// 批量移轉負責社工：把 fromWorkerId 名下所有學生一次改派給 toWorkerId。
+// 社工輪換／離職時使用。權限（單位管理員以上）與目標社工資格由
+// rpc_reassign_worker 內部強制（見 17_reassign_worker.sql）。
+export async function reassignWorker(
+  fromWorkerId: string,
+  toWorkerId: string
+): Promise<ActionResult & { movedCount?: number }> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (authError) return { error: authError };
+
+  const { data, error } = await supabase.rpc("rpc_reassign_worker", {
+    p_from_worker_id: fromWorkerId,
+    p_to_worker_id: toWorkerId,
+  });
+
+  if (error) return { error: error.message };
+  return { success: true, movedCount: (data as number) ?? 0 };
+}
+
+// 改派單一學生的負責社工（學生詳情頁用）。權限與目標社工資格由
+// rpc_set_volunteer_worker 內部強制（單位管理員以上）。
+export async function setVolunteerWorker(
+  volunteerId: string,
+  workerId: string
+): Promise<ActionResult> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (authError) return { error: authError };
+
+  const { error } = await supabase.rpc("rpc_set_volunteer_worker", {
+    p_volunteer_id: volunteerId,
+    p_worker_id: workerId,
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 // 管理員代重設「志工」密碼。志工以帳號登入、無法自助以 email 重設，故由管理員代設。
 // 限系統管理員／單位管理員；且僅能重設志工帳號（不可經此端點重設職員/管理員密碼）。
 export async function resetVolunteerPassword(

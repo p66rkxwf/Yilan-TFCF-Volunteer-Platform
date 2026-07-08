@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { reviewVolunteerAccount } from "@/lib/actions/admin-users";
 import { reviewDeactivationRequest } from "@/lib/actions/deactivation";
+import { useAdminProfile } from "../admin-context";
 import { Button } from "@/components/ui/button";
 import {
   PageHeader,
@@ -60,6 +61,9 @@ function VolunteerReviewInner() {
   const toast = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const profile = useAdminProfile();
+  // 帳號審核／停用審核的 RPC 皆需單位管理員以上；一般職員不顯示此功能。
+  const isAdmin = profile.role === "system_admin" || profile.role === "unit_admin";
   const tab = (searchParams.get("tab") as TabKey) || "accounts";
 
   const [accounts, setAccounts] = useState<AccountRow[]>([]);
@@ -188,6 +192,19 @@ function VolunteerReviewInner() {
     { key: "accounts", label: "帳號審核", count: counts.accounts },
     { key: "deactivation", label: "停用申請", count: counts.deactivation },
   ];
+
+  if (!isAdmin) {
+    return (
+      <>
+        <PageHeader title="帳號審核" description="審核新註冊學生帳號與停用申請。" />
+        <div className="flex-1 p-4 sm:p-6">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+            此頁僅限單位管理員以上操作。
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

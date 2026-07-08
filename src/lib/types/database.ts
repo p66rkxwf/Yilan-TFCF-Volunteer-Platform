@@ -548,6 +548,14 @@ export interface Database {
         Args: { p_ids?: string[] | null };
         Returns: number;
       };
+      rpc_reassign_worker: {
+        Args: { p_from_worker_id: string; p_to_worker_id: string };
+        Returns: number;
+      };
+      rpc_set_volunteer_worker: {
+        Args: { p_volunteer_id: string; p_worker_id: string };
+        Returns: void;
+      };
     };
     Enums: {
       staff_role: StaffRole;
