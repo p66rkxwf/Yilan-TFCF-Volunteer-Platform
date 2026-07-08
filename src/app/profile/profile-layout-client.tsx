@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { icon: "person", label: "個人資料", href: "/profile" },
   { icon: "description", label: "我的報名", href: "/profile/registrations" },
+  { icon: "history", label: "歷年活動", href: "/profile/history" },
   { icon: "notifications", label: "通知", href: "/profile/notifications" },
   { icon: "bookmark", label: "收藏", href: "/profile/favorites" },
   { icon: "workspace_premium", label: "服務時數紀錄", href: "/profile/certificate" },
