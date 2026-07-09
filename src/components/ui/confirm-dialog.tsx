@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId } from "react";
+import { useEffect, useId, useState } from "react";
 
 export type ConfirmDialogProps = {
   open: boolean;
@@ -10,6 +10,8 @@ export type ConfirmDialogProps = {
   cancelText?: string;
   isConfirmDanger?: boolean;
   isLoading?: boolean;
+  /** 強確認：需輸入指定文字（如對象名稱）確認鈕才會啟用。用於不可復原的操作。 */
+  requireText?: string;
   onConfirm: () => void;
   onClose: () => void;
 };
@@ -22,10 +24,16 @@ export function ConfirmDialog({
   cancelText = "取消",
   isConfirmDanger = false,
   isLoading = false,
+  requireText,
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
   const titleId = useId();
+  const [typed, setTyped] = useState("");
+
+  useEffect(() => {
+    if (open) setTyped("");
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -39,6 +47,8 @@ export function ConfirmDialog({
   }, [onClose, open]);
 
   if (!open) return null;
+
+  const isBlocked = requireText != null && typed.trim() !== requireText;
 
   return (
     <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
@@ -59,6 +69,20 @@ export function ConfirmDialog({
           {description ? (
             <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
           ) : null}
+          {requireText != null && (
+            <div className="mt-4">
+              <label className="mb-1.5 block text-xs font-semibold text-slate-500">
+                此操作無法復原，請輸入「{requireText}」以確認：
+              </label>
+              <input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder={requireText}
+                autoFocus
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
+              />
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
           <button
@@ -72,7 +96,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            disabled={isLoading}
+            disabled={isLoading || isBlocked}
             className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
               isConfirmDanger
                 ? "bg-rose-600 hover:bg-rose-700"

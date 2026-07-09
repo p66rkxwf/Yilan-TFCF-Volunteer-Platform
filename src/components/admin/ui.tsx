@@ -308,27 +308,194 @@ export function Field({
   label,
   required,
   hint,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
   hint?: string;
+  /** 驗證錯誤訊息，顯示於欄位下方 */
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
       <label className="mb-1.5 block text-sm font-semibold text-slate-700">
         {label}
-        {required && <span className="ml-0.5 text-rose-500">*</span>}
+        {required && <span className="ml-0.5 text-slate-400">*</span>}
       </label>
       {children}
-      {hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
+      {error ? (
+        <p className="mt-1 text-xs font-semibold text-amber-700">{error}</p>
+      ) : (
+        hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>
+      )}
     </div>
   );
 }
 
 export const inputClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400";
+
+// ===== 列內操作選單（「⋯」按鈕，所有列表操作統一收合於此） =====
+
+export interface RowAction {
+  label: string;
+  /** Material Symbols 圖示名稱 */
+  icon?: string;
+  /** 導頁型操作（編輯／管理等）；與 onSelect 擇一 */
+  href?: string;
+  onSelect?: () => void;
+  /** 不可復原的破壞性操作（如永久刪除）以紅字呈現 */
+  danger?: boolean;
+  disabled?: boolean;
+}
+
+export function RowActionMenu({
+  actions,
+  ariaLabel = "操作選單",
+  triggerLabel,
+}: {
+  actions: (RowAction | false | null | undefined)[];
+  ariaLabel?: string;
+  /** 給定文字時改渲染成帶框的「操作 ▾」按鈕（頁首用）；否則為列內「⋯」圖示鈕 */
+  triggerLabel?: string;
+}) {
+  const items = actions.filter((a): a is RowAction => Boolean(a));
+  const [isOpen, setIsOpen] = React.useState(false);
+  // 選單以 fixed 定位渲染，避免被表格的 overflow 容器裁切
+  const [position, setPosition] = React.useState<{ top: number; right: number } | null>(null);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  const close = React.useCallback(() => {
+    setIsOpen(false);
+    setPosition(null);
+  }, []);
+
+  const open = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const menuHeight = items.length * 38 + 12;
+    const openUp = rect.bottom + menuHeight > window.innerHeight - 8;
+    setPosition({
+      top: openUp ? rect.top - menuHeight - 4 : rect.bottom + 4,
+      right: Math.max(8, window.innerWidth - rect.right),
+    });
+    setIsOpen(true);
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) close();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [isOpen, close]);
+
+  if (items.length === 0) return null;
+
+  const itemClass = (action: RowAction) =>
+    `flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition-colors ${
+      action.disabled
+        ? "cursor-not-allowed text-slate-300"
+        : action.danger
+          ? "text-rose-600 hover:bg-rose-50"
+          : "text-slate-700 hover:bg-slate-100"
+    }`;
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => (isOpen ? close() : open())}
+        className={
+          triggerLabel
+            ? `inline-flex items-center gap-1 rounded-lg border-2 border-zinc-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-zinc-100 ${
+                isOpen ? "bg-zinc-100" : ""
+              }`
+            : `inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                isOpen
+                  ? "bg-slate-100 text-slate-700"
+                  : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              }`
+        }
+      >
+        {triggerLabel ? (
+          <>
+            {triggerLabel}
+            <span
+              className={`material-symbols-outlined text-[18px] transition-transform ${isOpen ? "rotate-180" : ""}`}
+            >
+              expand_more
+            </span>
+          </>
+        ) : (
+          <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+        )}
+      </button>
+      {isOpen && position && (
+        <div
+          ref={menuRef}
+          role="menu"
+          style={{ top: position.top, right: position.right }}
+          className="fixed z-[120] min-w-36 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg shadow-slate-900/10"
+        >
+          {items.map((action) =>
+            action.href && !action.disabled ? (
+              <Link
+                key={action.label}
+                href={action.href}
+                role="menuitem"
+                onClick={close}
+                className={itemClass(action)}
+              >
+                {action.icon && (
+                  <span className="material-symbols-outlined text-[18px]">{action.icon}</span>
+                )}
+                {action.label}
+              </Link>
+            ) : (
+              <button
+                key={action.label}
+                type="button"
+                role="menuitem"
+                disabled={action.disabled}
+                onClick={() => {
+                  close();
+                  action.onSelect?.();
+                }}
+                className={itemClass(action)}
+              >
+                {action.icon && (
+                  <span className="material-symbols-outlined text-[18px]">{action.icon}</span>
+                )}
+                {action.label}
+              </button>
+            )
+          )}
+        </div>
+      )}
+    </>
+  );
+}
 
 // ===== 描述清單（詳情頁用） =====
 
