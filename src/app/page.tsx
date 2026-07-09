@@ -5,7 +5,9 @@ import { AnnouncementBanner } from "./announcement-banner";
 export const dynamic = "force-dynamic";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  dateStyle: "medium",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
   timeZone: "Asia/Taipei",
 });
 

@@ -16,8 +16,8 @@ import { getNotificationDisplay } from "@/lib/notifications";
 const DROPDOWN_LIMIT = 10;
 
 const TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  month: "numeric",
-  day: "numeric",
+  month: "2-digit",
+  day: "2-digit",
   hour: "2-digit",
   minute: "2-digit",
   timeZone: "Asia/Taipei",

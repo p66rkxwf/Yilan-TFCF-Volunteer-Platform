@@ -38,8 +38,11 @@ const REG_STATUS: Record<string, { label: string; className: string }> = {
 };
 
 const DEADLINE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  dateStyle: "medium",
-  timeStyle: "short",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
   timeZone: "Asia/Taipei",
   hourCycle: "h23",
 });

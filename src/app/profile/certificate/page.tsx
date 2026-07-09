@@ -44,8 +44,9 @@ export default function CertificatePage() {
 
   const today = new Date().toLocaleDateString("zh-TW", {
     year: "numeric",
-    month: "long",
-    day: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Taipei",
   });
 
   if (isLoading) {
@@ -131,7 +132,12 @@ export default function CertificatePage() {
                     <td className="py-3 text-sm text-slate-800">{entry.activity_title}</td>
                     <td className="py-3 text-sm text-slate-500 whitespace-nowrap">
                       {entry.session_start_at
-                        ? new Date(entry.session_start_at).toLocaleDateString("zh-TW", { timeZone: "Asia/Taipei" })
+                        ? new Date(entry.session_start_at).toLocaleDateString("zh-TW", {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                            timeZone: "Asia/Taipei",
+                          })
                         : "—"}
                     </td>
                     <td className="py-3 text-sm text-slate-800 text-right font-semibold whitespace-nowrap">

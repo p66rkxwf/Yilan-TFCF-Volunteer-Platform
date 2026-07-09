@@ -1,19 +1,26 @@
-// 後台共用：台灣時區的時間顯示與 <input type="datetime-local"> 轉換
+// 全站共用：台灣時區的時間顯示與 <input type="datetime-local"> 轉換
+// 格式規範：日期 YYYY/MM/DD（補零）、時間 24 小時制 HH:mm
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  dateStyle: "medium",
-  timeStyle: "short",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
   timeZone: "Asia/Taipei",
   hourCycle: "h23",
 });
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  dateStyle: "medium",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
   timeZone: "Asia/Taipei",
 });
 
 const TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  timeStyle: "short",
+  hour: "2-digit",
+  minute: "2-digit",
   timeZone: "Asia/Taipei",
   hourCycle: "h23",
 });
@@ -33,7 +40,7 @@ export function formatDate(iso: string | null | undefined): string {
   return DATE_FORMATTER.format(new Date(iso));
 }
 
-// 場次起訖：同日顯示「2026/7/10（五）09:00–12:00」，跨日顯示完整兩端
+// 場次起訖：同日顯示「2026/07/10（五）09:00–12:00」，跨日顯示完整兩端
 export function formatSessionRange(startIso: string, endIso: string): string {
   const start = new Date(startIso);
   const end = new Date(endIso);

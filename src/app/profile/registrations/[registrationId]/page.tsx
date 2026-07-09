@@ -29,8 +29,11 @@ const ATTENDANCE_MAP: Record<string, { label: string; color: string }> = {
 };
 
 const DATETIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  dateStyle: "medium",
-  timeStyle: "short",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
   timeZone: "Asia/Taipei",
   hourCycle: "h23",
 });

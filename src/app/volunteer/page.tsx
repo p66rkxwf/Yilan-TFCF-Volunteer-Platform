@@ -13,8 +13,8 @@ import { Select } from "@/components/ui/select";
 import type { VolunteerStatus } from "@/lib/types/database";
 
 const MD_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  month: "numeric",
-  day: "numeric",
+  month: "2-digit",
+  day: "2-digit",
   timeZone: "Asia/Taipei",
 });
 
