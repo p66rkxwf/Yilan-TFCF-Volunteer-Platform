@@ -155,7 +155,7 @@ export default function AssignVolunteerPage() {
                       <Td className="text-slate-500">{v.phone}</Td>
                       <Td>
                         {v.is_blacklisted ? (
-                          <StatusPill meta={{ label: "黑名單中", badge: "bg-rose-100 text-rose-700" }} />
+                          <StatusPill meta={{ label: "黑名單中", badge: "bg-amber-100 text-amber-800" }} />
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
                         )}

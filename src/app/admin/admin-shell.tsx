@@ -184,7 +184,7 @@ export function AdminShell({
             </div>
             <button
               onClick={handleSignOut}
-              className="text-slate-400 transition-colors hover:text-rose-400"
+              className="text-slate-400 transition-colors hover:text-white"
               title="登出"
             >
               <span className="material-symbols-outlined text-[18px]">logout</span>

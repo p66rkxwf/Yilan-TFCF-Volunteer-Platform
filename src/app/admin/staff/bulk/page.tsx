@@ -207,14 +207,14 @@ export default function BulkStaffPage() {
                   const result = results?.find((x) => x.index === i);
                   return (
                     <tr key={i} className="hover:bg-slate-50">
-                      <Td className={r.fullName ? "" : "text-rose-600"}>{r.fullName || "缺姓名"}</Td>
-                      <Td className={r.username ? "font-medium" : "text-rose-600"}>{r.username || "缺帳號"}</Td>
+                      <Td className={r.fullName ? "" : "text-amber-700"}>{r.fullName || "缺姓名"}</Td>
+                      <Td className={r.username ? "font-medium" : "text-amber-700"}>{r.username || "缺帳號"}</Td>
                       <Td className="text-slate-500">{r.email}</Td>
                       <Td className="text-slate-500">{r.phone}</Td>
-                      <Td className={r.roleValid ? "" : "text-rose-600"}>
+                      <Td className={r.roleValid ? "" : "text-amber-700"}>
                         {r.roleValid ? STAFF_ROLE[r.role] : `無效（${r.rawRole || "空"}）`}
                       </Td>
-                      <Td className={r.jobValid ? "" : "text-rose-600"}>
+                      <Td className={r.jobValid ? "" : "text-amber-700"}>
                         {r.jobValid ? STAFF_JOB_TITLE[r.jobTitle] : `無效（${r.rawJob || "空"}）`}
                       </Td>
                       <Td className="text-slate-500">{r.region || "—"}</Td>
@@ -223,7 +223,7 @@ export default function BulkStaffPage() {
                           result.ok ? (
                             <span className="text-xs font-semibold text-emerald-600">✓ 已建立</span>
                           ) : (
-                            <span className="text-xs font-semibold text-rose-600">{result.error}</span>
+                            <span className="text-xs font-semibold text-amber-700">{result.error}</span>
                           )
                         ) : (
                           <span className="text-xs text-slate-300">—</span>

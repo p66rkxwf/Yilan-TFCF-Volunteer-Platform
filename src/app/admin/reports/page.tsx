@@ -333,8 +333,8 @@ export default function ReportsPage() {
   const kpiCards = [
     { label: "總服務人次", value: kpi.serviceCount.toLocaleString(), icon: "groups", accent: "text-primary" },
     { label: "總服務時數", value: `${kpi.totalHours.toLocaleString()} 小時`, icon: "schedule", accent: "text-emerald-600" },
-    { label: "未出席率", value: `${kpi.absentRate}%`, icon: "trending_down", accent: kpi.absentRate > 20 ? "text-rose-600" : "text-slate-700" },
-    { label: "目前黑名單人數", value: kpi.blacklisted.toLocaleString(), icon: "person_off", accent: "text-rose-600" },
+    { label: "未出席率", value: `${kpi.absentRate}%`, icon: "trending_down", accent: kpi.absentRate > 20 ? "text-amber-700" : "text-slate-700" },
+    { label: "目前黑名單人數", value: kpi.blacklisted.toLocaleString(), icon: "person_off", accent: "text-slate-700" },
   ];
 
   const reportRow = (

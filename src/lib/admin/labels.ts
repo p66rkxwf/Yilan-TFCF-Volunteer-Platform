@@ -26,7 +26,7 @@ export const ACTIVITY_STATUS: Record<ActivityStatus, StatusMeta> = {
   open: { label: "開放報名", badge: "bg-emerald-100 text-emerald-700" },
   closed: { label: "已截止", badge: "bg-amber-100 text-amber-700" },
   completed: { label: "已結束", badge: "bg-slate-200 text-slate-600" },
-  cancelled: { label: "已取消", badge: "bg-rose-100 text-rose-700" },
+  cancelled: { label: "已取消", badge: "bg-slate-200 text-slate-600" },
 };
 
 export const ACTIVITY_TYPE: Record<ActivityType, string> = {
@@ -37,7 +37,7 @@ export const ACTIVITY_TYPE: Record<ActivityType, string> = {
 export const REGISTRATION_STATUS: Record<RegistrationStatus, StatusMeta> = {
   pending: { label: "待審核", badge: "bg-amber-100 text-amber-700" },
   approved: { label: "已核准", badge: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "已拒絕", badge: "bg-rose-100 text-rose-700" },
+  rejected: { label: "已拒絕", badge: "bg-slate-200 text-slate-600" },
   cancel_pending: { label: "取消待審", badge: "bg-orange-100 text-orange-700" },
   cancelled: { label: "已取消", badge: "bg-slate-200 text-slate-600" },
   expired: { label: "已過期", badge: "bg-slate-100 text-slate-500" },
@@ -45,7 +45,7 @@ export const REGISTRATION_STATUS: Record<RegistrationStatus, StatusMeta> = {
 
 export const ATTENDANCE_STATUS: Record<AttendanceStatus, StatusMeta> = {
   attended: { label: "已出席", badge: "bg-emerald-100 text-emerald-700" },
-  absent: { label: "缺席", badge: "bg-rose-100 text-rose-700" },
+  absent: { label: "缺席", badge: "bg-amber-100 text-amber-800" },
   makeup_attended: { label: "補登出席", badge: "bg-sky-100 text-sky-700" },
 };
 
@@ -60,7 +60,7 @@ export const CANCEL_REASON: Record<CancelReason, string> = {
 export const VOLUNTEER_STATUS: Record<VolunteerStatus, StatusMeta> = {
   pending_review: { label: "待審核", badge: "bg-amber-100 text-amber-700" },
   active: { label: "在職", badge: "bg-emerald-100 text-emerald-700" },
-  suspended: { label: "停權", badge: "bg-rose-100 text-rose-700" },
+  suspended: { label: "停權", badge: "bg-slate-200 text-slate-600" },
   graduated: { label: "已畢業結案", badge: "bg-slate-200 text-slate-600" },
   rejected: { label: "審核未通過", badge: "bg-slate-100 text-slate-500" },
 };
@@ -78,7 +78,7 @@ export const STAFF_JOB_TITLE: Record<StaffJobTitle, string> = {
 
 export const STAFF_STATUS: Record<StaffAccountStatus, StatusMeta> = {
   active: { label: "在職", badge: "bg-emerald-100 text-emerald-700" },
-  suspended: { label: "停權", badge: "bg-rose-100 text-rose-700" },
+  suspended: { label: "停權", badge: "bg-slate-200 text-slate-600" },
 };
 
 export const ANNOUNCEMENT_STATUS: Record<AnnouncementStatus, StatusMeta> = {
@@ -139,6 +139,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   reassign_worker: "批量移轉負責社工",
   archive_record: "封存資料",
   restore_record: "還原資料",
+  delete_record: "永久刪除資料",
   manual_purge: "手動清除逾期資料",
   create_announcement: "新增公告",
   update_announcement: "編輯公告",

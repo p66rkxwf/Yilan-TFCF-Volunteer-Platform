@@ -141,7 +141,7 @@ export default function AttendanceListPage() {
                       <Td className="whitespace-nowrap text-right">
                         <span className="text-emerald-600">{s.attended_count}</span>
                         {" / "}
-                        <span className="text-rose-600">{s.absent_count}</span>
+                        <span className="text-slate-700">{s.absent_count}</span>
                         {" / "}
                         <span className={unmarked > 0 && isEnded ? "font-semibold text-amber-600" : "text-slate-400"}>
                           {unmarked}

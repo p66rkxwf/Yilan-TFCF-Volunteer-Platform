@@ -205,7 +205,7 @@ export default async function AdminDashboardPage() {
                         <span
                           className={
                             s.active_registrations >= s.capacity
-                              ? "font-semibold text-rose-600"
+                              ? "font-semibold text-amber-700"
                               : ""
                           }
                         >
