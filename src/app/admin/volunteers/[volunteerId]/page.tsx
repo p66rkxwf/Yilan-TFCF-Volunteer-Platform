@@ -15,6 +15,11 @@ import {
   setVolunteerWorker,
 } from "@/lib/actions/admin-users";
 import { updateVolunteerProfile } from "@/lib/actions/admin-volunteers";
+import {
+  archiveRecord,
+  restoreRecord,
+  deleteRecordPermanently,
+} from "@/lib/actions/admin-archive";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
@@ -28,8 +33,10 @@ import {
   EmptyRow,
   DescriptionItem,
   Field,
+  RowActionMenu,
   inputClass,
 } from "@/components/admin/ui";
+import { isValidTaiwanPhone, isValidBirthDate } from "@/lib/validation";
 import {
   VOLUNTEER_STATUS,
   REGISTRATION_STATUS,
@@ -73,6 +80,7 @@ export default function VolunteerDetailPage() {
   const router = useRouter();
   const profile = useAdminProfile();
   const isAdmin = profile.role === "system_admin" || profile.role === "unit_admin";
+  const isSysAdmin = profile.role === "system_admin";
 
   const [volunteer, setVolunteer] = useState<
     (VolunteerProfile & { worker: { full_name: string } | null }) | null
@@ -94,6 +102,14 @@ export default function VolunteerDetailPage() {
 
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editForm, setEditForm] = useState({ fullName: "", phone: "", region: "", birthDate: "" });
+  const [editErrors, setEditErrors] = useState<{
+    fullName?: string;
+    phone?: string;
+    birthDate?: string;
+  }>({});
+
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [workers, setWorkers] = useState<{ id: string; full_name: string }[]>([]);
   const [showReassign, setShowReassign] = useState(false);
@@ -226,14 +242,19 @@ export default function VolunteerDetailPage() {
       region: volunteer.region ?? "",
       birthDate: volunteer.birth_date,
     });
+    setEditErrors({});
     setShowEditProfile(true);
   };
 
   const handleEditProfile = async () => {
-    if (!editForm.fullName.trim() || !editForm.phone.trim()) {
-      toast.error("姓名與電話為必填");
-      return;
-    }
+    const errors: typeof editErrors = {};
+    if (!editForm.fullName.trim()) errors.fullName = "請輸入姓名";
+    if (!editForm.phone.trim()) errors.phone = "請輸入電話";
+    else if (!isValidTaiwanPhone(editForm.phone)) errors.phone = "電話格式不正確（例：0912345678）";
+    if (!editForm.birthDate) errors.birthDate = "請選擇生日";
+    else if (!isValidBirthDate(editForm.birthDate)) errors.birthDate = "生日不可為未來日期";
+    setEditErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setIsActing(true);
     const result = await updateVolunteerProfile({
       volunteerId,
@@ -278,6 +299,35 @@ export default function VolunteerDetailPage() {
     return actions;
   }, [volunteer, isAdmin]);
 
+  const isArchived = Boolean((volunteer as { deleted_at?: string | null } | null)?.deleted_at);
+
+  const handleArchive = async () => {
+    setIsActing(true);
+    const result = await archiveRecord("volunteer_profiles", volunteerId);
+    setIsActing(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success("已封存並停用該學生帳號登入");
+    setShowArchiveConfirm(false);
+    await load();
+  };
+
+  const handleRestore = async () => {
+    const result = await restoreRecord("volunteer_profiles", volunteerId);
+    if (result.error) return void toast.error(result.error);
+    toast.success("已還原並恢復登入");
+    await load();
+  };
+
+  const handleDelete = async () => {
+    setIsActing(true);
+    const result = await deleteRecordPermanently("volunteer_profiles", volunteerId);
+    setIsActing(false);
+    if (result.error && !result.success) return void toast.error(result.error);
+    if (result.error) toast.info(result.error);
+    else toast.success("已永久刪除該學生的帳號與相關紀錄");
+    router.push("/admin/volunteers");
+  };
+
   if (isLoading || !volunteer) {
     return (
       <>
@@ -297,26 +347,47 @@ export default function VolunteerDetailPage() {
         backLabel="學生名冊"
         actions={
           isAdmin ? (
-            <>
-              {statusActions.map((a) => (
-                <Button
-                  key={a.status}
-                  size="sm"
-                  variant={a.danger ? "danger" : "outline"}
-                  onClick={() => setStatusConfirm(a)}
-                >
-                  {a.label}
-                </Button>
-              ))}
-              {!volunteer.is_blacklisted && volunteer.status === "active" && (
-                <Button size="sm" variant="danger" onClick={() => setShowBlacklistModal(true)}>
-                  加入黑名單
-                </Button>
-              )}
-              <Button size="sm" variant="outline" onClick={() => setShowResetPw(true)}>
-                重設密碼
-              </Button>
-            </>
+            <RowActionMenu
+              triggerLabel="操作"
+              ariaLabel={`${volunteer.full_name} 的操作`}
+              actions={[
+                ...statusActions.map((a) => ({
+                  label: a.label,
+                  icon:
+                    a.status === "suspended"
+                      ? "person_off"
+                      : a.status === "graduated"
+                        ? "school"
+                        : "person_check",
+                  onSelect: () => setStatusConfirm(a),
+                })),
+                !volunteer.is_blacklisted &&
+                  volunteer.status === "active" && {
+                    label: "加入黑名單",
+                    icon: "block",
+                    onSelect: () => setShowBlacklistModal(true),
+                  },
+                {
+                  label: "重設密碼",
+                  icon: "lock_reset",
+                  onSelect: () => setShowResetPw(true),
+                },
+                isSysAdmin &&
+                  (isArchived
+                    ? { label: "還原", icon: "restore", onSelect: handleRestore }
+                    : {
+                        label: "封存",
+                        icon: "archive",
+                        onSelect: () => setShowArchiveConfirm(true),
+                      }),
+                isSysAdmin && {
+                  label: "永久刪除",
+                  icon: "delete_forever",
+                  danger: true,
+                  onSelect: () => setShowDeleteConfirm(true),
+                },
+              ]}
+            />
           ) : undefined
         }
       />
@@ -340,7 +411,7 @@ export default function VolunteerDetailPage() {
                 <span className="inline-flex items-center gap-2">
                   <StatusPill meta={VOLUNTEER_STATUS[volunteer.status]} />
                   {volunteer.is_blacklisted && (
-                    <StatusPill meta={{ label: "黑名單中", badge: "bg-rose-100 text-rose-700" }} />
+                    <StatusPill meta={{ label: "黑名單中", badge: "bg-amber-100 text-amber-800" }} />
                   )}
                 </span>
               </DescriptionItem>
@@ -500,7 +571,7 @@ export default function VolunteerDetailPage() {
                           </span>
                         </span>
                       ) : (
-                        <span className="font-semibold text-rose-600">生效中</span>
+                        <span className="font-semibold text-amber-700">生效中</span>
                       )}
                     </Td>
                     <Td>
@@ -533,6 +604,28 @@ export default function VolunteerDetailPage() {
         isLoading={isActing}
         onConfirm={handleStatusConfirm}
         onClose={() => setStatusConfirm(null)}
+      />
+
+      <ConfirmDialog
+        open={showArchiveConfirm}
+        title={`封存 ${volunteer.full_name}？`}
+        description="封存後該學生將自名冊隱藏並停用登入（可還原）。歷史報名與時數保留；帳號不會被自動刪除。"
+        isConfirmDanger
+        isLoading={isActing}
+        onConfirm={handleArchive}
+        onClose={() => setShowArchiveConfirm(false)}
+      />
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title={`永久刪除 ${volunteer.full_name}？`}
+        description="將永久刪除該學生的帳號、個人資料、報名與時數紀錄、黑名單事件（無法復原）。若僅需下架帳號請改用「封存」。"
+        confirmText="永久刪除"
+        isConfirmDanger
+        requireText={volunteer.full_name}
+        isLoading={isActing}
+        onConfirm={handleDelete}
+        onClose={() => setShowDeleteConfirm(false)}
       />
 
       {showBlacklistModal && (
@@ -578,7 +671,7 @@ export default function VolunteerDetailPage() {
               >
                 取消
               </Button>
-              <Button size="sm" variant="danger" isLoading={isActing} onClick={handleAddBlacklist}>
+              <Button size="sm" isLoading={isActing} onClick={handleAddBlacklist}>
                 確定加入
               </Button>
             </div>
@@ -601,21 +694,21 @@ export default function VolunteerDetailPage() {
                 姓名已鎖定學生自助修改，改由此處維護。學制調整請至「年度審查」。
               </p>
               <div className="mt-4 space-y-4">
-                <Field label="姓名" required>
+                <Field label="姓名" required error={editErrors.fullName}>
                   <input
                     className={inputClass}
                     value={editForm.fullName}
                     onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
                   />
                 </Field>
-                <Field label="電話" required>
+                <Field label="電話" required error={editErrors.phone}>
                   <input
                     className={inputClass}
                     value={editForm.phone}
                     onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                   />
                 </Field>
-                <Field label="生日">
+                <Field label="生日" error={editErrors.birthDate}>
                   <input
                     type="date"
                     className={`${inputClass} date-input`}

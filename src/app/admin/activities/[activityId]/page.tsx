@@ -8,7 +8,6 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
-import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
@@ -19,6 +18,7 @@ import {
   Td,
   EmptyRow,
   DescriptionItem,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { ACTIVITY_STATUS, ACTIVITY_TYPE } from "@/lib/admin/labels";
 import { formatDateTime, formatSessionRange, sessionHours } from "@/lib/admin/datetime";
@@ -189,46 +189,39 @@ export default function ActivityDetailPage() {
         backLabel="活動管理"
         actions={
           canManage ? (
-            <>
-              {activity.status === "draft" && (
-                <>
-                  <Button size="sm" onClick={() => setConfirm({ kind: "publish" })}>
-                    發布活動
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => setConfirm({ kind: "deleteDraft" })}
-                  >
-                    刪除草稿
-                  </Button>
-                </>
-              )}
-              {activity.status === "open" && (
-                <Button size="sm" variant="outline" onClick={() => setConfirm({ kind: "close" })}>
-                  提前截止
-                </Button>
-              )}
-              {["draft", "open", "closed"].includes(activity.status) && (
-                <>
-                  <Link
-                    href={`/admin/activities/${activity.id}/edit`}
-                    className="inline-flex items-center rounded-lg border-2 border-zinc-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-zinc-100"
-                  >
-                    編輯活動
-                  </Link>
-                  {activity.status !== "draft" && (
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => setConfirm({ kind: "cancelActivity" })}
-                    >
-                      取消活動
-                    </Button>
-                  )}
-                </>
-              )}
-            </>
+            <RowActionMenu
+              triggerLabel="操作"
+              ariaLabel={`${activity.title} 的操作`}
+              actions={[
+                activity.status === "draft" && {
+                  label: "發布活動",
+                  icon: "publish",
+                  onSelect: () => setConfirm({ kind: "publish" }),
+                },
+                ["draft", "open", "closed"].includes(activity.status) && {
+                  label: "編輯活動",
+                  icon: "edit",
+                  href: `/admin/activities/${activity.id}/edit`,
+                },
+                activity.status === "open" && {
+                  label: "提前截止",
+                  icon: "event_busy",
+                  onSelect: () => setConfirm({ kind: "close" }),
+                },
+                ["open", "closed"].includes(activity.status) && {
+                  label: "取消活動",
+                  icon: "cancel",
+                  danger: true,
+                  onSelect: () => setConfirm({ kind: "cancelActivity" }),
+                },
+                activity.status === "draft" && {
+                  label: "刪除草稿",
+                  icon: "delete_forever",
+                  danger: true,
+                  onSelect: () => setConfirm({ kind: "deleteDraft" }),
+                },
+              ]}
+            />
           ) : undefined
         }
       />
@@ -339,7 +332,7 @@ export default function ActivityDetailPage() {
                       </Td>
                       <Td>
                         {isCancelled ? (
-                          <StatusPill meta={{ label: "已取消", badge: "bg-rose-100 text-rose-700" }} />
+                          <StatusPill meta={{ label: "已取消", badge: "bg-slate-200 text-slate-600" }} />
                         ) : isEnded ? (
                           <StatusPill meta={{ label: "已結束", badge: "bg-slate-200 text-slate-600" }} />
                         ) : session.registration_deadline_at <= nowIso ? (
@@ -349,47 +342,42 @@ export default function ActivityDetailPage() {
                         )}
                       </Td>
                       <Td className="whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Link
-                            href={`/admin/attendance/${session.id}`}
-                            className="rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/5"
-                          >
-                            名單/點名
-                          </Link>
-                          {canManage && !isCancelled && (
-                            <>
-                              {!isEnded && (
-                                <Link
-                                  href={`/admin/activities/${activity.id}/sessions/${session.id}/assign`}
-                                  className="rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/5"
-                                >
-                                  指派學生
-                                </Link>
-                              )}
-                              <Link
-                                href={`/admin/activities/${activity.id}/sessions/${session.id}/edit`}
-                                className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                              >
-                                編輯
-                              </Link>
-                              {!isEnded && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setConfirm({
-                                      kind: "cancelSession",
-                                      sessionId: session.id,
-                                      label: formatSessionRange(session.start_at, session.end_at),
-                                    })
-                                  }
-                                  className="rounded-lg px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                                >
-                                  取消場次
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
+                        <RowActionMenu
+                          ariaLabel="場次操作"
+                          actions={[
+                            {
+                              label: "名單/點名",
+                              icon: "fact_check",
+                              href: `/admin/attendance/${session.id}`,
+                            },
+                            canManage &&
+                              !isCancelled &&
+                              !isEnded && {
+                                label: "指派學生",
+                                icon: "person_add",
+                                href: `/admin/activities/${activity.id}/sessions/${session.id}/assign`,
+                              },
+                            canManage &&
+                              !isCancelled && {
+                                label: "編輯",
+                                icon: "edit",
+                                href: `/admin/activities/${activity.id}/sessions/${session.id}/edit`,
+                              },
+                            canManage &&
+                              !isCancelled &&
+                              !isEnded && {
+                                label: "取消場次",
+                                icon: "event_busy",
+                                danger: true,
+                                onSelect: () =>
+                                  setConfirm({
+                                    kind: "cancelSession",
+                                    sessionId: session.id,
+                                    label: formatSessionRange(session.start_at, session.end_at),
+                                  }),
+                              },
+                          ]}
+                        />
                       </Td>
                     </tr>
                   );

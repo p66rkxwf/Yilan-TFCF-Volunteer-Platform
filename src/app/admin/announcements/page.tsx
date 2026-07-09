@@ -19,10 +19,15 @@ import {
   LoadingRow,
   Toolbar,
   SearchInput,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { useAdminProfile } from "../admin-context";
-import { archiveRecord, restoreRecord } from "@/lib/actions/admin-archive";
+import {
+  archiveRecord,
+  restoreRecord,
+  deleteRecordPermanently,
+} from "@/lib/actions/admin-archive";
 import { ANNOUNCEMENT_STATUS } from "@/lib/admin/labels";
 import { formatDateTime } from "@/lib/admin/datetime";
 import type { Announcement, AnnouncementStatus } from "@/lib/types/database";
@@ -42,7 +47,13 @@ export default function AnnouncementsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<AnnRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AnnRow | null>(null);
+  // 發布／下架屬前台可見性切換，加確認避免誤觸
+  const [statusConfirm, setStatusConfirm] = useState<{
+    row: AnnRow;
+    status: AnnouncementStatus;
+  } | null>(null);
   const [isActing, setIsActing] = useState(false);
 
   const load = useCallback(async () => {
@@ -74,7 +85,10 @@ export default function AnnouncementsPage() {
     });
   }, [rows, statusFilter, search]);
 
-  const setStatus = async (row: AnnRow, status: AnnouncementStatus) => {
+  const confirmSetStatus = async () => {
+    if (!statusConfirm) return;
+    const { row, status } = statusConfirm;
+    setIsActing(true);
     try {
       const payload: Record<string, unknown> = { status };
       if (status === "published" && !row.published_at) {
@@ -83,9 +97,12 @@ export default function AnnouncementsPage() {
       const { error } = await supabase.from("announcements").update(payload).eq("id", row.id);
       if (error) throw error;
       toast.success(status === "published" ? "已發布" : "已下架");
+      setStatusConfirm(null);
       await load();
     } catch (error) {
       toast.error(getErrorMessage(error as Error));
+    } finally {
+      setIsActing(false);
     }
   };
 
@@ -103,13 +120,24 @@ export default function AnnouncementsPage() {
     }
   };
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
+  const confirmArchive = async () => {
+    if (!archiveTarget) return;
     setIsActing(true);
-    const result = await archiveRecord("announcements", deleteTarget.id);
+    const result = await archiveRecord("announcements", archiveTarget.id);
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success("公告已封存（可於「顯示已封存」中還原）");
+    setArchiveTarget(null);
+    await load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsActing(true);
+    const result = await deleteRecordPermanently("announcements", deleteTarget.id);
+    setIsActing(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success(`已永久刪除「${deleteTarget.title}」`);
     setDeleteTarget(null);
     await load();
   };
@@ -214,54 +242,57 @@ export default function AnnouncementsPage() {
                       {row.published_at ? formatDateTime(row.published_at) : "—"}
                     </Td>
                     <Td className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {showArchived ? (
-                          <button
-                            onClick={() => restore(row)}
-                            className="rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                          >
-                            還原
-                          </button>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => togglePin(row)}
-                              className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                            >
-                              {row.is_pinned ? "取消置頂" : "置頂"}
-                            </button>
-                            {row.status === "published" ? (
-                              <button
-                                onClick={() => setStatus(row, "unpublished")}
-                                className="rounded-lg px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50"
-                              >
-                                下架
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => setStatus(row, "published")}
-                                className="rounded-lg px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                              >
-                                發布
-                              </button>
-                            )}
-                            <Link
-                              href={`/admin/announcements/${row.id}/edit`}
-                              className="rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/5"
-                            >
-                              編輯
-                            </Link>
-                            {isSysAdmin && (
-                              <button
-                                onClick={() => setDeleteTarget(row)}
-                                className="rounded-lg px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                              >
-                                封存
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </div>
+                      <RowActionMenu
+                        ariaLabel={`${row.title} 的操作`}
+                        actions={
+                          showArchived
+                            ? [
+                                { label: "還原", icon: "restore", onSelect: () => restore(row) },
+                                isSysAdmin && {
+                                  label: "永久刪除",
+                                  icon: "delete_forever",
+                                  danger: true,
+                                  onSelect: () => setDeleteTarget(row),
+                                },
+                              ]
+                            : [
+                                {
+                                  label: "編輯",
+                                  icon: "edit",
+                                  href: `/admin/announcements/${row.id}/edit`,
+                                },
+                                {
+                                  label: row.is_pinned ? "取消置頂" : "置頂",
+                                  icon: "push_pin",
+                                  onSelect: () => togglePin(row),
+                                },
+                                row.status === "published"
+                                  ? {
+                                      label: "下架",
+                                      icon: "visibility_off",
+                                      onSelect: () =>
+                                        setStatusConfirm({ row, status: "unpublished" }),
+                                    }
+                                  : {
+                                      label: "發布",
+                                      icon: "publish",
+                                      onSelect: () =>
+                                        setStatusConfirm({ row, status: "published" }),
+                                    },
+                                isSysAdmin && {
+                                  label: "封存",
+                                  icon: "archive",
+                                  onSelect: () => setArchiveTarget(row),
+                                },
+                                isSysAdmin && {
+                                  label: "永久刪除",
+                                  icon: "delete_forever",
+                                  danger: true,
+                                  onSelect: () => setDeleteTarget(row),
+                                },
+                              ]
+                        }
+                      />
                     </Td>
                   </tr>
                 ))
@@ -272,13 +303,44 @@ export default function AnnouncementsPage() {
       </div>
 
       <ConfirmDialog
-        open={deleteTarget !== null}
+        open={archiveTarget !== null}
         title="封存公告？"
-        description={`「${deleteTarget?.title ?? ""}」將被封存並自前台/列表隱藏，可於「顯示已封存」中還原。超過保留天數後才會永久清除。`}
+        description={`「${archiveTarget?.title ?? ""}」將被封存並自前台/列表隱藏，可於「顯示已封存」中還原。超過保留天數後才會永久清除。`}
         isConfirmDanger
+        isLoading={isActing}
+        onConfirm={confirmArchive}
+        onClose={() => setArchiveTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={deleteTarget ? `永久刪除「${deleteTarget.title}」？` : ""}
+        description="公告將被永久刪除（無法復原）。若僅需自前台隱藏請改用「下架」或「封存」。"
+        confirmText="永久刪除"
+        isConfirmDanger
+        requireText={deleteTarget?.title}
         isLoading={isActing}
         onConfirm={confirmDelete}
         onClose={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={statusConfirm !== null}
+        title={
+          statusConfirm
+            ? statusConfirm.status === "published"
+              ? `發布「${statusConfirm.row.title}」？`
+              : `下架「${statusConfirm.row.title}」？`
+            : ""
+        }
+        description={
+          statusConfirm?.status === "published"
+            ? "發布後前台（含未登入訪客）立即可見此公告。"
+            : "下架後前台立即隱藏此公告，可隨時再發布。"
+        }
+        isLoading={isActing}
+        onConfirm={confirmSetStatus}
+        onClose={() => setStatusConfirm(null)}
       />
     </>
   );

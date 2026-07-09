@@ -18,11 +18,16 @@ import {
   Toolbar,
   SearchInput,
   Pagination,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAdminProfile } from "../admin-context";
-import { archiveRecord, restoreRecord } from "@/lib/actions/admin-archive";
+import {
+  archiveRecord,
+  restoreRecord,
+  deleteRecordPermanently,
+} from "@/lib/actions/admin-archive";
 import { VOLUNTEER_STATUS } from "@/lib/admin/labels";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import type { GradeLevel, VolunteerStatus } from "@/lib/types/database";
@@ -54,6 +59,7 @@ export default function VolunteersPage() {
   const [blacklistFilter, setBlacklistFilter] = useState("all");
   const [showArchived, setShowArchived] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<VolunteerRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<VolunteerRow | null>(null);
   const [isActing, setIsActing] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -87,6 +93,18 @@ export default function VolunteersPage() {
     const result = await restoreRecord("volunteer_profiles", row.id);
     if (result.error) return void toast.error(result.error);
     toast.success("已還原並恢復登入");
+    await load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsActing(true);
+    const result = await deleteRecordPermanently("volunteer_profiles", deleteTarget.id);
+    setIsActing(false);
+    if (result.error && !result.success) return void toast.error(result.error);
+    if (result.error) toast.info(result.error);
+    else toast.success(`已永久刪除 ${deleteTarget.full_name} 的帳號與相關紀錄`);
+    setDeleteTarget(null);
     await load();
   };
 
@@ -210,7 +228,7 @@ export default function VolunteersPage() {
                 <Th>電話</Th>
                 <Th>負責社工</Th>
                 <Th>狀態</Th>
-                {isSysAdmin && <Th className="text-right">封存</Th>}
+                {isSysAdmin && <Th className="text-right">操作</Th>}
               </tr>
             </thead>
             <tbody>
@@ -229,7 +247,7 @@ export default function VolunteersPage() {
                         {row.full_name}
                       </Link>
                       {row.is_blacklisted && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                        <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
                           黑名單
                         </span>
                       )}
@@ -243,21 +261,39 @@ export default function VolunteersPage() {
                     </Td>
                     {isSysAdmin && (
                       <Td className="text-right">
-                        {showArchived ? (
-                          <button
-                            onClick={() => restore(row)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                          >
-                            還原
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setArchiveTarget(row)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                          >
-                            封存
-                          </button>
-                        )}
+                        <RowActionMenu
+                          ariaLabel={`${row.full_name} 的操作`}
+                          actions={
+                            showArchived
+                              ? [
+                                  { label: "還原", icon: "restore", onSelect: () => restore(row) },
+                                  {
+                                    label: "永久刪除",
+                                    icon: "delete_forever",
+                                    danger: true,
+                                    onSelect: () => setDeleteTarget(row),
+                                  },
+                                ]
+                              : [
+                                  {
+                                    label: "查看詳情",
+                                    icon: "visibility",
+                                    href: `/admin/volunteers/${row.id}`,
+                                  },
+                                  {
+                                    label: "封存",
+                                    icon: "archive",
+                                    onSelect: () => setArchiveTarget(row),
+                                  },
+                                  {
+                                    label: "永久刪除",
+                                    icon: "delete_forever",
+                                    danger: true,
+                                    onSelect: () => setDeleteTarget(row),
+                                  },
+                                ]
+                          }
+                        />
                       </Td>
                     )}
                   </tr>
@@ -283,6 +319,18 @@ export default function VolunteersPage() {
         isLoading={isActing}
         onConfirm={confirmArchive}
         onClose={() => setArchiveTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={deleteTarget ? `永久刪除 ${deleteTarget.full_name}？` : ""}
+        description="將永久刪除該學生的帳號、個人資料、報名與時數紀錄、黑名單事件（無法復原）。若僅需下架帳號請改用「封存」。"
+        confirmText="永久刪除"
+        isConfirmDanger
+        requireText={deleteTarget?.full_name}
+        isLoading={isActing}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
       />
     </>
   );

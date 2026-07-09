@@ -14,7 +14,11 @@ import {
   reassignWorker,
   resetStaffPassword,
 } from "@/lib/actions/admin-users";
-import { archiveRecord, restoreRecord } from "@/lib/actions/admin-archive";
+import {
+  archiveRecord,
+  restoreRecord,
+  deleteRecordPermanently,
+} from "@/lib/actions/admin-archive";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
@@ -28,11 +32,13 @@ import {
   Toolbar,
   SearchInput,
   Field,
+  RowActionMenu,
   inputClass,
 } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { STAFF_ROLE, STAFF_JOB_TITLE, STAFF_STATUS } from "@/lib/admin/labels";
+import { isValidTaiwanPhone } from "@/lib/validation";
 import { YILAN_REGIONS } from "@/lib/types/database";
 import type { StaffRole, StaffJobTitle, StaffAccountStatus } from "@/lib/types/database";
 
@@ -65,8 +71,12 @@ export default function StaffPage() {
   const [resetPwTarget, setResetPwTarget] = useState<StaffRow | null>(null);
   const [editTarget, setEditTarget] = useState<StaffRow | null>(null);
   const [editForm, setEditForm] = useState({ fullName: "", phone: "", region: "" });
+  const [editErrors, setEditErrors] = useState<{ fullName?: string; phone?: string }>({});
   const [showArchived, setShowArchived] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<StaffRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StaffRow | null>(null);
+  // 角色變更改為二次確認後生效（原為下拉選了立即生效）
+  const [roleConfirm, setRoleConfirm] = useState<{ row: StaffRow; role: StaffRole } | null>(null);
   const [isActing, setIsActing] = useState(false);
 
   // 學生移轉對話框
@@ -114,11 +124,16 @@ export default function StaffPage() {
     );
   }, [rows, search]);
 
-  const changeRole = async (row: StaffRow, role: StaffRole) => {
-    if (role === row.role) return;
-    const result = await setStaffRole(row.id, role);
+  const confirmRoleChange = async () => {
+    if (!roleConfirm) return;
+    setIsActing(true);
+    const result = await setStaffRole(roleConfirm.row.id, roleConfirm.role);
+    setIsActing(false);
     if (result.error) return void toast.error(result.error);
-    toast.success(`已將 ${row.full_name} 的角色設為${STAFF_ROLE[role]}`);
+    toast.success(
+      `已將 ${roleConfirm.row.full_name} 的角色設為${STAFF_ROLE[roleConfirm.role]}`
+    );
+    setRoleConfirm(null);
     await load();
   };
 
@@ -180,6 +195,7 @@ export default function StaffPage() {
 
   const openEdit = (row: StaffRow) => {
     setEditForm({ fullName: row.full_name, phone: row.phone, region: row.region ?? "" });
+    setEditErrors({});
     setEditTarget(row);
   };
 
@@ -194,6 +210,18 @@ export default function StaffPage() {
     await load();
   };
 
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsActing(true);
+    const result = await deleteRecordPermanently("staff_profiles", deleteTarget.id);
+    setIsActing(false);
+    if (result.error && !result.success) return void toast.error(result.error);
+    if (result.error) toast.info(result.error);
+    else toast.success(`已永久刪除 ${deleteTarget.full_name} 的帳號`);
+    setDeleteTarget(null);
+    await load();
+  };
+
   const restoreStaff = async (row: StaffRow) => {
     const result = await restoreRecord("staff_profiles", row.id);
     if (result.error) return void toast.error(result.error);
@@ -204,9 +232,12 @@ export default function StaffPage() {
   // 職員姓名已鎖定自助修改；系統管理員在此代為維護（走 staff_update_by_sysadmin policy）。
   const submitEdit = async () => {
     if (!editTarget) return;
-    if (!editForm.fullName.trim() || !editForm.phone.trim()) {
-      return void toast.error("姓名與電話為必填");
-    }
+    const errors: typeof editErrors = {};
+    if (!editForm.fullName.trim()) errors.fullName = "請輸入姓名";
+    if (!editForm.phone.trim()) errors.phone = "請輸入聯絡電話";
+    else if (!isValidTaiwanPhone(editForm.phone)) errors.phone = "電話格式不正確（例：0912345678 或 03-1234567）";
+    setEditErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setIsActing(true);
     const { error } = await supabase
       .from("staff_profiles")
@@ -316,10 +347,12 @@ export default function StaffPage() {
                           : "—"}
                       </Td>
                       <Td className="w-36">
-                        {isSystemAdmin && !isSelf ? (
+                        {isSystemAdmin && !isSelf && !showArchived ? (
                           <Select
                             value={row.role}
-                            onValueChange={(v) => changeRole(row, v as StaffRole)}
+                            onValueChange={(v) => {
+                              if (v !== row.role) setRoleConfirm({ row, role: v as StaffRole });
+                            }}
                             options={Object.entries(STAFF_ROLE).map(([value, label]) => ({
                               value,
                               label,
@@ -335,66 +368,66 @@ export default function StaffPage() {
                       </Td>
                       {isAdmin && (
                         <Td className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {showArchived ? (
-                              isSystemAdmin && (
-                                <button
-                                  onClick={() => restoreStaff(row)}
-                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                                >
-                                  還原
-                                </button>
-                              )
-                            ) : (
-                              <>
-                                {row.job_title === "social_worker" &&
-                                  (workerCounts[row.id] ?? 0) > 0 && (
-                                    <button
-                                      onClick={() => openReassign(row)}
-                                      className="rounded-lg px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
-                                    >
-                                      移轉學生
-                                    </button>
-                                  )}
-                                {isSystemAdmin && (
-                                  <button
-                                    onClick={() => openEdit(row)}
-                                    className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                                  >
-                                    編輯
-                                  </button>
-                                )}
-                                {isSystemAdmin && !isSelf && (
-                                  <button
-                                    onClick={() => setResetPwTarget(row)}
-                                    className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                                  >
-                                    重置密碼
-                                  </button>
-                                )}
-                                {isSystemAdmin && !isSelf && (
-                                  <button
-                                    onClick={() => setStatusConfirm(row)}
-                                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                                      row.status === "active"
-                                        ? "text-rose-600 hover:bg-rose-50"
-                                        : "text-emerald-700 hover:bg-emerald-50"
-                                    }`}
-                                  >
-                                    {row.status === "active" ? "停權" : "復職"}
-                                  </button>
-                                )}
-                                {isSystemAdmin && !isSelf && (workerCounts[row.id] ?? 0) === 0 && (
-                                  <button
-                                    onClick={() => setArchiveTarget(row)}
-                                    className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                                  >
-                                    封存
-                                  </button>
-                                )}
-                              </>
-                            )}
-                          </div>
+                          <RowActionMenu
+                            ariaLabel={`${row.full_name} 的操作`}
+                            actions={
+                              showArchived
+                                ? [
+                                    isSystemAdmin && {
+                                      label: "還原",
+                                      icon: "restore",
+                                      onSelect: () => restoreStaff(row),
+                                    },
+                                    isSystemAdmin &&
+                                      !isSelf && {
+                                        label: "永久刪除",
+                                        icon: "delete_forever",
+                                        danger: true,
+                                        onSelect: () => setDeleteTarget(row),
+                                      },
+                                  ]
+                                : [
+                                    row.job_title === "social_worker" &&
+                                      (workerCounts[row.id] ?? 0) > 0 && {
+                                        label: "移轉學生",
+                                        icon: "swap_horiz",
+                                        onSelect: () => openReassign(row),
+                                      },
+                                    isSystemAdmin && {
+                                      label: "編輯",
+                                      icon: "edit",
+                                      onSelect: () => openEdit(row),
+                                    },
+                                    isSystemAdmin &&
+                                      !isSelf && {
+                                        label: "重置密碼",
+                                        icon: "lock_reset",
+                                        onSelect: () => setResetPwTarget(row),
+                                      },
+                                    isSystemAdmin &&
+                                      !isSelf && {
+                                        label: row.status === "active" ? "停權" : "復職",
+                                        icon:
+                                          row.status === "active" ? "person_off" : "person_check",
+                                        onSelect: () => setStatusConfirm(row),
+                                      },
+                                    isSystemAdmin &&
+                                      !isSelf &&
+                                      (workerCounts[row.id] ?? 0) === 0 && {
+                                        label: "封存",
+                                        icon: "archive",
+                                        onSelect: () => setArchiveTarget(row),
+                                      },
+                                    isSystemAdmin &&
+                                      !isSelf && {
+                                        label: "永久刪除",
+                                        icon: "delete_forever",
+                                        danger: true,
+                                        onSelect: () => setDeleteTarget(row),
+                                      },
+                                  ]
+                            }
+                          />
                         </Td>
                       )}
                     </tr>
@@ -447,6 +480,31 @@ export default function StaffPage() {
         onClose={() => setArchiveTarget(null)}
       />
 
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={deleteTarget ? `永久刪除 ${deleteTarget.full_name}？` : ""}
+        description="將永久刪除該職員的帳號與登入（無法復原）。其經手的歷史紀錄（活動建立、審核、補登）會保留但操作人改為留空。若名下仍有負責學生，請先移轉。"
+        confirmText="永久刪除"
+        isConfirmDanger
+        requireText={deleteTarget?.full_name}
+        isLoading={isActing}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={roleConfirm !== null}
+        title={
+          roleConfirm
+            ? `將 ${roleConfirm.row.full_name} 的角色改為${STAFF_ROLE[roleConfirm.role]}？`
+            : ""
+        }
+        description="角色決定後台權限範圍，變更後立即生效。系統至少須保留一位系統管理員。"
+        isLoading={isActing}
+        onConfirm={confirmRoleChange}
+        onClose={() => setRoleConfirm(null)}
+      />
+
       {editTarget && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
           <button
@@ -462,14 +520,14 @@ export default function StaffPage() {
                 姓名已鎖定職員自助修改，由系統管理員在此維護。帳號 {editTarget.username}。
               </p>
               <div className="mt-4 space-y-4">
-                <Field label="姓名" required>
+                <Field label="姓名" required error={editErrors.fullName}>
                   <input
                     className={inputClass}
                     value={editForm.fullName}
                     onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
                   />
                 </Field>
-                <Field label="聯絡電話" required>
+                <Field label="聯絡電話" required error={editErrors.phone}>
                   <input
                     className={inputClass}
                     value={editForm.phone}

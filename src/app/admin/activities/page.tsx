@@ -19,10 +19,15 @@ import {
   Toolbar,
   SearchInput,
   Pagination,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { archiveRecord, restoreRecord } from "@/lib/actions/admin-archive";
+import {
+  archiveRecord,
+  restoreRecord,
+  deleteRecordPermanently,
+} from "@/lib/actions/admin-archive";
 import { ACTIVITY_STATUS, ACTIVITY_TYPE } from "@/lib/admin/labels";
 import { formatSessionRange } from "@/lib/admin/datetime";
 import type { Activity, ActivityStatus } from "@/lib/types/database";
@@ -47,6 +52,7 @@ export default function AdminActivitiesPage() {
   const [scopeFilter, setScopeFilter] = useState("all"); // all | mine
   const [showArchived, setShowArchived] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<ActivityRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ActivityRow | null>(null);
   const [isActing, setIsActing] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -82,6 +88,17 @@ export default function AdminActivitiesPage() {
     const result = await restoreRecord("activities", row.id);
     if (result.error) return void toast.error(result.error);
     toast.success("活動已還原");
+    await load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setIsActing(true);
+    const result = await deleteRecordPermanently("activities", deleteTarget.id);
+    setIsActing(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success(`已永久刪除「${deleteTarget.title}」與其場次、報名紀錄`);
+    setDeleteTarget(null);
     await load();
   };
 
@@ -237,43 +254,49 @@ export default function AdminActivitiesPage() {
                         {row.creator?.full_name ?? "—"}
                       </Td>
                       <Td className="whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {showArchived ? (
-                            isSysAdmin && (
-                              <button
-                                onClick={() => restore(row)}
-                                className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                              >
-                                還原
-                              </button>
-                            )
-                          ) : (
-                            <>
-                              {row.status !== "completed" && row.status !== "cancelled" && (
-                                <Link
-                                  href={`/admin/activities/${row.id}/edit`}
-                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                                >
-                                  編輯
-                                </Link>
-                              )}
-                              <Link
-                                href={`/admin/activities/${row.id}`}
-                                className="rounded-lg px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/5"
-                              >
-                                管理
-                              </Link>
-                              {isSysAdmin && (
-                                <button
-                                  onClick={() => setArchiveTarget(row)}
-                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                                >
-                                  封存
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
+                        <RowActionMenu
+                          ariaLabel={`${row.title} 的操作`}
+                          actions={
+                            showArchived
+                              ? [
+                                  isSysAdmin && {
+                                    label: "還原",
+                                    icon: "restore",
+                                    onSelect: () => restore(row),
+                                  },
+                                  isSysAdmin && {
+                                    label: "永久刪除",
+                                    icon: "delete_forever",
+                                    danger: true,
+                                    onSelect: () => setDeleteTarget(row),
+                                  },
+                                ]
+                              : [
+                                  {
+                                    label: "管理",
+                                    icon: "tune",
+                                    href: `/admin/activities/${row.id}`,
+                                  },
+                                  row.status !== "completed" &&
+                                    row.status !== "cancelled" && {
+                                      label: "編輯",
+                                      icon: "edit",
+                                      href: `/admin/activities/${row.id}/edit`,
+                                    },
+                                  isSysAdmin && {
+                                    label: "封存",
+                                    icon: "archive",
+                                    onSelect: () => setArchiveTarget(row),
+                                  },
+                                  isSysAdmin && {
+                                    label: "永久刪除",
+                                    icon: "delete_forever",
+                                    danger: true,
+                                    onSelect: () => setDeleteTarget(row),
+                                  },
+                                ]
+                          }
+                        />
                       </Td>
                     </tr>
                   );
@@ -299,6 +322,18 @@ export default function AdminActivitiesPage() {
         isLoading={isActing}
         onConfirm={confirmArchive}
         onClose={() => setArchiveTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={deleteTarget ? `永久刪除「${deleteTarget.title}」？` : ""}
+        description="將永久刪除此活動與其所有場次、報名與出席紀錄（無法復原），相關學生時數也會一併消失。若僅需自前台隱藏請改用「封存」。"
+        confirmText="永久刪除"
+        isConfirmDanger
+        requireText={deleteTarget?.title}
+        isLoading={isActing}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteTarget(null)}
       />
     </>
   );
