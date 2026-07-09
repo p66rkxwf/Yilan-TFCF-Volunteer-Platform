@@ -128,4 +128,34 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   auto_expire_registration: "自動標記報名過期",
   resolve_support_request: "標記支援需求已處理",
   reopen_support_request: "重新開啟支援需求",
+  // 志工自助操作
+  volunteer_register: "志工報名",
+  volunteer_cancel: "志工取消/申請取消報名",
+  volunteer_self_checkin: "志工自行簽到",
+  verify_email: "完成 Email 驗證",
+  // 後台維護
+  admin_update_volunteer_profile: "編輯學生基本資料",
+  set_volunteer_worker: "改派負責社工",
+  reassign_worker: "批量移轉負責社工",
+  archive_record: "封存資料",
+  restore_record: "還原資料",
+  manual_purge: "手動清除逾期資料",
+  create_announcement: "新增公告",
+  update_announcement: "編輯公告",
+  delete_announcement: "刪除公告",
+  activity_open: "發布活動",
+  activity_closed: "截止活動報名",
+  create_session: "新增場次",
+  update_session: "編輯場次",
+  delete_session: "刪除場次",
+  update_system_settings: "更新系統參數",
+  create_period: "新增期間",
+  delete_period: "刪除期間",
+};
+
+// 稽核操作者身分別（audit_logs.actor_kind）
+export const AUDIT_ACTOR_KIND_LABELS: Record<string, string> = {
+  staff: "職員",
+  volunteer: "志工",
+  system: "系統自動",
 };

@@ -8,7 +8,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { useAdminProfile } from "../admin-context";
-import { setStaffRole, setStaffStatus, reassignWorker } from "@/lib/actions/admin-users";
+import {
+  setStaffRole,
+  setStaffStatus,
+  reassignWorker,
+  resetStaffPassword,
+} from "@/lib/actions/admin-users";
+import { archiveRecord, restoreRecord } from "@/lib/actions/admin-archive";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
@@ -22,10 +28,12 @@ import {
   Toolbar,
   SearchInput,
   Field,
+  inputClass,
 } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { STAFF_ROLE, STAFF_JOB_TITLE, STAFF_STATUS } from "@/lib/admin/labels";
+import { YILAN_REGIONS } from "@/lib/types/database";
 import type { StaffRole, StaffJobTitle, StaffAccountStatus } from "@/lib/types/database";
 
 interface StaffRow {
@@ -54,6 +62,11 @@ export default function StaffPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusConfirm, setStatusConfirm] = useState<StaffRow | null>(null);
+  const [resetPwTarget, setResetPwTarget] = useState<StaffRow | null>(null);
+  const [editTarget, setEditTarget] = useState<StaffRow | null>(null);
+  const [editForm, setEditForm] = useState({ fullName: "", phone: "", region: "" });
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<StaffRow | null>(null);
   const [isActing, setIsActing] = useState(false);
 
   // 學生移轉對話框
@@ -62,14 +75,19 @@ export default function StaffPage() {
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    let staffQuery = supabase
+      .from("staff_profiles")
+      .select("id, full_name, username, email, phone, region, role, job_title, status")
+      .order("created_at", { ascending: true });
+    staffQuery = showArchived
+      ? staffQuery.not("deleted_at", "is", null)
+      : staffQuery.is("deleted_at", null);
     const [staffRes, assignedRes] = await Promise.all([
-      supabase
-        .from("staff_profiles")
-        .select("id, full_name, username, email, phone, region, role, job_title, status")
-        .order("created_at", { ascending: true }),
+      staffQuery,
       supabase
         .from("volunteer_profiles")
         .select("assigned_worker_id")
+        .is("deleted_at", null)
         .not("assigned_worker_id", "is", null),
     ]);
     if (staffRes.error) toast.error(`載入職員失敗：${staffRes.error.message}`);
@@ -82,7 +100,7 @@ export default function StaffPage() {
     setWorkerCounts(counts);
     setIsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [showArchived]);
 
   useEffect(() => {
     load();
@@ -148,19 +166,85 @@ export default function StaffPage() {
     await load();
   };
 
+  const confirmResetPw = async () => {
+    if (!resetPwTarget) return;
+    setIsActing(true);
+    const result = await resetStaffPassword(resetPwTarget.id);
+    setIsActing(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success(
+      `已將密碼重置為帳號「${result.username}」，該職員首次登入時需自行設定新密碼。`
+    );
+    setResetPwTarget(null);
+  };
+
+  const openEdit = (row: StaffRow) => {
+    setEditForm({ fullName: row.full_name, phone: row.phone, region: row.region ?? "" });
+    setEditTarget(row);
+  };
+
+  const confirmArchive = async () => {
+    if (!archiveTarget) return;
+    setIsActing(true);
+    const result = await archiveRecord("staff_profiles", archiveTarget.id);
+    setIsActing(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success("已封存並停用該職員帳號登入");
+    setArchiveTarget(null);
+    await load();
+  };
+
+  const restoreStaff = async (row: StaffRow) => {
+    const result = await restoreRecord("staff_profiles", row.id);
+    if (result.error) return void toast.error(result.error);
+    toast.success("已還原並恢復登入");
+    await load();
+  };
+
+  // 職員姓名已鎖定自助修改；系統管理員在此代為維護（走 staff_update_by_sysadmin policy）。
+  const submitEdit = async () => {
+    if (!editTarget) return;
+    if (!editForm.fullName.trim() || !editForm.phone.trim()) {
+      return void toast.error("姓名與電話為必填");
+    }
+    setIsActing(true);
+    const { error } = await supabase
+      .from("staff_profiles")
+      .update({
+        full_name: editForm.fullName.trim(),
+        phone: editForm.phone.trim(),
+        region: editForm.region.trim() || null,
+      })
+      .eq("id", editTarget.id);
+    setIsActing(false);
+    if (error) return void toast.error(`更新失敗：${error.message}`);
+    toast.success("已更新職員基本資料");
+    setEditTarget(null);
+    await load();
+  };
+
   return (
     <>
       <PageHeader
         title="職員管理"
         actions={
           isSystemAdmin ? (
-            <Link
-              href="/admin/staff/new"
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
-            >
-              <span className="material-symbols-outlined text-[18px]">person_add</span>
-              新增職員
-            </Link>
+            <>
+              <Link
+                href="/admin/staff/bulk"
+                className="inline-flex items-center gap-1.5 rounded-lg border-2 border-zinc-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-zinc-100"
+              >
+                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                批量匯入
+              </Link>
+              <Link
+                href="/admin/staff/new"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+              >
+                <span className="material-symbols-outlined text-[18px]">person_add</span>
+                新增職員
+              </Link>
+            </>
           ) : undefined
         }
       />
@@ -179,6 +263,17 @@ export default function StaffPage() {
               placeholder="搜尋姓名、帳號或電話…"
               className="w-56"
             />
+            {isSystemAdmin && (
+              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary/30"
+                />
+                顯示已封存
+              </label>
+            )}
             <p className="ml-auto text-xs text-slate-400">共 {filtered.length} 人</p>
           </Toolbar>
 
@@ -241,26 +336,63 @@ export default function StaffPage() {
                       {isAdmin && (
                         <Td className="text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {row.job_title === "social_worker" &&
-                              (workerCounts[row.id] ?? 0) > 0 && (
+                            {showArchived ? (
+                              isSystemAdmin && (
                                 <button
-                                  onClick={() => openReassign(row)}
-                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
+                                  onClick={() => restoreStaff(row)}
+                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
                                 >
-                                  移轉學生
+                                  還原
                                 </button>
-                              )}
-                            {isSystemAdmin && !isSelf && (
-                              <button
-                                onClick={() => setStatusConfirm(row)}
-                                className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                                  row.status === "active"
-                                    ? "text-rose-600 hover:bg-rose-50"
-                                    : "text-emerald-700 hover:bg-emerald-50"
-                                }`}
-                              >
-                                {row.status === "active" ? "停權" : "復職"}
-                              </button>
+                              )
+                            ) : (
+                              <>
+                                {row.job_title === "social_worker" &&
+                                  (workerCounts[row.id] ?? 0) > 0 && (
+                                    <button
+                                      onClick={() => openReassign(row)}
+                                      className="rounded-lg px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
+                                    >
+                                      移轉學生
+                                    </button>
+                                  )}
+                                {isSystemAdmin && (
+                                  <button
+                                    onClick={() => openEdit(row)}
+                                    className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                  >
+                                    編輯
+                                  </button>
+                                )}
+                                {isSystemAdmin && !isSelf && (
+                                  <button
+                                    onClick={() => setResetPwTarget(row)}
+                                    className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                  >
+                                    重置密碼
+                                  </button>
+                                )}
+                                {isSystemAdmin && !isSelf && (
+                                  <button
+                                    onClick={() => setStatusConfirm(row)}
+                                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                                      row.status === "active"
+                                        ? "text-rose-600 hover:bg-rose-50"
+                                        : "text-emerald-700 hover:bg-emerald-50"
+                                    }`}
+                                  >
+                                    {row.status === "active" ? "停權" : "復職"}
+                                  </button>
+                                )}
+                                {isSystemAdmin && !isSelf && (workerCounts[row.id] ?? 0) === 0 && (
+                                  <button
+                                    onClick={() => setArchiveTarget(row)}
+                                    className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                                  >
+                                    封存
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
                         </Td>
@@ -291,6 +423,81 @@ export default function StaffPage() {
         onConfirm={confirmStatus}
         onClose={() => setStatusConfirm(null)}
       />
+
+      <ConfirmDialog
+        open={resetPwTarget !== null}
+        title={resetPwTarget ? `重置 ${resetPwTarget.full_name} 的密碼？` : ""}
+        description={
+          resetPwTarget
+            ? `將把密碼重置為帳號「${resetPwTarget.username}」，該職員首次登入時系統會強制要求設定新密碼。`
+            : ""
+        }
+        isLoading={isActing}
+        onConfirm={confirmResetPw}
+        onClose={() => setResetPwTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={archiveTarget !== null}
+        title={archiveTarget ? `封存 ${archiveTarget.full_name}？` : ""}
+        description="封存後該職員將自名冊隱藏並停用登入（可於「顯示已封存」中還原）。歷史紀錄保留；帳號不會被自動刪除。若其名下仍有負責學生，請先移轉再封存。"
+        isConfirmDanger
+        isLoading={isActing}
+        onConfirm={confirmArchive}
+        onClose={() => setArchiveTarget(null)}
+      />
+
+      {editTarget && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/40"
+            onClick={() => !isActing && setEditTarget(null)}
+            aria-label="關閉"
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
+            <div className="px-6 py-5">
+              <h3 className="text-lg font-bold text-slate-900">編輯職員基本資料</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                姓名已鎖定職員自助修改，由系統管理員在此維護。帳號 {editTarget.username}。
+              </p>
+              <div className="mt-4 space-y-4">
+                <Field label="姓名" required>
+                  <input
+                    className={inputClass}
+                    value={editForm.fullName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
+                  />
+                </Field>
+                <Field label="聯絡電話" required>
+                  <input
+                    className={inputClass}
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                  />
+                </Field>
+                <Field label="地區">
+                  <Select
+                    value={editForm.region}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, region: v }))}
+                    placeholder="請選擇地區"
+                    options={YILAN_REGIONS.map((r) => ({ value: r, label: r }))}
+                    menuClassName="bg-white"
+                  />
+                </Field>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+              <Button size="sm" variant="ghost" disabled={isActing} onClick={() => setEditTarget(null)}>
+                取消
+              </Button>
+              <Button size="sm" isLoading={isActing} onClick={submitEdit}>
+                儲存
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reassignFrom && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">

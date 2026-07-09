@@ -1,7 +1,9 @@
 "use client";
 
 // 報表與統計：KPI 概況 ＋ 9 種 CSV 匯出（UTF-8 BOM，Excel 直接開）。
-// 資料來源多為預先聚合的視圖；操作紀錄與職員名冊僅系統管理員可匯出（RLS 亦強制）。
+// 資料來源多為預先聚合的視圖。「操作紀錄」限系統管理員：RLS（audit_select_sysadmin）
+// 亦強制。「職員名冊」的按鈕僅對系統管理員顯示（UI 收斂）；但 staff_profiles 的
+// staff_select policy 允許所有在職職員讀取，故此限制屬 UI 層而非 RLS 層。
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +22,7 @@ import {
   STAFF_JOB_TITLE,
   ANNOUNCEMENT_STATUS,
   AUDIT_ACTION_LABELS,
+  AUDIT_ACTOR_KIND_LABELS,
 } from "@/lib/admin/labels";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import { formatDateTime } from "@/lib/admin/datetime";
@@ -274,19 +277,33 @@ export default function ReportsPage() {
       const toIso = new Date(`${dateTo}T23:59:59+08:00`).toISOString();
       const { data, error } = await supabase
         .from("audit_logs")
-        .select("created_at, action, target_table, target_id, actor:actor_id(full_name)")
+        .select("created_at, action, target_table, target_id, actor_id, actor_kind")
         .gte("created_at", fromIso)
         .lte("created_at", toIso)
         .order("created_at", { ascending: false });
       if (error) throw error;
+
+      // actor_id 可能是職員或志工，兩張表都查後組名。
+      const logs = (data ?? []) as any[];
+      const ids = [...new Set(logs.map((l) => l.actor_id).filter(Boolean))] as string[];
+      const nameMap = new Map<string, string>();
+      if (ids.length > 0) {
+        const [{ data: staff }, { data: vols }] = await Promise.all([
+          supabase.from("staff_profiles").select("id, full_name").in("id", ids),
+          supabase.from("volunteer_profiles").select("id, full_name").in("id", ids),
+        ]);
+        for (const s of (staff ?? []) as any[]) nameMap.set(s.id, s.full_name);
+        for (const v of (vols ?? []) as any[]) if (!nameMap.has(v.id)) nameMap.set(v.id, v.full_name);
+      }
       return {
-        headers: ["時間", "操作", "對象資料表", "對象 ID", "操作人"],
-        rows: (data ?? []).map((l: any) => [
+        headers: ["時間", "操作", "身分", "操作人", "對象資料表", "對象 ID"],
+        rows: logs.map((l) => [
           formatDateTime(l.created_at),
           AUDIT_ACTION_LABELS[l.action] ?? l.action,
+          AUDIT_ACTOR_KIND_LABELS[l.actor_kind ?? "system"] ?? "",
+          l.actor_id ? nameMap.get(l.actor_id) ?? "" : "系統自動",
           l.target_table,
           l.target_id,
-          l.actor?.full_name ?? "系統自動",
         ]),
       };
     });

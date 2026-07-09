@@ -41,6 +41,7 @@ const ALLOWED_JOBS = new Set<string>([
   "job_release_blacklists",
   "job_send_review_reminders",
   "job_send_activity_reminders",
+  "job_purge_expired",
 ]);
 
 interface OutboxRow {
@@ -91,6 +92,7 @@ const SUBJECTS: Record<string, string> = {
   registration_cancelled_by_admin: "您的報名已被取消",
   deactivation_requested: "【社工提醒】志工提出帳號停用申請",
   deactivation_review_result: "您的帳號停用申請審核結果",
+  email_verification: "您的 Email 驗證碼",
 };
 
 // 通知內文以「已發生事件 + 登入查看」為主；payload 多為內部 id，故僅在有
@@ -124,6 +126,8 @@ function lead(type: string): string {
       return "您負責的志工提出了帳號停用申請，請至後台審核。";
     case "deactivation_review_result":
       return "您的帳號停用申請已有審核結果。";
+    case "email_verification":
+      return "以下是您的 Email 驗證碼，請於平台的驗證頁輸入以完成驗證。";
     default:
       return "您在志工平台有一則新通知。";
   }
@@ -140,6 +144,32 @@ function renderTemplate(
   const when = formatTW(payload?.["start_at"]);
   const whenLine = when ? `活動時間：${when}` : "";
   const cta = siteUrl || "";
+
+  // Email 驗證碼：內文以驗證碼為主，不引導點連結（避免釣魚觀感）。
+  const code =
+    type === "email_verification" ? String(payload?.["code"] ?? "").trim() : "";
+
+  if (code) {
+    const text = [
+      greeting,
+      "",
+      lead(type),
+      "",
+      `驗證碼：${code}`,
+      "此驗證碼 15 分鐘內有效，請勿轉發他人。",
+      "",
+      "— 宜蘭家扶中心志工平台（此為系統自動通知，請勿直接回覆）",
+    ].join("\n");
+    const html = `<div style="font-family:system-ui,-apple-system,'Noto Sans TC',sans-serif;font-size:15px;color:#0f172a;line-height:1.7">
+  <p>${escapeHtml(greeting)}</p>
+  <p>${escapeHtml(lead(type))}</p>
+  <p style="font-size:28px;font-weight:800;letter-spacing:6px;color:#0f172a;margin:16px 0">${escapeHtml(code)}</p>
+  <p style="color:#475569">此驗證碼 15 分鐘內有效，請勿轉發他人。</p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
+  <p style="color:#94a3b8;font-size:12px">宜蘭家扶中心志工平台 · 此為系統自動通知，請勿直接回覆</p>
+</div>`;
+    return { subject, html, text };
+  }
 
   const textParts = [
     greeting,
@@ -191,6 +221,16 @@ async function resolveRecipients(
   return map;
 }
 
+// 寄信失敗時以 retryable 標記是否為「暫時性」錯誤（網路/5xx/429）：暫時性者保留
+// pending 由下一輪重試，永久性（4xx，如收件者無效）才標 failed。
+class SendError extends Error {
+  retryable: boolean;
+  constructor(message: string, retryable: boolean) {
+    super(message);
+    this.retryable = retryable;
+  }
+}
+
 async function sendEmail(
   env: Env,
   to: string,
@@ -198,23 +238,36 @@ async function sendEmail(
   html: string,
   text: string
 ): Promise<void> {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: env.MAIL_FROM ?? DEFAULT_MAIL_FROM,
-      to,
-      subject,
-      html,
-      text,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: env.MAIL_FROM ?? DEFAULT_MAIL_FROM,
+        to,
+        subject,
+        html,
+        text,
+      }),
+    });
+  } catch (e) {
+    // 網路層錯誤（DNS/連線）→ 暫時性，保留重試
+    throw new SendError(
+      `resend network error: ${e instanceof Error ? e.message : String(e)}`,
+      true
+    );
+  }
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`resend ${res.status}: ${body.slice(0, 300)}`);
+    // 5xx / 429 視為暫時性；其餘（4xx）視為永久失敗
+    throw new SendError(
+      `resend ${res.status}: ${body.slice(0, 300)}`,
+      res.status >= 500 || res.status === 429
+    );
   }
 }
 
@@ -248,10 +301,11 @@ export async function drainOutbox(
 
   let sent = 0;
   let failed = 0;
+  let retried = 0;
   for (const row of rows) {
     try {
       const rec = recipients.get(row.recipient_user_id);
-      if (!rec?.email) throw new Error("找不到收件者 email");
+      if (!rec?.email) throw new SendError("找不到收件者 email", false);
       const tmpl = renderTemplate(
         row.notification_type,
         row.payload ?? {},
@@ -267,6 +321,12 @@ export async function drainOutbox(
       sent++;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
+      const retryable = e instanceof SendError ? e.retryable : true;
+      if (retryable) {
+        // 暫時性錯誤：保留 pending，不寫 error，交由下一輪重試。
+        retried++;
+        continue;
+      }
       await admin
         .from("notification_outbox")
         .update({ status: "failed", error: message.slice(0, 500) })
@@ -277,7 +337,7 @@ export async function drainOutbox(
   }
 
   console.log(
-    `[orchestrator] outbox processed=${rows.length} sent=${sent} failed=${failed}`
+    `[orchestrator] outbox processed=${rows.length} sent=${sent} failed=${failed} retried=${retried}`
   );
   return { processed: rows.length, sent, failed };
 }
@@ -305,6 +365,7 @@ async function runScheduled(scheduledTime: number, env: Env): Promise<void> {
   if (mm % 15 === 0) jobs.push("job_advance_activity_status"); // 每 15 分
   if (hh === 19 && mm === 10) jobs.push("job_attendance_scan"); // 03:10 台灣
   if (hh === 19 && mm === 20) jobs.push("job_release_blacklists"); // 03:20 台灣
+  if (hh === 19 && mm === 30) jobs.push("job_purge_expired"); // 03:30 台灣（定期清除）
   if (hh === 1 && mm === 0) jobs.push("job_send_review_reminders"); // 09:00 台灣
   if (hh === 10 && mm === 0) jobs.push("job_send_activity_reminders"); // 18:00 台灣
 

@@ -55,9 +55,10 @@ export default function VolunteerActivityDetailPage() {
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [openBySession, setOpenBySession] = useState<Map<string, number>>(new Map());
   const [regBySession, setRegBySession] = useState<Map<string, string>>(new Map());
-  const [organizer, setOrganizer] = useState<{ full_name: string; phone: string } | null>(null);
+  const [organizers, setOrganizers] = useState<{ full_name: string; phone: string }[]>([]);
   const [isFavorite, setIsFavorite] = useState(false);
   const [volunteerStatus, setVolunteerStatus] = useState<VolunteerStatus | null>(null);
+  const [emailVerified, setEmailVerified] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [actingSessionId, setActingSessionId] = useState<string | null>(null);
   const [favPending, setFavPending] = useState(false);
@@ -81,8 +82,7 @@ export default function VolunteerActivityDetailPage() {
       supabase
         .from("v_organizer_contacts")
         .select("full_name, phone")
-        .eq("activity_id", activityId)
-        .maybeSingle(),
+        .eq("activity_id", activityId),
     ]);
 
     if (activityRes.error || !activityRes.data) {
@@ -97,7 +97,7 @@ export default function VolunteerActivityDetailPage() {
     setOpenBySession(
       new Map((slotsRes.data ?? []).map((s: any) => [s.activity_session_id, s.open_slots]))
     );
-    setOrganizer((organizerRes.data as any) ?? null);
+    setOrganizers((organizerRes.data as any) ?? []);
 
     if (user) {
       const sessionIds = sess.map((s) => s.id);
@@ -124,10 +124,11 @@ export default function VolunteerActivityDetailPage() {
 
       const { data: vp } = await supabase
         .from("volunteer_profiles")
-        .select("status")
+        .select("status, email_verified_at")
         .eq("id", user.id)
         .maybeSingle();
       setVolunteerStatus(vp?.status ?? null);
+      setEmailVerified(!!vp?.email_verified_at);
     }
 
     setIsLoading(false);
@@ -238,26 +239,26 @@ export default function VolunteerActivityDetailPage() {
               {activity.location}
             </span>
           </p>
-          {organizer && (
-            <>
+          {organizers.map((org, i) => (
+            <div key={i} className="space-y-2.5">
               <p className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[20px] text-slate-400">person</span>
                 <span>
                   <span className="font-medium text-slate-500">主辦人：</span>
-                  {organizer.full_name}
+                  {org.full_name}
                 </span>
               </p>
-              {organizer.phone && (
+              {org.phone && (
                 <p className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-[20px] text-slate-400">call</span>
                   <span>
                     <span className="font-medium text-slate-500">聯絡電話：</span>
-                    {organizer.phone}
+                    {org.phone}
                   </span>
                 </p>
               )}
-            </>
-          )}
+            </div>
+          ))}
         </div>
 
         {activity.content && (
@@ -288,6 +289,18 @@ export default function VolunteerActivityDetailPage() {
           </div>
         )}
 
+        {accountActive && !emailVerified && (
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-amber-50 px-4 py-2.5 text-sm text-amber-700">
+            <span>報名前需先完成 Email 驗證。</span>
+            <Link
+              href="/profile/verify-email"
+              className="shrink-0 font-semibold text-amber-800 underline hover:text-amber-900"
+            >
+              前往驗證
+            </Link>
+          </div>
+        )}
+
         {sessions.filter((s) => !s.cancelled_at).length === 0 ? (
           <div className="py-12 text-center text-sm text-slate-400">
             此活動尚未開放任何場次。
@@ -303,7 +316,7 @@ export default function VolunteerActivityDetailPage() {
                 const pastDeadline = s.registration_deadline_at <= nowIso;
                 const full = openSlots <= 0;
                 const canRegister =
-                  accountActive && activityOpen && !cancelled && !ended && !pastDeadline && !full && !activeReg;
+                  accountActive && emailVerified && activityOpen && !cancelled && !ended && !pastDeadline && !full && !activeReg;
 
                 return (
                   <li key={s.id} className="flex flex-wrap items-center gap-3 py-3">

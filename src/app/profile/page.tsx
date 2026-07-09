@@ -97,12 +97,11 @@ export default function ProfilePage() {
 
     setIsSaving(true);
 
-    // V2 的欄位白名單 trigger 僅允許自行修改 full_name/phone/region；
-    // email 改走「帳號設定」頁的 Email 更新流程，生日由管理員維護。
+    // V2 的欄位白名單 trigger 僅允許志工自行修改 phone/region；姓名已鎖定改由
+    // 後台維護，email 改走「帳號設定」頁，生日由管理員維護。
     const { error } = await supabase
       .from("volunteer_profiles")
       .update({
-        full_name: form.full_name,
         phone: form.phone,
         region: (form.region as YilanRegion) || null,
       })
@@ -115,7 +114,6 @@ export default function ProfilePage() {
         prev
           ? {
               ...prev,
-              full_name: form.full_name,
               phone: form.phone,
               region: (form.region as YilanRegion) || null,
             }
@@ -139,8 +137,7 @@ export default function ProfilePage() {
   const accountStatus = profile?.status ? ACCOUNT_STATUS_MAP[profile.status] : null;
   const isDirty =
     !!profile &&
-    (form.full_name !== (profile.full_name || "") ||
-      form.phone !== (profile.phone || "") ||
+    (form.phone !== (profile.phone || "") ||
       form.region !== ((profile.region as YilanRegion) || ""));
 
   return (
@@ -179,16 +176,16 @@ export default function ProfilePage() {
             )}
             <dl>
               <InfoRow label="姓名">
-                <input
-                  className={profile ? inputClass : readonlyClass}
-                  type="text"
-                  name="full_name"
-                  placeholder="例：王小明"
-                  value={form.full_name}
-                  onChange={handleChange}
-                  disabled={!profile}
-                  readOnly={!profile}
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    className={readonlyClass}
+                    type="text"
+                    value={profile?.full_name || ""}
+                    disabled
+                    readOnly
+                  />
+                  <span className="whitespace-nowrap text-xs text-slate-400">如需修改請聯絡管理員</span>
+                </div>
               </InfoRow>
               <InfoRow label="電話">
                 <input

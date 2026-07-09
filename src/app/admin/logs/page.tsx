@@ -21,7 +21,7 @@ import {
   inputClass,
 } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
-import { AUDIT_ACTION_LABELS } from "@/lib/admin/labels";
+import { AUDIT_ACTION_LABELS, AUDIT_ACTOR_KIND_LABELS } from "@/lib/admin/labels";
 import { formatDateTime } from "@/lib/admin/datetime";
 
 interface LogRow {
@@ -30,7 +30,9 @@ interface LogRow {
   action: string;
   target_table: string;
   target_id: string;
-  actor: { full_name: string } | null;
+  actor_id: string | null;
+  actor_kind: string | null;
+  actorName: string | null;
 }
 
 function todayTaipei(offsetDays = 0): string {
@@ -63,13 +65,36 @@ export default function LogsPage() {
     const toIso = new Date(`${dateTo}T23:59:59+08:00`).toISOString();
     const { data, error } = await supabase
       .from("audit_logs")
-      .select("id, created_at, action, target_table, target_id, actor:actor_id(full_name)")
+      .select("id, created_at, action, target_table, target_id, actor_id, actor_kind")
       .gte("created_at", fromIso)
       .lte("created_at", toIso)
       .order("created_at", { ascending: false })
       .limit(1000);
-    if (error) toast.error(`載入操作紀錄失敗：${error.message}`);
-    else setRows((data ?? []) as unknown as LogRow[]);
+    if (error) {
+      toast.error(`載入操作紀錄失敗：${error.message}`);
+      setIsLoading(false);
+      return;
+    }
+
+    // actor_id 可能是職員或志工（外鍵已放寬至 auth.users），故兩張表都查後組名。
+    const base = (data ?? []) as unknown as Omit<LogRow, "actorName">[];
+    const ids = [...new Set(base.map((r) => r.actor_id).filter(Boolean))] as string[];
+    const nameMap = new Map<string, string>();
+    if (ids.length > 0) {
+      const [{ data: staff }, { data: vols }] = await Promise.all([
+        supabase.from("staff_profiles").select("id, full_name").in("id", ids),
+        supabase.from("volunteer_profiles").select("id, full_name").in("id", ids),
+      ]);
+      for (const s of (staff ?? []) as { id: string; full_name: string }[]) nameMap.set(s.id, s.full_name);
+      for (const v of (vols ?? []) as { id: string; full_name: string }[])
+        if (!nameMap.has(v.id)) nameMap.set(v.id, v.full_name);
+    }
+    setRows(
+      base.map((r) => ({
+        ...r,
+        actorName: r.actor_id ? nameMap.get(r.actor_id) ?? null : null,
+      }))
+    );
     setIsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
@@ -116,13 +141,14 @@ export default function LogsPage() {
                 <Th>操作</Th>
                 <Th>對象</Th>
                 <Th>操作人</Th>
+                <Th>身分</Th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <LoadingRow colSpan={4} />
+                <LoadingRow colSpan={5} />
               ) : rows.length === 0 ? (
-                <EmptyRow colSpan={4} message="此區間沒有操作紀錄" />
+                <EmptyRow colSpan={5} message="此區間沒有操作紀錄" />
               ) : (
                 rows.map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-slate-50">
@@ -138,7 +164,12 @@ export default function LogsPage() {
                         {row.target_id.slice(0, 8)}
                       </span>
                     </Td>
-                    <Td className="text-slate-600">{row.actor?.full_name ?? "系統自動"}</Td>
+                    <Td className="text-slate-600">
+                      {row.actorName ?? (row.actor_kind === "volunteer" ? "（已移除的志工）" : "系統自動")}
+                    </Td>
+                    <Td className="text-slate-500">
+                      {AUDIT_ACTOR_KIND_LABELS[row.actor_kind ?? "system"] ?? "—"}
+                    </Td>
                   </tr>
                 ))
               )}

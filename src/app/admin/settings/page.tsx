@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../admin-context";
+import { purgeNow, type PurgeCounts } from "@/lib/actions/admin-archive";
 import { Button } from "@/components/ui/button";
 import {
   PageHeader,
@@ -46,6 +47,8 @@ export default function SettingsPage() {
 
   const [newPeriod, setNewPeriod] = useState({ label: "", start_date: "", end_date: "" });
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  const [purging, setPurging] = useState(false);
+  const [purgeResult, setPurgeResult] = useState<PurgeCounts | null>(null);
 
   const load = useCallback(async () => {
     const [settingsRes, periodsRes, thrRes, refRes] = await Promise.all([
@@ -89,6 +92,10 @@ export default function SettingsPage() {
           makeup_attendance_grace_days: settings.makeup_attendance_grace_days,
           review_reminder_days_before: settings.review_reminder_days_before,
           self_checkin_open_minutes_before: settings.self_checkin_open_minutes_before,
+          purge_archived_retention_days: settings.purge_archived_retention_days,
+          purge_notification_retention_days: settings.purge_notification_retention_days,
+          purge_audit_retention_days: settings.purge_audit_retention_days,
+          purge_registration_retention_days: settings.purge_registration_retention_days,
         })
         .eq("id", 1);
       if (error) throw error;
@@ -176,6 +183,17 @@ export default function SettingsPage() {
     }
   };
 
+  const handlePurge = async () => {
+    setPurging(true);
+    const result = await purgeNow();
+    setPurging(false);
+    if (result.error) return void toast.error(result.error);
+    setPurgeResult(result.counts ?? null);
+    const c = result.counts;
+    const total = c ? c.archived + c.notifications + c.audit_logs + c.registrations : 0;
+    toast.success(`清除完成，共移除 ${total} 筆`);
+  };
+
   const numField = (
     label: string,
     hint: string,
@@ -243,6 +261,65 @@ export default function SettingsPage() {
                 <Button size="sm" isLoading={savingKey === "settings"} onClick={saveSettings}>
                   儲存系統參數
                 </Button>
+              </div>
+            )}
+          </Panel>
+        )}
+
+        {settings && (
+          <Panel
+            title="資料保留與清除"
+            description="定期清除逾保留期的資料以控制資料庫大小；每日自動執行，亦可立即手動清除。"
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {numField(
+                "已封存內容保留天數",
+                "封存（軟刪）超過此天數的公告／活動會被永久刪除。",
+                settings.purge_archived_retention_days,
+                (v) => setSettings({ ...settings, purge_archived_retention_days: v }),
+                1
+              )}
+              {numField(
+                "通知保留天數",
+                "已寄送／已讀且超過此天數的通知會被清除（未寄出者保留）。",
+                settings.purge_notification_retention_days,
+                (v) => setSettings({ ...settings, purge_notification_retention_days: v }),
+                1
+              )}
+              {numField(
+                "操作紀錄保留天數",
+                "超過此天數的稽核日誌會被清除；建議先於報表匯出保存。",
+                settings.purge_audit_retention_days,
+                (v) => setSettings({ ...settings, purge_audit_retention_days: v }),
+                1
+              )}
+              {numField(
+                "終態報名保留天數",
+                "已取消／過期／拒絕且無出席的報名，超過此天數會被清除（已出席的時數紀錄不受影響）。",
+                settings.purge_registration_retention_days,
+                (v) => setSettings({ ...settings, purge_registration_retention_days: v }),
+                1
+              )}
+            </div>
+            {canEdit && (
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <Button size="sm" isLoading={savingKey === "settings"} onClick={saveSettings}>
+                  儲存保留天數
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  isLoading={purging}
+                  onClick={handlePurge}
+                >
+                  立即清除逾期資料
+                </Button>
+                {purgeResult && (
+                  <span className="text-xs text-slate-500">
+                    上次清除：封存內容 {purgeResult.archived}、通知 {purgeResult.notifications}、
+                    操作紀錄 {purgeResult.audit_logs}、報名 {purgeResult.registrations} 筆
+                  </span>
+                )}
               </div>
             )}
           </Panel>

@@ -28,7 +28,6 @@ export default function NewVolunteerPage() {
     fullName: "",
     username: "",
     email: "",
-    password: "",
     phone: "",
     birthDate: "",
     grade: "university" as GradeLevel,
@@ -45,6 +44,7 @@ export default function NewVolunteerPage() {
         .select("id, full_name")
         .eq("status", "active")
         .eq("job_title", "social_worker")
+        .is("deleted_at", null)
         .order("full_name");
       if (!cancelled) {
         if (error) toast.error(`載入社工清單失敗：${error.message}`);
@@ -94,7 +94,7 @@ export default function NewVolunteerPage() {
                   autoComplete="off"
                 />
               </Field>
-              <Field label="Email" required>
+              <Field label="Email" required hint="僅作聯絡用途，可與其他人重複。">
                 <input
                   type="email"
                   className={inputClass}
@@ -103,16 +103,10 @@ export default function NewVolunteerPage() {
                   autoComplete="off"
                 />
               </Field>
-              <Field label="初始密碼" required hint="至少 8 字元，建議請學生登入後自行修改。">
-                <input
-                  type="text"
-                  className={inputClass}
-                  value={form.password}
-                  onChange={(e) => set("password", e.target.value)}
-                  autoComplete="off"
-                />
-              </Field>
             </div>
+            <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              初始密碼將自動設為「帳號」，該學生首次登入時系統會強制要求變更密碼。
+            </p>
           </Panel>
 
           <Panel title="基本資料">

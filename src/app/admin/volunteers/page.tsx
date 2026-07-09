@@ -20,6 +20,9 @@ import {
   Pagination,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useAdminProfile } from "../admin-context";
+import { archiveRecord, restoreRecord } from "@/lib/actions/admin-archive";
 import { VOLUNTEER_STATUS } from "@/lib/admin/labels";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import type { GradeLevel, VolunteerStatus } from "@/lib/types/database";
@@ -40,6 +43,8 @@ interface VolunteerRow {
 export default function VolunteersPage() {
   const supabase = createClient();
   const toast = useToast();
+  const profile = useAdminProfile();
+  const isSysAdmin = profile.role === "system_admin";
 
   const [rows, setRows] = useState<VolunteerRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,20 +52,43 @@ export default function VolunteersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [blacklistFilter, setBlacklistFilter] = useState("all");
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<VolunteerRow | null>(null);
+  const [isActing, setIsActing] = useState(false);
   const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    let q = supabase
       .from("volunteer_profiles")
       .select("id, full_name, phone, region, grade, status, is_blacklisted, worker:assigned_worker_id(full_name)")
       .order("created_at", { ascending: false })
       .limit(2000);
+    q = showArchived ? q.not("deleted_at", "is", null) : q.is("deleted_at", null);
+    const { data, error } = await q;
     if (error) toast.error(`載入學生失敗：${error.message}`);
     else setRows((data ?? []) as unknown as VolunteerRow[]);
     setIsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [showArchived]);
+
+  const confirmArchive = async () => {
+    if (!archiveTarget) return;
+    setIsActing(true);
+    const result = await archiveRecord("volunteer_profiles", archiveTarget.id);
+    setIsActing(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success("已封存並停用該學生帳號登入");
+    setArchiveTarget(null);
+    await load();
+  };
+
+  const restore = async (row: VolunteerRow) => {
+    const result = await restoreRecord("volunteer_profiles", row.id);
+    if (result.error) return void toast.error(result.error);
+    toast.success("已還原並恢復登入");
+    await load();
+  };
 
   useEffect(() => {
     load();
@@ -156,6 +184,20 @@ export default function VolunteersPage() {
                 ]}
               />
             </div>
+            {isSysAdmin && (
+              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => {
+                    setShowArchived(e.target.checked);
+                    resetPage();
+                  }}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary/30"
+                />
+                顯示已封存
+              </label>
+            )}
             <p className="ml-auto text-xs text-slate-400">共 {filtered.length} 人</p>
           </Toolbar>
 
@@ -168,13 +210,14 @@ export default function VolunteersPage() {
                 <Th>電話</Th>
                 <Th>負責社工</Th>
                 <Th>狀態</Th>
+                {isSysAdmin && <Th className="text-right">封存</Th>}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <LoadingRow colSpan={6} />
+                <LoadingRow colSpan={isSysAdmin ? 7 : 6} />
               ) : paged.length === 0 ? (
-                <EmptyRow colSpan={6} message="沒有符合條件的學生" />
+                <EmptyRow colSpan={isSysAdmin ? 7 : 6} message="沒有符合條件的學生" />
               ) : (
                 paged.map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-slate-50">
@@ -198,6 +241,25 @@ export default function VolunteersPage() {
                     <Td>
                       <StatusPill meta={VOLUNTEER_STATUS[row.status]} />
                     </Td>
+                    {isSysAdmin && (
+                      <Td className="text-right">
+                        {showArchived ? (
+                          <button
+                            onClick={() => restore(row)}
+                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            還原
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setArchiveTarget(row)}
+                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                          >
+                            封存
+                          </button>
+                        )}
+                      </Td>
+                    )}
                   </tr>
                 ))
               )}
@@ -212,6 +274,16 @@ export default function VolunteersPage() {
           />
         </Panel>
       </div>
+
+      <ConfirmDialog
+        open={archiveTarget !== null}
+        title={archiveTarget ? `封存 ${archiveTarget.full_name}？` : ""}
+        description="封存後該學生將自名冊隱藏並停用登入（可於「顯示已封存」中還原）。歷史報名與時數保留；超過保留天數也不會自動刪除帳號。"
+        isConfirmDanger
+        isLoading={isActing}
+        onConfirm={confirmArchive}
+        onClose={() => setArchiveTarget(null)}
+      />
     </>
   );
 }

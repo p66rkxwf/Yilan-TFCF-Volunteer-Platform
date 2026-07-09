@@ -23,7 +23,6 @@ export default function NewStaffPage() {
     fullName: "",
     username: "",
     email: "",
-    password: "",
     phone: "",
     role: "staff" as StaffRole,
     jobTitle: "other" as StaffJobTitle,
@@ -83,16 +82,10 @@ export default function NewStaffPage() {
                   autoComplete="off"
                 />
               </Field>
-              <Field label="初始密碼" required hint="至少 8 字元。">
-                <input
-                  type="text"
-                  className={inputClass}
-                  value={form.password}
-                  onChange={(e) => set("password", e.target.value)}
-                  autoComplete="off"
-                />
-              </Field>
             </div>
+            <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+              初始密碼將自動設為「帳號」，該職員首次登入時系統會強制要求變更密碼。
+            </p>
           </Panel>
 
           <Panel title="基本資料與權限">

@@ -14,6 +14,7 @@ import {
   resetVolunteerPassword,
   setVolunteerWorker,
 } from "@/lib/actions/admin-users";
+import { updateVolunteerProfile } from "@/lib/actions/admin-volunteers";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
@@ -35,7 +36,7 @@ import {
   ATTENDANCE_STATUS,
   CANCEL_REASON,
 } from "@/lib/admin/labels";
-import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
+import { GRADE_LEVEL_LABELS, YILAN_REGIONS } from "@/lib/types/database";
 import { formatDate, formatDateTime, formatSessionRange } from "@/lib/admin/datetime";
 import type {
   VolunteerProfile,
@@ -90,7 +91,9 @@ export default function VolunteerDetailPage() {
   const [blacklistNote, setBlacklistNote] = useState("");
 
   const [showResetPw, setShowResetPw] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
+
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editForm, setEditForm] = useState({ fullName: "", phone: "", region: "", birthDate: "" });
 
   const [workers, setWorkers] = useState<{ id: string; full_name: string }[]>([]);
   const [showReassign, setShowReassign] = useState(false);
@@ -144,6 +147,7 @@ export default function VolunteerDetailPage() {
         .select("id, full_name")
         .eq("status", "active")
         .eq("job_title", "social_worker")
+        .is("deleted_at", null)
         .order("full_name");
       setWorkers((ws ?? []) as { id: string; full_name: string }[]);
     }
@@ -214,21 +218,49 @@ export default function VolunteerDetailPage() {
     await load();
   };
 
-  const handleResetPassword = async () => {
-    if (newPassword.length < 8) {
-      toast.error("密碼至少需要 8 個字元。");
+  const openEditProfile = () => {
+    if (!volunteer) return;
+    setEditForm({
+      fullName: volunteer.full_name,
+      phone: volunteer.phone,
+      region: volunteer.region ?? "",
+      birthDate: volunteer.birth_date,
+    });
+    setShowEditProfile(true);
+  };
+
+  const handleEditProfile = async () => {
+    if (!editForm.fullName.trim() || !editForm.phone.trim()) {
+      toast.error("姓名與電話為必填");
       return;
     }
     setIsActing(true);
-    const result = await resetVolunteerPassword(volunteerId, newPassword);
+    const result = await updateVolunteerProfile({
+      volunteerId,
+      fullName: editForm.fullName,
+      phone: editForm.phone,
+      region: editForm.region,
+      birthDate: editForm.birthDate,
+    });
+    setIsActing(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success("已更新學生基本資料");
+    setShowEditProfile(false);
+    await load();
+  };
+
+  const handleResetPassword = async () => {
+    setIsActing(true);
+    const result = await resetVolunteerPassword(volunteerId);
     setIsActing(false);
     if (result.error) {
       toast.error(result.error);
       return;
     }
-    toast.success("已重設該學生的密碼，請將新密碼轉知學生。");
+    toast.success(
+      `已將密碼重置為帳號「${result.username}」，該學生首次登入時需自行設定新密碼。`
+    );
     setShowResetPw(false);
-    setNewPassword("");
   };
 
   const statusActions = useMemo(() => {
@@ -291,7 +323,18 @@ export default function VolunteerDetailPage() {
 
       <div className="flex-1 space-y-5 p-4 sm:p-6">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <Panel title="基本資料">
+          <Panel
+            title="基本資料"
+            action={
+              <button
+                type="button"
+                onClick={openEditProfile}
+                className="text-xs font-semibold text-primary hover:text-primary/80"
+              >
+                編輯
+              </button>
+            }
+          >
             <dl className="space-y-3">
               <DescriptionItem label="狀態">
                 <span className="inline-flex items-center gap-2">
@@ -483,7 +526,7 @@ export default function VolunteerDetailPage() {
           statusConfirm?.status === "suspended"
             ? "停權後將自動取消該學生名下所有「尚未開始」的有效報名並通知學生，帳號將無法登入與報名。"
             : statusConfirm?.status === "graduated"
-            ? "畢業結案將保留資料、停用登入與報名，並自動取消尚未開始的有效報名。"
+            ? "畢業結案將保留資料與登入，僅停止報名，並自動取消尚未開始的有效報名（仍可登入查詢歷年時數）。"
             : "復職後學生可重新登入與報名。"
         }
         isConfirmDanger={statusConfirm?.danger}
@@ -537,6 +580,71 @@ export default function VolunteerDetailPage() {
               </Button>
               <Button size="sm" variant="danger" isLoading={isActing} onClick={handleAddBlacklist}>
                 確定加入
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditProfile && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/40"
+            onClick={() => !isActing && setShowEditProfile(false)}
+            aria-label="關閉"
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
+            <div className="px-6 py-5">
+              <h3 className="text-lg font-bold text-slate-900">編輯基本資料</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                姓名已鎖定學生自助修改，改由此處維護。學制調整請至「年度審查」。
+              </p>
+              <div className="mt-4 space-y-4">
+                <Field label="姓名" required>
+                  <input
+                    className={inputClass}
+                    value={editForm.fullName}
+                    onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
+                  />
+                </Field>
+                <Field label="電話" required>
+                  <input
+                    className={inputClass}
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                  />
+                </Field>
+                <Field label="生日">
+                  <input
+                    type="date"
+                    className={`${inputClass} date-input`}
+                    value={editForm.birthDate}
+                    onChange={(e) => setEditForm((f) => ({ ...f, birthDate: e.target.value }))}
+                  />
+                </Field>
+                <Field label="地區">
+                  <Select
+                    value={editForm.region}
+                    onValueChange={(v) => setEditForm((f) => ({ ...f, region: v }))}
+                    placeholder="請選擇地區"
+                    options={YILAN_REGIONS.map((r) => ({ value: r, label: r }))}
+                    menuClassName="bg-white"
+                  />
+                </Field>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={isActing}
+                onClick={() => setShowEditProfile(false)}
+              >
+                取消
+              </Button>
+              <Button size="sm" isLoading={isActing} onClick={handleEditProfile}>
+                儲存
               </Button>
             </div>
           </div>
@@ -602,23 +710,13 @@ export default function VolunteerDetailPage() {
           />
           <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
             <div className="px-6 py-5">
-              <h3 className="text-lg font-bold text-slate-900">重設密碼</h3>
+              <h3 className="text-lg font-bold text-slate-900">重置密碼</h3>
               <p className="mt-1 text-sm text-slate-500">
-                為 {volunteer.full_name}（帳號 {volunteer.username}）設定新密碼。設定後請自行將
-                新密碼轉知學生；系統不會寄出通知。
+                將把 {volunteer.full_name} 的密碼重置為其帳號「
+                <span className="font-semibold text-slate-700">{volunteer.username}</span>
+                」，該學生首次登入時系統會強制要求設定新密碼。請將此規則轉知學生；
+                系統不會另外寄出通知。
               </p>
-              <div className="mt-4 space-y-4">
-                <Field label="新密碼" hint="至少 8 個字元。">
-                  <input
-                    type="text"
-                    autoComplete="new-password"
-                    className={inputClass}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="輸入新密碼"
-                  />
-                </Field>
-              </div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
               <Button
@@ -630,7 +728,7 @@ export default function VolunteerDetailPage() {
                 取消
               </Button>
               <Button size="sm" isLoading={isActing} onClick={handleResetPassword}>
-                確定重設
+                確定重置
               </Button>
             </div>
           </div>

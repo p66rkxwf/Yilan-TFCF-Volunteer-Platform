@@ -144,6 +144,12 @@ export async function signUp(formData: {
     return { error: "區域為必填欄位" };
   }
 
+  // 密碼長度伺服器端驗證（與 updatePassword / createStaff 等其他入口一致；
+  // 防繞過前端直呼 action 設定過短密碼）。
+  if (formData.password.length < 8) {
+    return { error: "密碼至少需要 8 個字元。" };
+  }
+
   // 聯絡 Email 伺服器端格式驗證（與 updateEmail / createStaff 等其他入口一致；
   // 前端亦有驗證，此處防繞過前端直呼 action 寫入不合法格式）。
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
@@ -260,9 +266,30 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "尚未登入。" };
 
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) return { error: `密碼更新失敗：${error.message}` };
+
+  // 清除「首次登入強制改密碼」旗標。使用者無法以自己的 session 關閉此旗標
+  // （20_must_change_password.sql 的 trigger 擋下），故以 admin client（service_role，
+  // auth.uid()=NULL 不觸發自改防護）更新，且限定為本人那一列。
+  // 志工／職員兩張互斥表各更新一次，未命中的表回 0 列無副作用。
+  const admin = adminClient();
+  await admin
+    .from("volunteer_profiles")
+    .update({ must_change_password: false })
+    .eq("id", user.id)
+    .eq("must_change_password", true);
+  await admin
+    .from("staff_profiles")
+    .update({ must_change_password: false })
+    .eq("id", user.id)
+    .eq("must_change_password", true);
+
   return { success: true };
 }
 
@@ -282,10 +309,11 @@ export async function updateEmail(newEmail: string): Promise<AuthResult> {
   } = await supabase.auth.getUser();
   if (!user) return { error: "尚未登入。" };
 
+  // 變更聯絡 Email 後需重新驗證：一併清空 email_verified_at（未驗證前不能報名/簽到）。
   const admin = adminClient();
   const { error } = await admin
     .from("volunteer_profiles")
-    .update({ email })
+    .update({ email, email_verified_at: null })
     .eq("id", user.id);
 
   if (error) return { error: `Email 更新失敗：${error.message}` };

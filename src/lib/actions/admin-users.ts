@@ -21,7 +21,6 @@ export async function createStaff(input: {
   fullName: string;
   username: string;
   email: string;
-  password: string;
   phone: string;
   role: StaffRole;
   jobTitle: StaffJobTitle;
@@ -40,26 +39,28 @@ export async function createStaff(input: {
     return { error: "僅系統管理員可建立職員帳號。" };
   }
 
+  const username = input.username.trim();
   if (!input.fullName.trim()) return { error: "請輸入姓名" };
-  if (!input.username.trim()) return { error: "請輸入帳號" };
+  if (!username) return { error: "請輸入帳號" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return { error: "請輸入有效的 Email" };
-  if (input.password.length < 8) return { error: "密碼至少需 8 個字元" };
   if (!input.phone.trim()) return { error: "電話為必填（主辦人電話會公開於前台）" };
 
   const admin = adminClient();
 
-  const { data: existing } = await admin
-    .from("staff_profiles")
-    .select("id")
-    .eq("username", input.username.trim())
-    .maybeSingle();
-  if (existing) return { error: "此帳號已被使用" };
+  // 帳號唯一性預檢：跨兩張互斥表都查，避免與志工帳號衝突（登入以帳號解析，
+  // 志工優先，同名會使職員永遠無法登入）。
+  const [{ data: existingStaff }, { data: existingVolunteer }] = await Promise.all([
+    admin.from("staff_profiles").select("id").eq("username", username).maybeSingle(),
+    admin.from("volunteer_profiles").select("id").eq("username", username).maybeSingle(),
+  ]);
+  if (existingStaff || existingVolunteer) return { error: "此帳號已被使用" };
 
+  // 初始密碼一律＝帳號，並要求首次登入強制改密碼（must_change_password）。
   const { data: authData, error: createError } = await admin.auth.admin.createUser({
     email: input.email.trim(),
-    password: input.password,
+    password: username,
     email_confirm: true,
-    user_metadata: { full_name: input.fullName.trim(), account: input.username.trim() },
+    user_metadata: { full_name: input.fullName.trim(), account: username },
   });
 
   if (createError) {
@@ -75,12 +76,13 @@ export async function createStaff(input: {
     id: authData.user.id,
     full_name: input.fullName.trim(),
     email: input.email.trim(),
-    username: input.username.trim(),
+    username,
     phone: input.phone.trim(),
     region: input.region?.trim() || null,
     role: input.role,
     job_title: input.jobTitle,
     status: "active",
+    must_change_password: true,
   });
 
   if (profileError) {
@@ -157,16 +159,16 @@ export async function setStaffRole(
     return { error: "不可修改自己目前的角色。" };
   }
 
-  if (newRole === "system_admin") {
-    const { data: actorProfile } = await supabase
-      .from("staff_profiles")
-      .select("role")
-      .eq("id", userId as string)
-      .maybeSingle();
-
-    if (actorProfile?.role !== "system_admin") {
-      return { error: "僅系統管理員可將使用者設為系統管理員。" };
-    }
+  // 角色變更一律限系統管理員（DB fn_staff_update_guard 亦強制）。從 DB 重查角色，
+  // 不信任前端：否則非系統管理員呼叫時，RLS 只會靜默過濾 0 列而「不報錯」，
+  // 前端會誤判為成功（資安 L1）。
+  const { data: actorProfile } = await supabase
+    .from("staff_profiles")
+    .select("role")
+    .eq("id", userId as string)
+    .maybeSingle();
+  if (actorProfile?.role !== "system_admin") {
+    return { error: "僅系統管理員可變更職員角色。" };
   }
 
   const { error } = await supabase
@@ -259,12 +261,12 @@ export async function setVolunteerWorker(
   return { success: true };
 }
 
-// 管理員代重設「志工」密碼。志工以帳號登入、無法自助以 email 重設，故由管理員代設。
+// 管理員代重設「志工」密碼＝把密碼重置為該帳號的 username，並要求對方首次登入
+// 強制改密碼。志工以帳號登入、無法自助以 email 重設，故由管理員代設。
 // 限系統管理員／單位管理員；且僅能重設志工帳號（不可經此端點重設職員/管理員密碼）。
 export async function resetVolunteerPassword(
-  targetUserId: string,
-  newPassword: string
-): Promise<ActionResult> {
+  targetUserId: string
+): Promise<ActionResult & { username?: string }> {
   const { supabase, userId, error: authError } = await requireAdmin();
   if (authError) return { error: authError };
 
@@ -277,22 +279,64 @@ export async function resetVolunteerPassword(
     return { error: "僅管理員可重設密碼。" };
   }
 
-  if (newPassword.length < 8) {
-    return { error: "密碼至少需 8 個字元" };
-  }
-
   const admin = adminClient();
   // 僅允許重設「志工」帳號，避免經此端點重設職員/管理員密碼（權限升級防護）。
   const { data: target } = await admin
     .from("volunteer_profiles")
-    .select("id")
+    .select("id, username")
     .eq("id", targetUserId)
     .maybeSingle();
   if (!target) return { error: "找不到該志工帳號。" };
 
+  const username = (target as { username: string }).username;
   const { error } = await admin.auth.admin.updateUserById(targetUserId, {
-    password: newPassword,
+    password: username,
   });
   if (error) return { error: `重設密碼失敗：${error.message}` };
-  return { success: true };
+
+  await admin
+    .from("volunteer_profiles")
+    .update({ must_change_password: true })
+    .eq("id", targetUserId);
+
+  return { success: true, username };
+}
+
+// 管理員代重設「職員」密碼＝重置為帳號＝username，並要求首次登入強制改。
+// 限系統管理員（職員帳號較敏感，且不得經此提權/改動比自己更高權限者的密碼）。
+export async function resetStaffPassword(
+  targetUserId: string
+): Promise<ActionResult & { username?: string }> {
+  const { supabase, userId, error: authError } = await requireAdmin();
+  if (authError) return { error: authError };
+
+  const { data: actor } = await supabase
+    .from("staff_profiles")
+    .select("role")
+    .eq("id", userId as string)
+    .maybeSingle();
+  if (actor?.role !== "system_admin") {
+    return { error: "僅系統管理員可重設職員密碼。" };
+  }
+
+  const admin = adminClient();
+  const { data: target } = await admin
+    .from("staff_profiles")
+    .select("id, username")
+    .eq("id", targetUserId)
+    .maybeSingle();
+  if (!target) return { error: "找不到該職員帳號。" };
+
+  const username = (target as { username: string }).username;
+  const { error } = await admin.auth.admin.updateUserById(targetUserId, {
+    password: username,
+  });
+  if (error) return { error: `重設密碼失敗：${error.message}` };
+
+  await admin
+    .from("staff_profiles")
+    .update({ must_change_password: true })
+    .eq("id", targetUserId);
+
+  return { success: true, username };
 }

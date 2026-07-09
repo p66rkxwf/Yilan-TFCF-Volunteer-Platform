@@ -85,6 +85,11 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationMeta> = {
     lead: "您的帳號停用申請已有審核結果。",
     href: "/profile/settings",
   },
+  email_verification: {
+    title: "您的 Email 驗證碼",
+    lead: "您索取的 Email 驗證碼已寄到聯絡信箱，請至驗證頁輸入。",
+    href: "/profile/verify-email",
+  },
 };
 
 const FALLBACK_META: NotificationMeta = {

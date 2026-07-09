@@ -21,6 +21,8 @@ import {
   Pagination,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { archiveRecord, restoreRecord } from "@/lib/actions/admin-archive";
 import { ACTIVITY_STATUS, ACTIVITY_TYPE } from "@/lib/admin/labels";
 import { formatSessionRange } from "@/lib/admin/datetime";
 import type { Activity, ActivityStatus } from "@/lib/types/database";
@@ -36,28 +38,52 @@ export default function AdminActivitiesPage() {
   const supabase = createClient();
   const toast = useToast();
   const profile = useAdminProfile();
+  const isSysAdmin = profile.role === "system_admin";
 
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [scopeFilter, setScopeFilter] = useState("all"); // all | mine
+  const [showArchived, setShowArchived] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<ActivityRow | null>(null);
+  const [isActing, setIsActing] = useState(false);
   const [page, setPage] = useState(1);
 
   const load = useCallback(async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    let q = supabase
       .from("activities")
       .select(
         "*, activity_sessions(id, start_at, end_at, cancelled_at), creator:created_by(full_name)"
       )
       .order("created_at", { ascending: false })
       .limit(1000);
+    q = showArchived ? q.not("deleted_at", "is", null) : q.is("deleted_at", null);
+    const { data, error } = await q;
     if (error) toast.error(`載入活動失敗：${error.message}`);
     else setRows((data ?? []) as unknown as ActivityRow[]);
     setIsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [showArchived]);
+
+  const confirmArchive = async () => {
+    if (!archiveTarget) return;
+    setIsActing(true);
+    const result = await archiveRecord("activities", archiveTarget.id);
+    setIsActing(false);
+    if (result.error) return void toast.error(result.error);
+    toast.success("活動已封存（前台不再顯示，可於「顯示已封存」中還原）");
+    setArchiveTarget(null);
+    await load();
+  };
+
+  const restore = async (row: ActivityRow) => {
+    const result = await restoreRecord("activities", row.id);
+    if (result.error) return void toast.error(result.error);
+    toast.success("活動已還原");
+    await load();
+  };
 
   useEffect(() => {
     load();
@@ -146,6 +172,20 @@ export default function AdminActivitiesPage() {
                 ]}
               />
             </div>
+            {isSysAdmin && (
+              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => {
+                    setShowArchived(e.target.checked);
+                    setPage(1);
+                  }}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-primary focus:ring-primary/30"
+                />
+                顯示已封存
+              </label>
+            )}
             <p className="ml-auto text-xs text-slate-400">共 {filtered.length} 筆</p>
           </Toolbar>
 
@@ -198,20 +238,41 @@ export default function AdminActivitiesPage() {
                       </Td>
                       <Td className="whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1">
-                          {row.status !== "completed" && row.status !== "cancelled" && (
-                            <Link
-                              href={`/admin/activities/${row.id}/edit`}
-                              className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                            >
-                              編輯
-                            </Link>
+                          {showArchived ? (
+                            isSysAdmin && (
+                              <button
+                                onClick={() => restore(row)}
+                                className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                              >
+                                還原
+                              </button>
+                            )
+                          ) : (
+                            <>
+                              {row.status !== "completed" && row.status !== "cancelled" && (
+                                <Link
+                                  href={`/admin/activities/${row.id}/edit`}
+                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                                >
+                                  編輯
+                                </Link>
+                              )}
+                              <Link
+                                href={`/admin/activities/${row.id}`}
+                                className="rounded-lg px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/5"
+                              >
+                                管理
+                              </Link>
+                              {isSysAdmin && (
+                                <button
+                                  onClick={() => setArchiveTarget(row)}
+                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                                >
+                                  封存
+                                </button>
+                              )}
+                            </>
                           )}
-                          <Link
-                            href={`/admin/activities/${row.id}`}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/5"
-                          >
-                            管理
-                          </Link>
                         </div>
                       </Td>
                     </tr>
@@ -229,6 +290,16 @@ export default function AdminActivitiesPage() {
           />
         </Panel>
       </div>
+
+      <ConfirmDialog
+        open={archiveTarget !== null}
+        title={archiveTarget ? `封存「${archiveTarget.title}」？` : ""}
+        description="封存後此活動與其場次將自前台隱藏（志工看不到），後台可於「顯示已封存」還原。歷史報名與時數保留；超過保留天數且無場次者才會永久刪除。"
+        isConfirmDanger
+        isLoading={isActing}
+        onConfirm={confirmArchive}
+        onClose={() => setArchiveTarget(null)}
+      />
     </>
   );
 }

@@ -136,7 +136,7 @@ export default function SettingsPage() {
     if (result.error) {
       toast.error(result.error);
     } else {
-      toast.success("聯絡 Email 已更新。");
+      toast.success("聯絡 Email 已更新，報名前請至「驗證 Email」重新完成驗證。");
       setEmailForm({ email: "" });
     }
     setEmailLoading(false);

@@ -70,6 +70,9 @@ export interface StaffProfile {
   role: StaffRole;
   job_title: StaffJobTitle;
   status: StaffAccountStatus;
+  must_change_password: boolean;
+  deleted_at: string | null;
+  deleted_by: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -88,6 +91,10 @@ export interface VolunteerProfile {
   is_blacklisted: boolean;
   assigned_worker_id: string | null;
   last_grade_reviewed_at: string | null;
+  must_change_password: boolean;
+  email_verified_at: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -102,6 +109,8 @@ export interface Activity {
   location: string;
   cancel_review_window_days: number;
   status: ActivityStatus;
+  deleted_at: string | null;
+  deleted_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -193,7 +202,8 @@ export type NotificationType =
   | "schedule_conflict_alert"
   | "registration_cancelled_by_admin"
   | "deactivation_requested"
-  | "deactivation_review_result";
+  | "deactivation_review_result"
+  | "email_verification";
 
 // 站內通知中心讀取用（RLS 限本人列）；status/error/sent_at 為 email 寄送狀態，
 // read_at 為站內已讀狀態，兩者正交（見 15_notification_center.sql）。
@@ -234,6 +244,8 @@ export interface Announcement {
   is_pinned: boolean;
   status: AnnouncementStatus;
   published_at: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -265,12 +277,17 @@ export interface SystemSettings {
   makeup_attendance_grace_days: number;
   review_reminder_days_before: number;
   self_checkin_open_minutes_before: number;
+  purge_archived_retention_days: number;
+  purge_notification_retention_days: number;
+  purge_audit_retention_days: number;
+  purge_registration_retention_days: number;
   updated_at: string;
 }
 
 export interface AuditLog {
   id: string;
   actor_id: string | null;
+  actor_kind: string | null;
   action: string;
   target_table: string;
   target_id: string;
@@ -361,7 +378,11 @@ export interface Database {
     Tables: {
       staff_profiles: {
         Row: StaffProfile;
-        Insert: Omit<StaffProfile, "created_at" | "updated_at" | "last_login_at">;
+        Insert: Omit<StaffProfile, "created_at" | "updated_at" | "last_login_at" | "must_change_password" | "deleted_at" | "deleted_by"> & {
+          must_change_password?: boolean;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+        };
         Update: Partial<Omit<StaffProfile, "id" | "created_at" | "updated_at">>;
         Relationships: [];
       };
@@ -369,20 +390,26 @@ export interface Database {
         Row: VolunteerProfile;
         Insert: Omit<
           VolunteerProfile,
-          "created_at" | "updated_at" | "last_login_at" | "is_blacklisted" | "assigned_worker_id" | "last_grade_reviewed_at" | "status"
+          "created_at" | "updated_at" | "last_login_at" | "is_blacklisted" | "assigned_worker_id" | "last_grade_reviewed_at" | "status" | "must_change_password" | "email_verified_at" | "deleted_at" | "deleted_by"
         > & {
           status?: VolunteerStatus;
           is_blacklisted?: boolean;
           assigned_worker_id?: string | null;
           last_grade_reviewed_at?: string | null;
+          must_change_password?: boolean;
+          email_verified_at?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
         };
         Update: Partial<Omit<VolunteerProfile, "id" | "created_at" | "updated_at">>;
         Relationships: [];
       };
       activities: {
         Row: Activity;
-        Insert: Omit<Activity, "id" | "created_at" | "updated_at" | "status"> & {
+        Insert: Omit<Activity, "id" | "created_at" | "updated_at" | "status" | "deleted_at" | "deleted_by"> & {
           status?: ActivityStatus;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
         };
         Update: Partial<Omit<Activity, "id" | "created_at" | "updated_at">>;
         Relationships: [];
@@ -429,8 +456,10 @@ export interface Database {
       };
       announcements: {
         Row: Announcement;
-        Insert: Omit<Announcement, "id" | "created_at" | "updated_at" | "published_at"> & {
+        Insert: Omit<Announcement, "id" | "created_at" | "updated_at" | "published_at" | "deleted_at" | "deleted_by"> & {
           published_at?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
         };
         Update: Partial<Omit<Announcement, "id" | "created_at" | "updated_at">>;
         Relationships: [];
@@ -556,6 +585,22 @@ export interface Database {
         Args: { p_volunteer_id: string; p_worker_id: string };
         Returns: void;
       };
+      fn_must_change_password: { Args: Record<string, never>; Returns: boolean };
+      rpc_request_email_otp: { Args: Record<string, never>; Returns: void };
+      rpc_verify_email_otp: { Args: { p_code: string }; Returns: void };
+      rpc_admin_update_volunteer_profile: {
+        Args: {
+          p_volunteer_id: string;
+          p_full_name: string;
+          p_phone: string;
+          p_region?: string | null;
+          p_birth_date?: string | null;
+        };
+        Returns: void;
+      };
+      rpc_archive_record: { Args: { p_table: string; p_id: string }; Returns: void };
+      rpc_restore_record: { Args: { p_table: string; p_id: string }; Returns: void };
+      rpc_purge_now: { Args: Record<string, never>; Returns: unknown };
     };
     Enums: {
       staff_role: StaffRole;
