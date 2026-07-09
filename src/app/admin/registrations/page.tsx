@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
   Panel,
@@ -22,6 +23,7 @@ import {
   LoadingRow,
   TabBar,
   BatchBar,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { useSelection } from "@/components/admin/use-selection";
 import { formatDateTime, formatSessionRange } from "@/lib/admin/datetime";
@@ -65,6 +67,13 @@ function RegistrationsInner() {
   const [counts, setCounts] = useState({ pending: 0, cancel: 0, overdue: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isBatching, setIsBatching] = useState(false);
+  // 審核決定（核准／拒絕／駁回）狀態機不可回轉，一律先確認再執行
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    description: string;
+    run: () => Promise<void>;
+  } | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   const { selected, toggle, toggleAll, clear, allSelected } = useSelection(rows);
 
@@ -173,6 +182,31 @@ function RegistrationsInner() {
     }
   };
 
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    setIsConfirming(true);
+    await confirmAction.run();
+    setIsConfirming(false);
+    setConfirmAction(null);
+  };
+
+  const askSingle = (
+    row: ReviewRow,
+    rpc: "rpc_review_registration" | "rpc_review_cancel",
+    approve: boolean
+  ) => {
+    const name = row.volunteer?.full_name ?? "該學生";
+    const texts =
+      rpc === "rpc_review_registration"
+        ? approve
+          ? { title: `核准 ${name} 的報名？`, description: "核准後正式佔用名額並通知學生。審核結果無法直接復原。" }
+          : { title: `拒絕 ${name} 的報名？`, description: "拒絕後名額即時釋出並通知學生（學生仍可再次報名）。審核結果無法直接復原。" }
+        : approve
+          ? { title: `核准 ${name} 的取消申請？`, description: "核准後該報名將取消、名額釋出並通知學生。審核結果無法直接復原。" }
+          : { title: `駁回 ${name} 的取消申請？`, description: "駁回後報名回到已核准狀態（將計入出席掃描）並通知學生。" };
+    setConfirmAction({ ...texts, run: () => singleAction(row, rpc, approve) });
+  };
+
   const tabs: { key: TabKey; label: string; count?: number }[] = [
     { key: "pending", label: "待審核報名", count: counts.pending },
     { key: "cancel", label: "取消審核", count: counts.cancel },
@@ -262,39 +296,36 @@ function RegistrationsInner() {
                       {formatDateTime(tab === "pending" ? row.created_at : row.cancel_requested_at)}
                     </Td>
                     <Td className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {tab === "pending" ? (
-                          <>
-                            <button
-                              onClick={() => singleAction(row, "rpc_review_registration", true)}
-                              className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                            >
-                              核准
-                            </button>
-                            <button
-                              onClick={() => singleAction(row, "rpc_review_registration", false)}
-                              className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                            >
-                              拒絕
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => singleAction(row, "rpc_review_cancel", true)}
-                              className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                            >
-                              核准取消
-                            </button>
-                            <button
-                              onClick={() => singleAction(row, "rpc_review_cancel", false)}
-                              className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                            >
-                              駁回
-                            </button>
-                          </>
-                        )}
-                      </div>
+                      <RowActionMenu
+                        ariaLabel={`${row.volunteer?.full_name ?? "報名"} 的操作`}
+                        actions={
+                          tab === "pending"
+                            ? [
+                                {
+                                  label: "核准",
+                                  icon: "check_circle",
+                                  onSelect: () => askSingle(row, "rpc_review_registration", true),
+                                },
+                                {
+                                  label: "拒絕",
+                                  icon: "cancel",
+                                  onSelect: () => askSingle(row, "rpc_review_registration", false),
+                                },
+                              ]
+                            : [
+                                {
+                                  label: "核准取消",
+                                  icon: "check_circle",
+                                  onSelect: () => askSingle(row, "rpc_review_cancel", true),
+                                },
+                                {
+                                  label: "駁回",
+                                  icon: "undo",
+                                  onSelect: () => askSingle(row, "rpc_review_cancel", false),
+                                },
+                              ]
+                        }
+                      />
                     </Td>
                   </tr>
                 ))
@@ -308,23 +339,60 @@ function RegistrationsInner() {
         <BatchBar count={selectedRows.length} onClear={clear}>
           {tab === "pending" ? (
             <>
-              <Button size="sm" isLoading={isBatching} onClick={() => batchReview(true)}>
+              <Button
+                size="sm"
+                isLoading={isBatching}
+                onClick={() =>
+                  setConfirmAction({
+                    title: `批次核准 ${selectedRows.length} 筆報名？`,
+                    description: "核准後正式佔用名額並逐筆通知學生。審核結果無法直接復原。",
+                    run: () => batchReview(true),
+                  })
+                }
+              >
                 批次核准
               </Button>
-              <Button size="sm" variant="danger" isLoading={isBatching} onClick={() => batchReview(false)}>
+              <Button
+                size="sm"
+                variant="secondary"
+                isLoading={isBatching}
+                onClick={() =>
+                  setConfirmAction({
+                    title: `批次拒絕 ${selectedRows.length} 筆報名？`,
+                    description: "拒絕後名額即時釋出並逐筆通知學生。審核結果無法直接復原。",
+                    run: () => batchReview(false),
+                  })
+                }
+              >
                 批次拒絕
               </Button>
             </>
           ) : (
             <>
-              <Button size="sm" isLoading={isBatching} onClick={() => batchReviewCancel(true)}>
+              <Button
+                size="sm"
+                isLoading={isBatching}
+                onClick={() =>
+                  setConfirmAction({
+                    title: `批次核准 ${selectedRows.length} 筆取消申請？`,
+                    description: "核准後該些報名將取消、名額釋出並逐筆通知學生。審核結果無法直接復原。",
+                    run: () => batchReviewCancel(true),
+                  })
+                }
+              >
                 批次核准取消
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
                 isLoading={isBatching}
-                onClick={() => batchReviewCancel(false)}
+                onClick={() =>
+                  setConfirmAction({
+                    title: `批次駁回 ${selectedRows.length} 筆取消申請？`,
+                    description: "駁回後報名回到已核准狀態（將計入出席掃描）並逐筆通知學生。",
+                    run: () => batchReviewCancel(false),
+                  })
+                }
               >
                 批次駁回
               </Button>
@@ -332,6 +400,15 @@ function RegistrationsInner() {
           )}
         </BatchBar>
       )}
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={confirmAction?.title ?? ""}
+        description={confirmAction?.description}
+        isLoading={isConfirming || isBatching}
+        onConfirm={handleConfirmAction}
+        onClose={() => setConfirmAction(null)}
+      />
     </>
   );
 }

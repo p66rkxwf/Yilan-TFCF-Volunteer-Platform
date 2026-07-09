@@ -17,6 +17,7 @@ import {
   LoadingRow,
   Toolbar,
   SearchInput,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { SUPPORT_REQUEST_STATUS } from "@/lib/admin/labels";
@@ -162,23 +163,25 @@ export default function SupportRequestsPage() {
                       {formatDateTime(row.created_at)}
                     </Td>
                     <Td className="text-right">
-                      {row.status === "open" ? (
-                        <button
-                          onClick={() => setResolved(row, true)}
-                          disabled={actingId === row.id}
-                          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                        >
-                          標記已處理
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setResolved(row, false)}
-                          disabled={actingId === row.id}
-                          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                        >
-                          重新開啟
-                        </button>
-                      )}
+                      <RowActionMenu
+                        ariaLabel={`${row.name} 的操作`}
+                        actions={[
+                          { label: "查看內容", icon: "visibility", onSelect: () => setDetailTarget(row) },
+                          row.status === "open"
+                            ? {
+                                label: "標記已處理",
+                                icon: "task_alt",
+                                disabled: actingId === row.id,
+                                onSelect: () => setResolved(row, true),
+                              }
+                            : {
+                                label: "重新開啟",
+                                icon: "undo",
+                                disabled: actingId === row.id,
+                                onSelect: () => setResolved(row, false),
+                              },
+                        ]}
+                      />
                     </Td>
                   </tr>
                 ))

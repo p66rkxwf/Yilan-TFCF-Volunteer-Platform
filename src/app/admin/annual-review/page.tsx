@@ -19,7 +19,9 @@ import {
   Td,
   EmptyRow,
   LoadingRow,
+  RowActionMenu,
 } from "@/components/admin/ui";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import { formatDate } from "@/lib/admin/datetime";
@@ -35,6 +37,8 @@ export default function AnnualReviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingGrade, setPendingGrade] = useState<Record<string, GradeLevel>>({});
   const [actingId, setActingId] = useState<string | null>(null);
+  // 畢業結案會連動取消未來報名，先確認
+  const [graduateTarget, setGraduateTarget] = useState<AnnualGradeReviewRow | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -73,12 +77,14 @@ export default function AnnualReviewPage() {
     }
   };
 
-  const markGraduated = async (row: AnnualGradeReviewRow) => {
-    setActingId(row.id);
-    const result = await setVolunteerStatus(row.id, "graduated");
+  const confirmGraduate = async () => {
+    if (!graduateTarget) return;
+    setActingId(graduateTarget.id);
+    const result = await setVolunteerStatus(graduateTarget.id, "graduated");
     setActingId(null);
     if (result.error && !result.success) return void toast.error(result.error);
     toast.success("已標記畢業結案");
+    setGraduateTarget(null);
     await load();
   };
 
@@ -150,29 +156,29 @@ export default function AnnualReviewPage() {
                     )}
                     {isAdmin && (
                       <Td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            disabled={actingId === row.id}
-                            onClick={() => updateGrade(row, false)}
-                            className="rounded-lg px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/5 disabled:opacity-50"
-                          >
-                            更新
-                          </button>
-                          <button
-                            disabled={actingId === row.id}
-                            onClick={() => updateGrade(row, true)}
-                            className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
-                          >
-                            僅標記已審
-                          </button>
-                          <button
-                            disabled={actingId === row.id}
-                            onClick={() => markGraduated(row)}
-                            className="rounded-lg px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
-                          >
-                            畢業結案
-                          </button>
-                        </div>
+                        <RowActionMenu
+                          ariaLabel={`${row.full_name} 的操作`}
+                          actions={[
+                            {
+                              label: "更新學制",
+                              icon: "upgrade",
+                              disabled: actingId === row.id,
+                              onSelect: () => updateGrade(row, false),
+                            },
+                            {
+                              label: "僅標記已審",
+                              icon: "task_alt",
+                              disabled: actingId === row.id,
+                              onSelect: () => updateGrade(row, true),
+                            },
+                            {
+                              label: "畢業結案",
+                              icon: "school",
+                              disabled: actingId === row.id,
+                              onSelect: () => setGraduateTarget(row),
+                            },
+                          ]}
+                        />
                       </Td>
                     )}
                   </tr>
@@ -182,6 +188,15 @@ export default function AnnualReviewPage() {
           </TableShell>
         </Panel>
       </div>
+
+      <ConfirmDialog
+        open={graduateTarget !== null}
+        title={graduateTarget ? `標記 ${graduateTarget.full_name} 畢業結案？` : ""}
+        description="畢業結案將保留資料與登入，僅停止報名，並自動取消尚未開始的有效報名（可於學生詳情頁復職）。"
+        isLoading={actingId === graduateTarget?.id}
+        onConfirm={confirmGraduate}
+        onClose={() => setGraduateTarget(null)}
+      />
     </>
   );
 }

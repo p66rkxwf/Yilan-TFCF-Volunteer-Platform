@@ -22,8 +22,10 @@ import {
   LoadingRow,
   TabBar,
   Field,
+  RowActionMenu,
   inputClass,
 } from "@/components/admin/ui";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { formatDateTime, isoToTaipeiLocal, taipeiLocalToIso } from "@/lib/admin/datetime";
 import type { BlacklistEvent } from "@/lib/types/database";
 
@@ -49,6 +51,8 @@ function BlacklistInner() {
 
   const [adjustEvent, setAdjustEvent] = useState<EventRow | null>(null);
   const [newRelease, setNewRelease] = useState("");
+  // 提前解除後事件即關閉（無法恢復生效），先確認
+  const [releaseTarget, setReleaseTarget] = useState<EventRow | null>(null);
   const [isActing, setIsActing] = useState(false);
 
   const loadCounts = useCallback(async () => {
@@ -89,15 +93,17 @@ function BlacklistInner() {
     setNewRelease(isoToTaipeiLocal(event.expected_release_at));
   };
 
-  const releaseNow = async (event: EventRow) => {
+  const confirmRelease = async () => {
+    if (!releaseTarget) return;
     setIsActing(true);
     try {
       const { error } = await supabase.rpc("rpc_adjust_blacklist", {
-        p_event_id: event.id,
+        p_event_id: releaseTarget.id,
         p_new_release_at: new Date().toISOString(),
       });
       if (error) throw error;
       toast.success("已提前解除");
+      setReleaseTarget(null);
       await Promise.all([load(), loadCounts()]);
     } catch (error) {
       toast.error(getErrorMessage(error as Error));
@@ -144,6 +150,17 @@ function BlacklistInner() {
         description="多筆事件可重疊，全部解除後黑名單狀態才消失。手動加入請於學生詳情頁操作。"
       />
       <TabBar tabs={tabs} active={tab} onChange={changeTab} />
+
+      <ConfirmDialog
+        open={releaseTarget !== null}
+        title={
+          releaseTarget ? `提前解除 ${releaseTarget.volunteer?.full_name ?? ""} 的黑名單？` : ""
+        }
+        description="解除後該事件立即結束並通知學生；事件無法恢復生效（如需再列入須重新手動加入）。"
+        isLoading={isActing}
+        onConfirm={confirmRelease}
+        onClose={() => setReleaseTarget(null)}
+      />
 
       <div className="flex-1 p-4 sm:p-6">
         <Panel padded={false}>
@@ -206,21 +223,22 @@ function BlacklistInner() {
                     <Td className="max-w-xs text-slate-500">{event.note ?? "—"}</Td>
                     {tab === "active" && isAdmin && (
                       <Td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => openAdjust(event)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                          >
-                            延長／改期
-                          </button>
-                          <button
-                            disabled={isActing}
-                            onClick={() => releaseNow(event)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                          >
-                            提前解除
-                          </button>
-                        </div>
+                        <RowActionMenu
+                          ariaLabel={`${event.volunteer?.full_name ?? "黑名單事件"} 的操作`}
+                          actions={[
+                            {
+                              label: "延長／改期",
+                              icon: "edit_calendar",
+                              onSelect: () => openAdjust(event),
+                            },
+                            {
+                              label: "提前解除",
+                              icon: "lock_open",
+                              disabled: isActing,
+                              onSelect: () => setReleaseTarget(event),
+                            },
+                          ]}
+                        />
                       </Td>
                     )}
                   </tr>

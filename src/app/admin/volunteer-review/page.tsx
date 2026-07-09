@@ -14,6 +14,7 @@ import { reviewVolunteerAccount } from "@/lib/actions/admin-users";
 import { reviewDeactivationRequest } from "@/lib/actions/deactivation";
 import { useAdminProfile } from "../admin-context";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
   Panel,
@@ -24,6 +25,7 @@ import {
   LoadingRow,
   TabBar,
   BatchBar,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { useSelection } from "@/components/admin/use-selection";
@@ -72,6 +74,13 @@ function VolunteerReviewInner() {
   const [counts, setCounts] = useState({ accounts: 0, deactivation: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isBatching, setIsBatching] = useState(false);
+  // 審核決定無法直接復原，一律先確認再執行
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    description: string;
+    run: () => Promise<void>;
+  } | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   // 逐筆核准帳號時，各自選的負責社工
   const [rowWorker, setRowWorker] = useState<Record<string, string>>({});
@@ -184,6 +193,14 @@ function VolunteerReviewInner() {
     await refreshAll();
   };
 
+  const handleConfirmAction = async () => {
+    if (!confirmAction) return;
+    setIsConfirming(true);
+    await confirmAction.run();
+    setIsConfirming(false);
+    setConfirmAction(null);
+  };
+
   const changeTab = (key: TabKey) => {
     router.push(`/admin/volunteer-review${key === "accounts" ? "" : `?tab=${key}`}`);
   };
@@ -279,20 +296,37 @@ function VolunteerReviewInner() {
                         />
                       </Td>
                       <Td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => approveAccount(row)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                          >
-                            核准
-                          </button>
-                          <button
-                            onClick={() => rejectAccount(row)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                          >
-                            拒絕
-                          </button>
-                        </div>
+                        <RowActionMenu
+                          ariaLabel={`${row.full_name} 的操作`}
+                          actions={[
+                            {
+                              label: "核准",
+                              icon: "check_circle",
+                              onSelect: () => {
+                                if (!rowWorker[row.id]) {
+                                  return void toast.error("請先為此學生指定負責社工");
+                                }
+                                setConfirmAction({
+                                  title: `核准 ${row.full_name} 的註冊？`,
+                                  description:
+                                    "核准後帳號立即啟用、指派所選社工並通知學生。審核結果無法直接復原。",
+                                  run: () => approveAccount(row),
+                                });
+                              },
+                            },
+                            {
+                              label: "拒絕",
+                              icon: "cancel",
+                              onSelect: () =>
+                                setConfirmAction({
+                                  title: `拒絕 ${row.full_name} 的註冊？`,
+                                  description:
+                                    "拒絕後保留紀錄、帳號無法登入使用，並通知學生。審核結果無法直接復原。",
+                                  run: () => rejectAccount(row),
+                                }),
+                            },
+                          ]}
+                        />
                       </Td>
                     </tr>
                   ))
@@ -342,20 +376,32 @@ function VolunteerReviewInner() {
                         {formatDateTime(row.created_at)}
                       </Td>
                       <Td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => reviewDeactivation(row, true)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                          >
-                            核准停用
-                          </button>
-                          <button
-                            onClick={() => reviewDeactivation(row, false)}
-                            className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                          >
-                            駁回
-                          </button>
-                        </div>
+                        <RowActionMenu
+                          ariaLabel={`${row.volunteer?.full_name ?? "停用申請"} 的操作`}
+                          actions={[
+                            {
+                              label: "核准停用",
+                              icon: "person_off",
+                              onSelect: () =>
+                                setConfirmAction({
+                                  title: `核准 ${row.volunteer?.full_name ?? "該學生"} 的停用申請？`,
+                                  description:
+                                    "核准後帳號停權並連動取消未來報名、通知學生。審核結果無法直接復原（之後可於學生詳情頁復職）。",
+                                  run: () => reviewDeactivation(row, true),
+                                }),
+                            },
+                            {
+                              label: "駁回",
+                              icon: "undo",
+                              onSelect: () =>
+                                setConfirmAction({
+                                  title: `駁回 ${row.volunteer?.full_name ?? "該學生"} 的停用申請？`,
+                                  description: "駁回後帳號維持現狀並通知學生。",
+                                  run: () => reviewDeactivation(row, false),
+                                }),
+                            },
+                          ]}
+                        />
                       </Td>
                     </tr>
                   ))
@@ -377,11 +423,32 @@ function VolunteerReviewInner() {
               triggerClassName="py-1.5 text-xs bg-white"
             />
           </div>
-          <Button size="sm" isLoading={isBatching} onClick={batchApprove}>
+          <Button
+            size="sm"
+            isLoading={isBatching}
+            onClick={() => {
+              if (!batchWorker) return void toast.error("請先選擇要統一指派的負責社工");
+              setConfirmAction({
+                title: `批次核准 ${accountSelection.selected.size} 筆註冊？`,
+                description:
+                  "核准後帳號立即啟用、統一指派所選社工並逐筆通知學生。審核結果無法直接復原。",
+                run: batchApprove,
+              });
+            }}
+          >
             批次核准
           </Button>
         </BatchBar>
       )}
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={confirmAction?.title ?? ""}
+        description={confirmAction?.description}
+        isLoading={isConfirming || isBatching}
+        onConfirm={handleConfirmAction}
+        onClose={() => setConfirmAction(null)}
+      />
     </>
   );
 }

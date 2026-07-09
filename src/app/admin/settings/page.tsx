@@ -13,6 +13,7 @@ import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../admin-context";
 import { purgeNow, type PurgeCounts } from "@/lib/actions/admin-archive";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
   Panel,
@@ -22,6 +23,7 @@ import {
   Th,
   Td,
   EmptyRow,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { GRADE_LEVELS } from "@/lib/admin/labels";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
@@ -46,9 +48,17 @@ export default function SettingsPage() {
   const [refAges, setRefAges] = useState<Record<GradeLevel, string>>({} as any);
 
   const [newPeriod, setNewPeriod] = useState({ label: "", start_date: "", end_date: "" });
+  const [periodErrors, setPeriodErrors] = useState<{
+    label?: string;
+    start_date?: string;
+    end_date?: string;
+  }>({});
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [purging, setPurging] = useState(false);
   const [purgeResult, setPurgeResult] = useState<PurgeCounts | null>(null);
+  // 期間刪除與立即清除皆不可復原，先確認
+  const [deletePeriodTarget, setDeletePeriodTarget] = useState<Period | null>(null);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
 
   const load = useCallback(async () => {
     const [settingsRes, periodsRes, thrRes, refRes] = await Promise.all([
@@ -108,9 +118,15 @@ export default function SettingsPage() {
   };
 
   const addPeriod = async () => {
-    if (!newPeriod.label.trim() || !newPeriod.start_date || !newPeriod.end_date) {
-      return void toast.error("請填寫期間名稱與起訖日期");
+    const errors: typeof periodErrors = {};
+    if (!newPeriod.label.trim()) errors.label = "請輸入期間名稱";
+    if (!newPeriod.start_date) errors.start_date = "請選擇開始日期";
+    if (!newPeriod.end_date) errors.end_date = "請選擇結束日期";
+    else if (newPeriod.start_date && newPeriod.end_date <= newPeriod.start_date) {
+      errors.end_date = "結束日期需晚於開始日期";
     }
+    setPeriodErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setSavingKey("period");
     try {
       const { error } = await supabase.from("periods").insert({
@@ -129,14 +145,19 @@ export default function SettingsPage() {
     }
   };
 
-  const deletePeriod = async (id: string) => {
+  const confirmDeletePeriod = async () => {
+    if (!deletePeriodTarget) return;
+    setSavingKey("deletePeriod");
     try {
-      const { error } = await supabase.from("periods").delete().eq("id", id);
+      const { error } = await supabase.from("periods").delete().eq("id", deletePeriodTarget.id);
       if (error) throw error;
       toast.success("期間已刪除");
+      setDeletePeriodTarget(null);
       await load();
     } catch (error) {
       toast.error(getErrorMessage(error as Error));
+    } finally {
+      setSavingKey(null);
     }
   };
 
@@ -189,6 +210,7 @@ export default function SettingsPage() {
     setPurging(false);
     if (result.error) return void toast.error(result.error);
     setPurgeResult(result.counts ?? null);
+    setShowPurgeConfirm(false);
     const c = result.counts;
     const total = c ? c.archived + c.notifications + c.audit_logs + c.registrations : 0;
     toast.success(`清除完成，共移除 ${total} 筆`);
@@ -310,7 +332,7 @@ export default function SettingsPage() {
                   size="sm"
                   variant="danger"
                   isLoading={purging}
-                  onClick={handlePurge}
+                  onClick={() => setShowPurgeConfirm(true)}
                 >
                   立即清除逾期資料
                 </Button>
@@ -346,12 +368,17 @@ export default function SettingsPage() {
                     <Td className="text-slate-500">{formatDate(p.end_date)}</Td>
                     {canEdit && (
                       <Td className="text-right">
-                        <button
-                          onClick={() => deletePeriod(p.id)}
-                          className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
-                        >
-                          刪除
-                        </button>
+                        <RowActionMenu
+                          ariaLabel={`${p.label} 的操作`}
+                          actions={[
+                            {
+                              label: "刪除",
+                              icon: "delete_forever",
+                              danger: true,
+                              onSelect: () => setDeletePeriodTarget(p),
+                            },
+                          ]}
+                        />
                       </Td>
                     )}
                   </tr>
@@ -363,7 +390,7 @@ export default function SettingsPage() {
             <div className="border-t border-slate-100 p-4 sm:p-5">
               <p className="mb-3 text-sm font-semibold text-slate-700">新增期間</p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                <Field label="名稱">
+                <Field label="名稱" required error={periodErrors.label}>
                   <input
                     className={inputClass}
                     placeholder="例：115上"
@@ -371,7 +398,7 @@ export default function SettingsPage() {
                     onChange={(e) => setNewPeriod({ ...newPeriod, label: e.target.value })}
                   />
                 </Field>
-                <Field label="開始日期">
+                <Field label="開始日期" required error={periodErrors.start_date}>
                   <input
                     type="date"
                     className={`${inputClass} date-input`}
@@ -379,7 +406,7 @@ export default function SettingsPage() {
                     onChange={(e) => setNewPeriod({ ...newPeriod, start_date: e.target.value })}
                   />
                 </Field>
-                <Field label="結束日期">
+                <Field label="結束日期" required error={periodErrors.end_date}>
                   <input
                     type="date"
                     className={`${inputClass} date-input`}
@@ -455,6 +482,28 @@ export default function SettingsPage() {
           </Panel>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deletePeriodTarget !== null}
+        title={deletePeriodTarget ? `刪除期間「${deletePeriodTarget.label}」？` : ""}
+        description="刪除後無法復原；期間達標報表將不再包含此期間。"
+        confirmText="刪除"
+        isConfirmDanger
+        isLoading={savingKey === "deletePeriod"}
+        onConfirm={confirmDeletePeriod}
+        onClose={() => setDeletePeriodTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={showPurgeConfirm}
+        title="立即清除逾期資料？"
+        description="將依上方保留天數立即永久刪除：逾期的已封存內容、已寄送通知、稽核日誌與無出席的終態報名。此操作無法復原，建議先於報表頁匯出備份。"
+        confirmText="立即清除"
+        isConfirmDanger
+        isLoading={purging}
+        onConfirm={handlePurge}
+        onClose={() => setShowPurgeConfirm(false)}
+      />
     </>
   );
 }

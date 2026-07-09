@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
   Panel,
@@ -22,6 +23,7 @@ import {
   EmptyRow,
   LoadingRow,
   BatchBar,
+  RowActionMenu,
 } from "@/components/admin/ui";
 import { useSelection } from "@/components/admin/use-selection";
 import { ATTENDANCE_STATUS } from "@/lib/admin/labels";
@@ -49,6 +51,8 @@ export default function SessionRosterPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
   const [isBatching, setIsBatching] = useState(false);
+  // 補登出席會回補時數並自動解除黑名單，且無法改回缺席 → 先確認
+  const [makeupTarget, setMakeupTarget] = useState<RosterRow | null>(null);
 
   const { selected, toggle, toggleAll, clear, allSelected } = useSelection(rows);
 
@@ -119,12 +123,16 @@ export default function SessionRosterPage() {
     }
   };
 
-  const makeup = async (row: RosterRow) => {
-    setActingId(row.id);
+  const confirmMakeup = async () => {
+    if (!makeupTarget) return;
+    setActingId(makeupTarget.id);
     try {
-      const { error } = await supabase.rpc("rpc_makeup_attendance", { p_registration_id: row.id });
+      const { error } = await supabase.rpc("rpc_makeup_attendance", {
+        p_registration_id: makeupTarget.id,
+      });
       if (error) throw error;
       toast.success("已補登出席（如原為缺席，已自動解除對應黑名單並回補時數）");
+      setMakeupTarget(null);
       await refresh();
     } catch (error) {
       toast.error(getErrorMessage(error as Error));
@@ -204,7 +212,7 @@ export default function SessionRosterPage() {
             <span className="font-bold text-emerald-600">{stats.attended}</span>
             <span className="mx-1.5 text-slate-300">|</span>
             <span className="text-slate-500">缺席 </span>
-            <span className="font-bold text-rose-600">{stats.absent}</span>
+            <span className="font-bold text-slate-700">{stats.absent}</span>
             <span className="mx-1.5 text-slate-300">|</span>
             <span className="text-slate-500">未登記 </span>
             <span className="font-bold text-amber-600">{stats.unmarked}</span>
@@ -291,47 +299,41 @@ export default function SessionRosterPage() {
                         )}
                       </Td>
                       <Td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {withinGrace ? (
-                            <>
-                              {row.attendance !== "attended" && row.attendance !== "makeup_attended" && (
-                                <button
-                                  disabled={actingId === row.id}
-                                  onClick={() => checkIn(row, "attended")}
-                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
-                                >
-                                  出席
-                                </button>
-                              )}
-                              {row.attendance !== "absent" && (
-                                <button
-                                  disabled={actingId === row.id}
-                                  onClick={() => checkIn(row, "absent")}
-                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
-                                >
-                                  缺席
-                                </button>
-                              )}
-                              {done && (
-                                <span className="px-2 text-xs font-semibold text-emerald-600">✓</span>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {!done ? (
-                                <button
-                                  disabled={actingId === row.id}
-                                  onClick={() => makeup(row)}
-                                  className="rounded-lg px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-50"
-                                >
-                                  {row.attendance === "absent" ? "缺席改判・補登出席" : "補登出席"}
-                                </button>
-                              ) : (
-                                <span className="px-2 text-xs font-semibold text-emerald-600">✓ 已出席</span>
-                              )}
-                            </>
-                          )}
-                        </div>
+                        {withinGrace ? (
+                          <RowActionMenu
+                            ariaLabel={`${row.volunteer?.full_name ?? "報名"} 的出席操作`}
+                            actions={[
+                              row.attendance !== "attended" &&
+                                row.attendance !== "makeup_attended" && {
+                                  label: "登記出席",
+                                  icon: "how_to_reg",
+                                  disabled: actingId === row.id,
+                                  onSelect: () => checkIn(row, "attended"),
+                                },
+                              row.attendance !== "absent" && {
+                                label: "標記缺席",
+                                icon: "person_off",
+                                disabled: actingId === row.id,
+                                onSelect: () => checkIn(row, "absent"),
+                              },
+                            ]}
+                          />
+                        ) : !done ? (
+                          <RowActionMenu
+                            ariaLabel={`${row.volunteer?.full_name ?? "報名"} 的出席操作`}
+                            actions={[
+                              {
+                                label:
+                                  row.attendance === "absent" ? "缺席改判・補登出席" : "補登出席",
+                                icon: "event_available",
+                                disabled: actingId === row.id,
+                                onSelect: () => setMakeupTarget(row),
+                              },
+                            ]}
+                          />
+                        ) : (
+                          <span className="px-2 text-xs font-semibold text-emerald-600">✓ 已出席</span>
+                        )}
                       </Td>
                     </tr>
                   );
@@ -347,11 +349,31 @@ export default function SessionRosterPage() {
           <Button size="sm" isLoading={isBatching} onClick={() => batchCheckIn("attended")}>
             批次登記出席
           </Button>
-          <Button size="sm" variant="danger" isLoading={isBatching} onClick={() => batchCheckIn("absent")}>
+          <Button
+            size="sm"
+            variant="secondary"
+            isLoading={isBatching}
+            onClick={() => batchCheckIn("absent")}
+          >
             批次標記缺席
           </Button>
         </BatchBar>
       )}
+
+      <ConfirmDialog
+        open={makeupTarget !== null}
+        title={
+          makeupTarget ? `補登 ${makeupTarget.volunteer?.full_name ?? "該學生"} 的出席？` : ""
+        }
+        description={
+          makeupTarget?.attendance === "absent"
+            ? "缺席改判為出席後將回補服務時數，並自動解除因此缺席觸發的黑名單；補登後無法再改回缺席。"
+            : "補登出席後將依場次時長帶入服務時數；補登後無法再改回缺席。"
+        }
+        isLoading={actingId === makeupTarget?.id}
+        onConfirm={confirmMakeup}
+        onClose={() => setMakeupTarget(null)}
+      />
     </>
   );
 }
