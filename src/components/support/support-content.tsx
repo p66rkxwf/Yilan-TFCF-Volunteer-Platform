@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { submitSupportRequest } from "@/lib/actions/support";
+import { isValidEmail } from "@/lib/validation";
 import {
   TurnstileWidget,
   type TurnstileHandle,
@@ -57,20 +58,26 @@ export function SupportContent() {
     message: "",
   });
 
+  const [errors, setErrors] = useState<{ name?: string; email?: string; message?: string }>({});
+
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
+    setErrors((current) => ({ ...current, [name]: undefined }));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
-      toast.error("請先完整填寫姓名、Email 與問題描述。", "欄位未完成");
-      return;
-    }
+    const nextErrors: typeof errors = {};
+    if (!formData.name.trim()) nextErrors.name = "請輸入姓名";
+    if (!formData.email.trim()) nextErrors.email = "請輸入 Email";
+    else if (!isValidEmail(formData.email)) nextErrors.email = "Email 格式不正確";
+    if (!formData.message.trim()) nextErrors.message = "請描述遇到的問題";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     if (TURNSTILE_SITE_KEY && !turnstileToken) {
       toast.error("請先完成人機驗證後再送出。", "驗證未完成");
@@ -123,6 +130,9 @@ export function SupportContent() {
               placeholder="請輸入您的姓名"
               className={fieldCls}
             />
+            {errors.name && (
+              <span className="text-xs font-semibold text-amber-700">{errors.name}</span>
+            )}
           </label>
 
           <label className="flex flex-col gap-1.5">
@@ -135,6 +145,9 @@ export function SupportContent() {
               placeholder="name@example.com"
               className={fieldCls}
             />
+            {errors.email && (
+              <span className="text-xs font-semibold text-amber-700">{errors.email}</span>
+            )}
           </label>
         </div>
 
@@ -163,6 +176,9 @@ export function SupportContent() {
             placeholder="請描述發生的情況、操作步驟，以及是否影響報名或登入。"
             className={`resize-none leading-6 ${fieldCls}`}
           />
+          {errors.message && (
+            <span className="text-xs font-semibold text-amber-700">{errors.message}</span>
+          )}
         </label>
 
         {TURNSTILE_SITE_KEY && (

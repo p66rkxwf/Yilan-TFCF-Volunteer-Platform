@@ -17,8 +17,8 @@ import { taipeiLocalToIso } from "@/lib/admin/datetime";
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
 const DATE_LABEL = new Intl.DateTimeFormat("zh-TW", {
-  month: "numeric",
-  day: "numeric",
+  month: "2-digit",
+  day: "2-digit",
   weekday: "short",
   timeZone: "Asia/Taipei",
 });
@@ -47,6 +47,12 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
   // 累積的日期清單（yyyy-MM-dd，已去重、已排序）
   const [dates, setDates] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<{
+    startTime?: string;
+    endTime?: string;
+    capacity?: string;
+    dates?: string;
+  }>({});
 
   const addDates = (incoming: string[]) => {
     setDates((prev) => Array.from(new Set([...prev, ...incoming])).sort());
@@ -85,11 +91,15 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
   }, [repeatStart]);
 
   const handleSubmit = async () => {
-    if (!startTime || !endTime) return void toast.error("請填寫場次起訖時間");
-    if (endTime <= startTime) return void toast.error("結束時間需晚於開始時間");
+    const nextErrors: typeof errors = {};
+    if (!startTime) nextErrors.startTime = "請選擇開始時間";
+    if (!endTime) nextErrors.endTime = "請選擇結束時間";
+    else if (startTime && endTime <= startTime) nextErrors.endTime = "結束時間需晚於開始時間";
     const cap = Number(capacity);
-    if (!Number.isInteger(cap) || cap <= 0) return void toast.error("名額需為正整數");
-    if (dates.length === 0) return void toast.error("請至少加入一個日期");
+    if (!Number.isInteger(cap) || cap <= 0) nextErrors.capacity = "名額需為正整數";
+    if (dates.length === 0) nextErrors.dates = "請至少加入一個日期";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setIsSaving(true);
     const failedDates: string[] = [];
@@ -132,7 +142,7 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
     <div className="max-w-2xl space-y-5">
       <Panel title="共用時段與名額" description="以下時段與名額會套用到所有選定的日期。">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="開始時間" required>
+          <Field label="開始時間" required error={errors.startTime}>
             <input
               type="time"
               className={inputClass}
@@ -140,7 +150,7 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
               onChange={(e) => setStartTime(e.target.value)}
             />
           </Field>
-          <Field label="結束時間" required>
+          <Field label="結束時間" required error={errors.endTime}>
             <input
               type="time"
               className={inputClass}
@@ -148,7 +158,7 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
               onChange={(e) => setEndTime(e.target.value)}
             />
           </Field>
-          <Field label="名額" required>
+          <Field label="名額" required error={errors.capacity}>
             <input
               type="number"
               min={1}
@@ -210,8 +220,10 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
         description="每個日期會建立一個場次；可移除不要的日期。"
       >
         {dates.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-400">
-            尚未加入任何日期，使用上方工具加入。
+          <p
+            className={`py-4 text-center text-sm ${errors.dates ? "font-semibold text-amber-700" : "text-slate-400"}`}
+          >
+            {errors.dates ?? "尚未加入任何日期，使用上方工具加入。"}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">

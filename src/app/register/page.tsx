@@ -11,6 +11,7 @@ import {
   normalizeBirthdayInput,
 } from "@/lib/birthday";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
+import { isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 import {
@@ -53,7 +54,11 @@ export default function RegisterPage() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.account.trim()) newErrors.account = "帳號為必填欄位";
+    if (!formData.account.trim()) {
+      newErrors.account = "帳號為必填欄位";
+    } else if (!isValidUsername(formData.account)) {
+      newErrors.account = "帳號需為 4～30 碼英數字或 . _ -";
+    }
     if (!formData.password) {
       newErrors.password = "密碼為必填欄位";
     } else if (formData.password.length < 8) {
@@ -63,7 +68,11 @@ export default function RegisterPage() {
       newErrors.confirmPassword = "兩次輸入的密碼不一致";
     }
     if (!formData.name.trim()) newErrors.name = "姓名為必填欄位";
-    if (!formData.phone.trim()) newErrors.phone = "電話為必填欄位";
+    if (!formData.phone.trim()) {
+      newErrors.phone = "電話為必填欄位";
+    } else if (!isValidTaiwanPhone(formData.phone)) {
+      newErrors.phone = "電話格式不正確（例：0912345678）";
+    }
     if (!formData.grade) newErrors.grade = "請選擇學制階段";
     if (!formData.region) newErrors.region = "請選擇區域";
 

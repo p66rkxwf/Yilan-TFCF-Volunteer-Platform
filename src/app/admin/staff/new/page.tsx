@@ -12,6 +12,7 @@ import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { STAFF_ROLE, STAFF_JOB_TITLE } from "@/lib/admin/labels";
 import { YILAN_REGIONS } from "@/lib/types/database";
+import { isValidEmail, isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
 import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
 
 export default function NewStaffPage() {
@@ -29,6 +30,7 @@ export default function NewStaffPage() {
     region: "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
 
   // 非系統管理員不應進入此頁；導回名冊。
   useEffect(() => {
@@ -44,6 +46,20 @@ export default function NewStaffPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nextErrors: typeof errors = {};
+    if (!form.username.trim()) nextErrors.username = "請輸入帳號";
+    else if (!isValidUsername(form.username)) {
+      nextErrors.username = "帳號需為 4～30 碼英數字或 . _ -";
+    }
+    if (!form.email.trim()) nextErrors.email = "請輸入 Email";
+    else if (!isValidEmail(form.email)) nextErrors.email = "Email 格式不正確";
+    if (!form.fullName.trim()) nextErrors.fullName = "請輸入姓名";
+    if (!form.phone.trim()) nextErrors.phone = "請輸入聯絡電話";
+    else if (!isValidTaiwanPhone(form.phone)) {
+      nextErrors.phone = "電話格式不正確（例：0912345678 或 03-1234567）";
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     setIsSaving(true);
     const result = await createStaff(form);
     setIsSaving(false);
@@ -65,7 +81,7 @@ export default function NewStaffPage() {
         <form onSubmit={handleSubmit} className="max-w-3xl space-y-5">
           <Panel title="登入資訊">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="帳號" required>
+              <Field label="帳號" required error={errors.username}>
                 <input
                   className={inputClass}
                   value={form.username}
@@ -73,7 +89,7 @@ export default function NewStaffPage() {
                   autoComplete="off"
                 />
               </Field>
-              <Field label="Email" required>
+              <Field label="Email" required error={errors.email}>
                 <input
                   type="email"
                   className={inputClass}
@@ -90,14 +106,14 @@ export default function NewStaffPage() {
 
           <Panel title="基本資料與權限">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="姓名" required>
+              <Field label="姓名" required error={errors.fullName}>
                 <input
                   className={inputClass}
                   value={form.fullName}
                   onChange={(e) => set("fullName", e.target.value)}
                 />
               </Field>
-              <Field label="聯絡電話" required hint="主辦人電話會公開於前台。">
+              <Field label="聯絡電話" required error={errors.phone} hint="主辦人電話會公開於前台。">
                 <input
                   className={inputClass}
                   value={form.phone}

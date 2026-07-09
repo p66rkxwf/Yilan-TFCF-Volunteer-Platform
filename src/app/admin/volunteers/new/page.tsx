@@ -11,6 +11,12 @@ import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { createVolunteer } from "@/lib/actions/admin-volunteers";
 import { GRADE_LEVEL_LABELS, YILAN_REGIONS } from "@/lib/types/database";
+import {
+  isValidBirthDate,
+  isValidEmail,
+  isValidTaiwanPhone,
+  isValidUsername,
+} from "@/lib/validation";
 import type { GradeLevel } from "@/lib/types/database";
 
 interface WorkerOption {
@@ -35,6 +41,7 @@ export default function NewVolunteerPage() {
     assignedWorkerId: "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -62,6 +69,23 @@ export default function NewVolunteerPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nextErrors: typeof errors = {};
+    if (!form.username.trim()) nextErrors.username = "請輸入帳號";
+    else if (!isValidUsername(form.username)) {
+      nextErrors.username = "帳號需為 4～30 碼英數字或 . _ -";
+    }
+    if (!form.email.trim()) nextErrors.email = "請輸入 Email";
+    else if (!isValidEmail(form.email)) nextErrors.email = "Email 格式不正確";
+    if (!form.fullName.trim()) nextErrors.fullName = "請輸入姓名";
+    if (!form.phone.trim()) nextErrors.phone = "請輸入電話";
+    else if (!isValidTaiwanPhone(form.phone)) {
+      nextErrors.phone = "電話格式不正確（例：0912345678）";
+    }
+    if (!form.birthDate) nextErrors.birthDate = "請選擇生日";
+    else if (!isValidBirthDate(form.birthDate)) nextErrors.birthDate = "生日不可為未來日期";
+    if (!form.assignedWorkerId) nextErrors.assignedWorkerId = "請選擇負責社工";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
     setIsSaving(true);
     const result = await createVolunteer(form);
     setIsSaving(false);
@@ -86,7 +110,7 @@ export default function NewVolunteerPage() {
         <form onSubmit={handleSubmit} className="max-w-3xl space-y-5">
           <Panel title="登入資訊">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="帳號" required hint="供登入使用，不可重複。">
+              <Field label="帳號" required error={errors.username} hint="供登入使用，不可重複。">
                 <input
                   className={inputClass}
                   value={form.username}
@@ -94,7 +118,7 @@ export default function NewVolunteerPage() {
                   autoComplete="off"
                 />
               </Field>
-              <Field label="Email" required hint="僅作聯絡用途，可與其他人重複。">
+              <Field label="Email" required error={errors.email} hint="僅作聯絡用途，可與其他人重複。">
                 <input
                   type="email"
                   className={inputClass}
@@ -111,21 +135,21 @@ export default function NewVolunteerPage() {
 
           <Panel title="基本資料">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="姓名" required>
+              <Field label="姓名" required error={errors.fullName}>
                 <input
                   className={inputClass}
                   value={form.fullName}
                   onChange={(e) => set("fullName", e.target.value)}
                 />
               </Field>
-              <Field label="電話" required>
+              <Field label="電話" required error={errors.phone}>
                 <input
                   className={inputClass}
                   value={form.phone}
                   onChange={(e) => set("phone", e.target.value)}
                 />
               </Field>
-              <Field label="生日" required>
+              <Field label="生日" required error={errors.birthDate}>
                 <input
                   type="date"
                   className={`${inputClass} date-input`}
@@ -151,7 +175,7 @@ export default function NewVolunteerPage() {
                   options={YILAN_REGIONS.map((r) => ({ value: r, label: r }))}
                 />
               </Field>
-              <Field label="負責社工" required hint="須為在職且職稱為社工的職員。">
+              <Field label="負責社工" required error={errors.assignedWorkerId} hint="須為在職且職稱為社工的職員。">
                 <Select
                   value={form.assignedWorkerId}
                   onValueChange={(v) => set("assignedWorkerId", v)}

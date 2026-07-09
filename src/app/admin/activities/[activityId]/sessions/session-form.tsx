@@ -33,19 +33,31 @@ export function SessionForm({
   );
   const [capacity, setCapacity] = useState(String(session?.capacity ?? 10));
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<{
+    start?: string;
+    end?: string;
+    capacity?: string;
+    deadline?: string;
+  }>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!startLocal || !endLocal) return void toast.error("請填寫場次起訖時間");
-    const startIso = taipeiLocalToIso(startLocal);
-    const endIso = taipeiLocalToIso(endLocal);
-    if (endIso <= startIso) return void toast.error("結束時間必須晚於開始時間");
-
+    const nextErrors: typeof errors = {};
+    if (!startLocal) nextErrors.start = "請選擇開始時間";
+    if (!endLocal) nextErrors.end = "請選擇結束時間";
+    const startIso = startLocal ? taipeiLocalToIso(startLocal) : "";
+    const endIso = endLocal ? taipeiLocalToIso(endLocal) : "";
+    if (startIso && endIso && endIso <= startIso) {
+      nextErrors.end = "結束時間必須晚於開始時間";
+    }
     const cap = Number(capacity);
-    if (!Number.isInteger(cap) || cap <= 0) return void toast.error("名額需為正整數");
-
+    if (!Number.isInteger(cap) || cap <= 0) nextErrors.capacity = "名額需為正整數";
     const deadlineIso = deadlineLocal ? taipeiLocalToIso(deadlineLocal) : startIso;
-    if (deadlineIso > startIso) return void toast.error("報名截止不可晚於場次開始時間");
+    if (startIso && deadlineIso > startIso) {
+      nextErrors.deadline = "報名截止不可晚於場次開始時間";
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setIsSaving(true);
     try {
@@ -95,7 +107,7 @@ export function SessionForm({
             </div>
           )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="開始時間" required>
+            <Field label="開始時間" required error={errors.start}>
               <input
                 type="datetime-local"
                 className={inputClass}
@@ -104,7 +116,7 @@ export function SessionForm({
                 disabled={isEnded}
               />
             </Field>
-            <Field label="結束時間" required>
+            <Field label="結束時間" required error={errors.end}>
               <input
                 type="datetime-local"
                 className={inputClass}
@@ -116,7 +128,7 @@ export function SessionForm({
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="名額" required>
+            <Field label="名額" required error={errors.capacity}>
               <input
                 type="number"
                 min={1}
@@ -125,7 +137,7 @@ export function SessionForm({
                 onChange={(e) => setCapacity(e.target.value)}
               />
             </Field>
-            <Field label="報名截止時間" hint="留空＝可報名至場次開始時刻。">
+            <Field label="報名截止時間" error={errors.deadline} hint="留空＝可報名至場次開始時刻。">
               <input
                 type="datetime-local"
                 className={inputClass}

@@ -30,10 +30,14 @@ export function AnnouncementForm({
   const [isPinned, setIsPinned] = useState(announcement?.is_pinned ?? false);
   const [showPreview, setShowPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
 
   const save = async (publish: boolean) => {
-    if (!title.trim()) return void toast.error("請輸入公告標題");
-    if (!content.trim()) return void toast.error("請輸入公告內容");
+    const nextErrors: typeof errors = {};
+    if (!title.trim()) nextErrors.title = "請輸入公告標題";
+    if (!content.trim()) nextErrors.content = "請輸入公告內容";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setIsSaving(true);
     try {
@@ -78,7 +82,7 @@ export function AnnouncementForm({
     <div className="max-w-3xl space-y-5">
       <Panel title="公告內容">
         <div className="space-y-4">
-          <Field label="標題" required>
+          <Field label="標題" required error={errors.title}>
             <input
               className={inputClass}
               value={title}
@@ -90,6 +94,7 @@ export function AnnouncementForm({
           <Field
             label="內容"
             required
+            error={errors.content}
             hint="支援 Markdown：# 標題、**粗體**、*斜體*、- 清單、> 引用、[文字](網址)。"
           >
             <div className="mb-2 flex items-center gap-2">

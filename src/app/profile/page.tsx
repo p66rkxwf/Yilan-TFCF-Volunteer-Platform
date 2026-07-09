@@ -10,6 +10,7 @@ import { getMyHoursSummary, type HoursSummary } from "@/lib/actions/registration
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "./profile-page-header";
 import { Section, InfoRow } from "@/components/site/section";
+import { isValidTaiwanPhone } from "@/lib/validation";
 
 const REGIONS: YilanRegion[] = [
   "宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉",
@@ -42,6 +43,7 @@ export default function ProfilePage() {
     phone: "",
     region: "" as YilanRegion | "",
   });
+  const [errors, setErrors] = useState<{ phone?: string }>({});
 
   useEffect(() => {
     if (authLoading) return;
@@ -94,6 +96,13 @@ export default function ProfilePage() {
       toast.error("尚未登入。");
       return;
     }
+    const nextErrors: { phone?: string } = {};
+    if (!form.phone.trim()) nextErrors.phone = "請輸入聯絡電話";
+    else if (!isValidTaiwanPhone(form.phone)) {
+      nextErrors.phone = "電話格式不正確（例：0912345678）";
+    }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setIsSaving(true);
 
@@ -198,6 +207,9 @@ export default function ProfilePage() {
                   disabled={!profile}
                   readOnly={!profile}
                 />
+                {errors.phone && (
+                  <p className="mt-1 text-xs font-semibold text-amber-700">{errors.phone}</p>
+                )}
               </InfoRow>
               <InfoRow label="所在地區">
                 <Select

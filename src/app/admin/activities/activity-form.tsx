@@ -58,6 +58,12 @@ export function ActivityForm({
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
   const [staffSearch, setStaffSearch] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    location?: string;
+    cancelWindow?: string;
+    organizers?: string;
+  }>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -95,15 +101,18 @@ export function ActivityForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return void toast.error("請輸入活動標題");
-    if (!location.trim()) return void toast.error("請輸入活動地點");
     const windowDays = Number(cancelWindow);
-    if (!Number.isInteger(windowDays) || windowDays < 0) {
-      return void toast.error("取消審核天數需為 0 或正整數");
+    const nextErrors: typeof errors = {};
+    if (!title.trim()) nextErrors.title = "請輸入活動標題";
+    if (!location.trim()) nextErrors.location = "請輸入活動地點";
+    if (cancelWindow.trim() === "" || !Number.isInteger(windowDays) || windowDays < 0) {
+      nextErrors.cancelWindow = "取消審核天數需為 0 或正整數";
     }
     if (organizerIds.size === 0) {
-      return void toast.error("請至少指定一位主辦人（負責審核與接收提醒）");
+      nextErrors.organizers = "請至少指定一位主辦人（負責審核與接收提醒）";
     }
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     setIsSaving(true);
     try {
@@ -173,7 +182,7 @@ export function ActivityForm({
     <form onSubmit={handleSubmit} className="max-w-3xl space-y-5">
       <Panel title="基本資料">
         <div className="space-y-4">
-          <Field label="活動標題" required>
+          <Field label="活動標題" required error={errors.title}>
             <input
               className={inputClass}
               value={title}
@@ -204,7 +213,7 @@ export function ActivityForm({
               />
             </Field>
 
-            <Field label="活動地點" required>
+            <Field label="活動地點" required error={errors.location}>
               <input
                 className={inputClass}
                 value={location}
@@ -218,6 +227,7 @@ export function ActivityForm({
           <Field
             label="取消審核天數門檻"
             required
+            error={errors.cancelWindow}
             hint="場次開始前 N 天內學生取消需審核；0 = 任何時候取消都需審核。"
           >
             <input
@@ -264,7 +274,11 @@ export function ActivityForm({
               </p>
             )}
           </div>
-          <p className="text-xs text-slate-500">已選 {organizerIds.size} 位主辦人</p>
+          {errors.organizers ? (
+            <p className="text-xs font-semibold text-amber-700">{errors.organizers}</p>
+          ) : (
+            <p className="text-xs text-slate-500">已選 {organizerIds.size} 位主辦人</p>
+          )}
         </div>
       </Panel>
 
