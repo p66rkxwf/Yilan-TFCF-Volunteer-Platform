@@ -55,6 +55,28 @@ export async function restoreRecord(
   return { success: true };
 }
 
+// 單筆永久刪除（不可復原）。FK 連鎖與權限由 rpc_delete_record 強制（見 26）；
+// 帳號類另刪 Auth 使用者（登入帳號徹底移除）。
+export async function deleteRecordPermanently(
+  table: ArchivableTable,
+  id: string
+): Promise<ActionResult> {
+  const { supabase, error: authError } = await requireAdmin();
+  if (authError) return { error: authError };
+
+  const { error } = await supabase.rpc("rpc_delete_record", { p_table: table, p_id: id });
+  if (error) return { error: error.message };
+
+  if (ACCOUNT_TABLES.includes(table)) {
+    const admin = createAdminClient();
+    const { error: authDelError } = await admin.auth.admin.deleteUser(id);
+    if (authDelError) {
+      return { success: true, error: `資料已刪除，但登入帳號移除失敗：${authDelError.message}` };
+    }
+  }
+  return { success: true };
+}
+
 export interface PurgeCounts {
   archived: number;
   notifications: number;
