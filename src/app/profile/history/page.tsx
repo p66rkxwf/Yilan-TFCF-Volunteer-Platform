@@ -23,6 +23,7 @@ const NOT_RECORDED = { label: "未記錄出席", color: "bg-slate-100 text-slate
 
 interface HistoryRow {
   id: string;
+  kind: "registration" | "custom";
   attendance: string | null;
   service_hours: number | null;
   activity_title: string;
@@ -42,13 +43,20 @@ export default function HistoryPage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from("registrations")
-      .select(
-        "id, attendance, service_hours, activity_sessions(start_at, end_at, activities(title, location))"
-      )
-      .eq("volunteer_id", user.id)
-      .eq("status", "approved");
+    const [{ data, error }, { data: custom }] = await Promise.all([
+      supabase
+        .from("registrations")
+        .select(
+          "id, attendance, service_hours, activity_sessions(start_at, end_at, activities(title, location))"
+        )
+        .eq("volunteer_id", user.id)
+        .eq("status", "approved"),
+      supabase
+        .from("custom_service_records")
+        .select("id, title, service_hours, start_at, end_at")
+        .eq("volunteer_id", user.id)
+        .eq("status", "approved"),
+    ]);
 
     if (error) {
       toast.error(`載入失敗：${error.message}`);
@@ -57,22 +65,35 @@ export default function HistoryPage() {
     }
 
     const nowIso = new Date().toISOString();
-    const mapped: HistoryRow[] = ((data ?? []) as any[])
-      .map((r) => {
-        const session = r.activity_sessions;
-        return {
-          id: r.id as string,
-          attendance: (r.attendance ?? null) as string | null,
-          service_hours: r.service_hours == null ? null : Number(r.service_hours),
-          activity_title: session?.activities?.title ?? "未知活動",
-          activity_location: session?.activities?.location ?? "",
-          session_start_at: session?.start_at ?? null,
-          session_end_at: session?.end_at ?? null,
-        };
-      })
-      // 僅保留場次已結束者（歷年 = 已辦完）
+    const fromRegs: HistoryRow[] = ((data ?? []) as any[]).map((r) => {
+      const session = r.activity_sessions;
+      return {
+        id: r.id as string,
+        kind: "registration" as const,
+        attendance: (r.attendance ?? null) as string | null,
+        service_hours: r.service_hours == null ? null : Number(r.service_hours),
+        activity_title: session?.activities?.title ?? "未知活動",
+        activity_location: session?.activities?.location ?? "",
+        session_start_at: session?.start_at ?? null,
+        session_end_at: session?.end_at ?? null,
+      };
+    });
+
+    // 已核可的自訂服務（私下服務）也列入歷年紀錄
+    const fromCustom: HistoryRow[] = ((custom ?? []) as any[]).map((c) => ({
+      id: c.id as string,
+      kind: "custom" as const,
+      attendance: "attended",
+      service_hours: c.service_hours == null ? null : Number(c.service_hours),
+      activity_title: c.title as string,
+      activity_location: "",
+      session_start_at: c.start_at as string,
+      session_end_at: c.end_at as string,
+    }));
+
+    const mapped = [...fromRegs, ...fromCustom]
+      // 僅保留已結束者（歷年 = 已辦完；自訂服務為已完成，天然符合）
       .filter((r) => r.session_end_at && r.session_end_at < nowIso)
-      // 最近的活動排最前
       .sort((a, b) => b.session_start_at.localeCompare(a.session_start_at));
 
     setRows(mapped);
@@ -146,12 +167,20 @@ export default function HistoryPage() {
           ) : (
             <ul className="space-y-3">
               {rows.map((reg) => {
-                const att = reg.attendance
-                  ? ATTENDANCE_MAP[reg.attendance] ?? NOT_RECORDED
-                  : NOT_RECORDED;
-                const goDetail = () => router.push(`/profile/registrations/${reg.id}`);
+                const att =
+                  reg.kind === "custom"
+                    ? { label: "自訂服務", color: "bg-sky-100 text-sky-700" }
+                    : reg.attendance
+                      ? ATTENDANCE_MAP[reg.attendance] ?? NOT_RECORDED
+                      : NOT_RECORDED;
+                const goDetail = () =>
+                  router.push(
+                    reg.kind === "custom"
+                      ? "/profile/custom-service"
+                      : `/profile/registrations/${reg.id}`
+                  );
                 return (
-                  <li key={reg.id}>
+                  <li key={`${reg.kind}:${reg.id}`}>
                     <div
                       role="button"
                       tabIndex={0}

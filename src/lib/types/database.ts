@@ -203,7 +203,32 @@ export type NotificationType =
   | "registration_cancelled_by_admin"
   | "deactivation_requested"
   | "deactivation_review_result"
-  | "email_verification";
+  | "email_verification"
+  | "registration_submitted"
+  | "account_review_pending"
+  | "custom_service_submitted"
+  | "custom_service_result";
+
+export type CustomServiceStatus = "pending" | "approved" | "rejected";
+
+// 自訂服務登錄（記錄已完成的私下服務、計時數；見 27_custom_service_and_notifications.sql）
+export interface CustomServiceRecord {
+  id: string;
+  volunteer_id: string;
+  title: string;
+  leader_name: string | null;
+  description: string | null;
+  start_at: string;
+  end_at: string;
+  service_hours: number;
+  status: CustomServiceStatus;
+  submitted_by: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 // 站內通知中心讀取用（RLS 限本人列）；status/error/sent_at 為 email 寄送狀態，
 // read_at 為站內已讀狀態，兩者正交（見 15_notification_center.sql）。

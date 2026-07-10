@@ -56,6 +56,13 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
     刪學生＝報名／黑名單／申請一併刪除；刪活動＝場次與報名一併刪除。並放寬活動硬刪防呆
     （已封存亦可刪，修正定期清除被防呆擋下的問題）、活動/公告 `created_by` 改可為空。
     **未執行本檔前，各列表的「刪除」會回錯（RPC 不存在）**。
+20. `27_custom_service_and_notifications.sql` — (A) 自訂服務登錄（記錄已完成的私下服務計時數）：
+    新表 `custom_service_records`＋送審/審核 RPC（`rpc_submit_custom_service`／`rpc_review_custom_service`）；
+    志工可登錄自己的、職員可代任一志工登錄，皆需審核；核可時數併入 `v_volunteer_hours`／
+    `v_volunteer_period_hours`。(B) 報名即時通知（pending 報名→主辦人＋該生負責社工）與新帳號待審
+    通知（→單位管理員以上）兩個 AFTER INSERT 觸發器。**分兩步執行**（STEP1 ALTER TYPE 加 4 個
+    通知型別→STEP2 其餘）。**未執行前，志工/後台的自訂服務頁會查無資料、送審/審核 RPC 不存在。**
+    另需 `wrangler deploy` 更新 orchestrator worker（新增 4 個型別信件模板）。
 
 ### 部署後手動步驟
 

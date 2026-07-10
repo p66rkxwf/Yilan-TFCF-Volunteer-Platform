@@ -78,16 +78,22 @@ export async function getMyHoursSummary(): Promise<HoursSummary> {
 
   if (!user) return empty;
 
-  const { data } = await supabase
-    .from("registrations")
-    .select("id, service_hours, attendance, created_at, activity_sessions(start_at, activities(title))")
-    .eq("volunteer_id", user.id)
-    .in("attendance", ["attended", "makeup_attended"])
-    .order("created_at", { ascending: false });
+  // 出席場次時數 ＋ 已核可的自訂服務時數（私下服務）併計。
+  const [{ data }, { data: custom }] = await Promise.all([
+    supabase
+      .from("registrations")
+      .select("id, service_hours, attendance, created_at, activity_sessions(start_at, activities(title))")
+      .eq("volunteer_id", user.id)
+      .in("attendance", ["attended", "makeup_attended"])
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("custom_service_records")
+      .select("id, title, service_hours, start_at")
+      .eq("volunteer_id", user.id)
+      .eq("status", "approved"),
+  ]);
 
-  if (!data) return empty;
-
-  const entries: HoursSummaryEntry[] = data.map((r) => {
+  const entries: HoursSummaryEntry[] = (data ?? []).map((r) => {
     const session = r.activity_sessions as unknown as {
       start_at: string;
       activities: { title: string } | null;
@@ -99,6 +105,18 @@ export async function getMyHoursSummary(): Promise<HoursSummary> {
       hours: Number(r.service_hours ?? 0),
     };
   });
+
+  for (const c of custom ?? []) {
+    entries.push({
+      registration_id: `custom:${c.id}`,
+      activity_title: `${c.title}（自訂服務）`,
+      session_start_at: c.start_at,
+      hours: Number(c.service_hours ?? 0),
+    });
+  }
+
+  // 以服務時間新到舊排序（自訂服務與出席場次混合）
+  entries.sort((a, b) => (b.session_start_at ?? "").localeCompare(a.session_start_at ?? ""));
 
   const totalHours = entries.reduce((sum, e) => sum + e.hours, 0);
 

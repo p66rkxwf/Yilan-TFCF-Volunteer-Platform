@@ -37,6 +37,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/activities", icon: "event", label: "活動管理" },
       { href: "/admin/registrations", icon: "fact_check", label: "報名審核" },
+      { href: "/admin/custom-service", icon: "assignment_add", label: "自訂服務審核" },
       { href: "/admin/attendance", icon: "how_to_reg", label: "出席簽到" },
     ],
   },

@@ -93,6 +93,10 @@ const SUBJECTS: Record<string, string> = {
   deactivation_requested: "【社工提醒】志工提出帳號停用申請",
   deactivation_review_result: "您的帳號停用申請審核結果",
   email_verification: "您的 Email 驗證碼",
+  registration_submitted: "【審核提醒】有新的活動報名",
+  account_review_pending: "【審核提醒】有新的志工帳號待審核",
+  custom_service_submitted: "【審核提醒】有志工上傳自訂服務待審核",
+  custom_service_result: "您的自訂服務登錄審核結果",
 };
 
 // 通知內文以「已發生事件 + 登入查看」為主；payload 多為內部 id，故僅在有
@@ -128,6 +132,14 @@ function lead(type: string): string {
       return "您的帳號停用申請已有審核結果。";
     case "email_verification":
       return "以下是您的 Email 驗證碼，請於平台的驗證頁輸入以完成驗證。";
+    case "registration_submitted":
+      return "有新的活動報名待審核，請登入後台協助審核（其他職員亦可審核）。";
+    case "account_review_pending":
+      return "有新的志工帳號待審核，請登入後台協助審核。";
+    case "custom_service_submitted":
+      return "有志工上傳了自訂服務時數紀錄待審核，請登入後台審核。";
+    case "custom_service_result":
+      return "您登錄的自訂服務時數已有審核結果。";
     default:
       return "您在志工平台有一則新通知。";
   }
@@ -165,6 +177,29 @@ function renderTemplate(
   <p>${escapeHtml(lead(type))}</p>
   <p style="font-size:28px;font-weight:800;letter-spacing:6px;color:#0f172a;margin:16px 0">${escapeHtml(code)}</p>
   <p style="color:#475569">此驗證碼 15 分鐘內有效，請勿轉發他人。</p>
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
+  <p style="color:#94a3b8;font-size:12px">宜蘭家扶中心志工平台 · 此為系統自動通知，請勿直接回覆</p>
+</div>`;
+    return { subject, html, text };
+  }
+
+  // 自訂服務審核結果：內文帶紀錄名稱與通過/未通過。
+  if (type === "custom_service_result") {
+    const title = String(payload?.["title"] ?? "").trim();
+    const approved = payload?.["approved"] === true;
+    const resultLine = approved
+      ? "審核結果：已通過，服務時數已計入您的累計時數。"
+      : "審核結果：未通過。如有疑問請洽負責社工。";
+    const titleLine = title ? `服務紀錄：${title}` : "";
+    const text = [greeting, "", lead(type), titleLine, resultLine, "", cta ? `可登入平台查看：${cta}` : "請登入平台查看。", "", "— 宜蘭家扶中心志工平台（此為系統自動通知，請勿直接回覆）"]
+      .filter((l) => l !== "")
+      .join("\n");
+    const html = `<div style="font-family:system-ui,-apple-system,'Noto Sans TC',sans-serif;font-size:15px;color:#0f172a;line-height:1.7">
+  <p>${escapeHtml(greeting)}</p>
+  <p>${escapeHtml(lead(type))}</p>
+  ${title ? `<p style="color:#475569">服務紀錄：${escapeHtml(title)}</p>` : ""}
+  <p style="font-weight:700;color:${approved ? "#047857" : "#b45309"}">${escapeHtml(resultLine)}</p>
+  ${cta ? `<p>可<a href="${escapeHtml(cta)}" style="color:#2563eb">登入平台</a>查看。</p>` : "<p>請登入平台查看。</p>"}
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
   <p style="color:#94a3b8;font-size:12px">宜蘭家扶中心志工平台 · 此為系統自動通知，請勿直接回覆</p>
 </div>`;

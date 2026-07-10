@@ -90,6 +90,26 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationMeta> = {
     lead: "您索取的 Email 驗證碼已寄到聯絡信箱，請至驗證頁輸入。",
     href: "/profile/verify-email",
   },
+  registration_submitted: {
+    title: "【審核提醒】有新的活動報名",
+    lead: "有新的活動報名待審核，請登入後台協助審核（其他職員亦可審核）。",
+    href: "/admin/registrations",
+  },
+  account_review_pending: {
+    title: "【審核提醒】有新的志工帳號待審核",
+    lead: "有新的志工帳號待審核，請登入後台協助審核。",
+    href: "/admin/volunteer-review",
+  },
+  custom_service_submitted: {
+    title: "【審核提醒】有志工上傳自訂服務待審核",
+    lead: "有志工上傳了自訂服務時數紀錄待審核，請登入後台審核。",
+    href: "/admin/custom-service",
+  },
+  custom_service_result: {
+    title: "您的自訂服務登錄審核結果",
+    lead: "您登錄的自訂服務時數已有審核結果。",
+    href: "/profile/custom-service",
+  },
 };
 
 const FALLBACK_META: NotificationMeta = {
