@@ -45,7 +45,7 @@ export default function EditActivityPage() {
     <>
       <PageHeader
         title={activity ? `編輯：${activity.title}` : "編輯活動"}
-        description="場次時間與名額請回到活動詳情頁的場次區編輯。"
+
         backHref={`/admin/activities/${activityId}`}
         backLabel="活動詳情"
       />

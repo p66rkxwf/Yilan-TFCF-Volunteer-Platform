@@ -34,7 +34,7 @@ function SettingsSection({
 }: {
   icon: string;
   title: string;
-  description: string;
+  description?: string;
   children: React.ReactNode;
   danger?: boolean;
 }) {
@@ -50,7 +50,7 @@ function SettingsSection({
         </span>
         <div>
           <h2 className="text-base font-bold text-slate-900">{title}</h2>
-          <p className="text-xs text-slate-500">{description}</p>
+          {description ? <p className="text-xs text-slate-500">{description}</p> : null}
         </div>
       </div>
       {children}
@@ -212,7 +212,7 @@ export default function SettingsPage() {
           <SettingsSection
             icon="lock"
             title="修改密碼"
-            description="建議定期更換密碼以維護帳號安全。"
+
           >
             <form onSubmit={handlePasswordUpdate}>
               <dl>
@@ -258,7 +258,7 @@ export default function SettingsPage() {
           <SettingsSection
             icon="mail"
             title="修改聯絡 Email"
-            description="供平台與您聯繫用；登入仍請使用帳號。"
+
           >
             {contactEmail !== null && (
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
@@ -321,7 +321,7 @@ export default function SettingsPage() {
           <SettingsSection
             icon="warning"
             title="停用帳號"
-            description="停用後將無法報名新活動，未開始的已核准報名也會一併取消；需管理員審核通過才會生效。"
+
             danger
           >
             {isLoadingRequest ? (

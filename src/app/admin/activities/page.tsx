@@ -136,7 +136,7 @@ export default function AdminActivitiesPage() {
     <>
       <PageHeader
         title="活動管理"
-        description="活動 → 場次 → 報名 三層結構；點活動進入詳情管理場次與報名。"
+
         actions={
           <Link
             href="/admin/activities/new"

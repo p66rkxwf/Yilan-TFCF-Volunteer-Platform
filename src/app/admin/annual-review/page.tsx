@@ -92,7 +92,7 @@ export default function AnnualReviewPage() {
     <>
       <PageHeader
         title="年度審查"
-        description="每年 7–8 月使用；以 8/31 為基準日計算學年度年齡，達參考年齡者列入建議清單。"
+
       />
 
       <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">

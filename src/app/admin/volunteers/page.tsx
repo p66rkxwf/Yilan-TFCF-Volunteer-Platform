@@ -135,7 +135,7 @@ export default function VolunteersPage() {
     <>
       <PageHeader
         title="學生名冊"
-        description="全機構學生總覽；點姓名查看詳情與時數、報名、黑名單紀錄。"
+
         actions={
           <Link
             href="/admin/volunteers/new"

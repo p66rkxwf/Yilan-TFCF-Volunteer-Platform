@@ -158,7 +158,7 @@ export default function BulkStaffPage() {
     <>
       <PageHeader
         title="批量匯入職員"
-        description="下載範本填寫後上傳。密碼一律設為帳號，首次登入強制改密碼。"
+
         backHref="/admin/staff"
         backLabel="職員管理"
         actions={

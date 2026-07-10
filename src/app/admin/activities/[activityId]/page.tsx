@@ -255,7 +255,7 @@ export default function ActivityDetailPage() {
 
           <Panel
             title="主辦人"
-            description="負責審核報名與接收提醒；姓名與電話公開給學生。"
+
           >
             {organizers.length === 0 ? (
               <p className="text-sm text-slate-400">尚未指定主辦人（編輯活動以加入）</p>
@@ -279,7 +279,7 @@ export default function ActivityDetailPage() {
 
         <Panel
           title="場次"
-          description="名額、報名截止與出席皆以場次為單位；同活動場次時段不可重疊。"
+
           padded={false}
           action={
             canManage && ["draft", "open", "closed"].includes(activity.status) ? (

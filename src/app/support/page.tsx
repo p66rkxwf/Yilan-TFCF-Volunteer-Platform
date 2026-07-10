@@ -11,7 +11,6 @@ export default function SupportPage() {
   return (
     <InfoPageShell
       title="聯絡支援"
-      description="若您在註冊、登入、活動報名或個人資料更新時遇到問題，可透過此頁整理資訊後提交支援需求。"
       meta={
         <>
           <span>處理方式：由平台管理團隊依序處理</span>

@@ -125,7 +125,7 @@ export default async function AdminDashboardPage() {
     <>
       <PageHeader
         title="儀表板"
-        description="待辦事項與近期場次一覽，點擊卡片直達處理頁面。"
+
       />
 
       <div className="flex-1 space-y-5 p-4 sm:p-6">

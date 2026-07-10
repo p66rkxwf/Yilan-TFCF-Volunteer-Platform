@@ -171,9 +171,6 @@ export default function RegisterPage() {
           <h1 className="text-slate-900 text-4xl font-black tracking-tight">
             建立帳號
           </h1>
-          <p className="text-slate-600 text-lg">
-            掌握最新的服務機會與獎學金資訊。
-          </p>
         </div>
 
         <form

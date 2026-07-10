@@ -74,7 +74,6 @@ export default function TermsPage() {
   return (
     <InfoPageShell
       title="服務條款"
-      description="本條款說明您在使用宜蘭家扶中心時的帳號義務、活動參與規範，以及平台內容與服務範圍。"
       meta={
         <>
           <span>最後更新：2026年3月11日</span>

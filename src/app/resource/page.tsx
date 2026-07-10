@@ -11,7 +11,6 @@ export default function ResourcePage() {
   return (
     <InfoPageShell
       title="常見問題"
-      description="整理本平台最常見的操作與使用疑問，包含帳號註冊、活動報名、收藏功能與資料維護。"
       meta={
         <>
           <span>文件範圍：FAQ / 操作排查 / 快速入口</span>

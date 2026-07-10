@@ -239,7 +239,7 @@ export default function SettingsPage() {
     <>
       <PageHeader
         title="期間與系統參數"
-        description="全機構統一參數與期間設定；寫入限系統管理員。"
+
       />
 
       <div className="flex-1 space-y-5 p-4 sm:p-6">
@@ -291,7 +291,7 @@ export default function SettingsPage() {
         {settings && (
           <Panel
             title="資料保留與清除"
-            description="定期清除逾保留期的資料以控制資料庫大小；每日自動執行，亦可立即手動清除。"
+
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {numField(
@@ -347,7 +347,7 @@ export default function SettingsPage() {
           </Panel>
         )}
 
-        <Panel title="期間管理" description="半年一期，期間不得重疊。" padded={false}>
+        <Panel title="期間管理" padded={false}>
           <TableShell>
             <thead>
               <tr>
@@ -425,7 +425,7 @@ export default function SettingsPage() {
         </Panel>
 
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <Panel title="最低服務時數門檻" description="依學制，全域固定；未達標僅提醒／標記。">
+          <Panel title="最低服務時數門檻">
             <div className="space-y-3">
               {GRADE_LEVELS.map((g) => (
                 <div key={g} className="flex items-center gap-3">
@@ -453,7 +453,7 @@ export default function SettingsPage() {
             )}
           </Panel>
 
-          <Panel title="畢業參考年齡" description="以 8/31 為基準日；留空＝該階段每年全數列入年審。">
+          <Panel title="畢業參考年齡">
             <div className="space-y-3">
               {GRADE_LEVELS.map((g) => (
                 <div key={g} className="flex items-center gap-3">

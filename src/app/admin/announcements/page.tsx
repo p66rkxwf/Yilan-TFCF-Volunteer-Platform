@@ -153,7 +153,7 @@ export default function AnnouncementsPage() {
     <>
       <PageHeader
         title="公告管理"
-        description="學生僅能看到已發布的公告，置頂公告優先顯示。"
+
         actions={
           <Link
             href="/admin/announcements/new"

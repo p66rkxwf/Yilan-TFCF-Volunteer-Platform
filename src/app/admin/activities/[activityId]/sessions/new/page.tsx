@@ -16,7 +16,7 @@ export default function NewSessionPage() {
     <>
       <PageHeader
         title="新增場次"
-        description="單場：設定一場的完整資訊；多場：用重複產生器或手動加入多個日期一次建立。"
+
         backHref={`/admin/activities/${activityId}`}
         backLabel="活動詳情"
       />

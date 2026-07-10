@@ -11,7 +11,7 @@ export default function NewAnnouncementPage() {
     <>
       <PageHeader
         title="新增公告"
-        description="可直接發布或先儲存為草稿。"
+
         backHref="/admin/announcements"
         backLabel="公告管理"
       />

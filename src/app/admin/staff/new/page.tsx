@@ -72,7 +72,7 @@ export default function NewStaffPage() {
     <>
       <PageHeader
         title="新增職員"
-        description="建立後即為在職狀態。角色與職稱可日後於名冊調整。"
+
         backHref="/admin/staff"
         backLabel="職員管理"
       />

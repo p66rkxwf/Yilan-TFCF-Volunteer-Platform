@@ -41,7 +41,7 @@ export default function EditSessionPage() {
     <>
       <PageHeader
         title="編輯場次"
-        description="修改未結束場次的時間會通知所有有效報名者並重跑時間衝突檢查。"
+
         backHref={`/admin/activities/${activityId}`}
         backLabel="活動詳情"
       />

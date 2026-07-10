@@ -147,7 +147,7 @@ function BlacklistInner() {
     <>
       <PageHeader
         title="黑名單管理"
-        description="多筆事件可重疊，全部解除後黑名單狀態才消失。手動加入請於學生詳情頁操作。"
+
       />
       <TabBar tabs={tabs} active={tab} onChange={changeTab} />
 

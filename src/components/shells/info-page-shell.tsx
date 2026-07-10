@@ -7,7 +7,7 @@ interface InfoPageShellProps {
   icon?: string;
   eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
   meta?: ReactNode;
   children: ReactNode;
 }
@@ -33,7 +33,9 @@ export function InfoPageShell({
         <h1 className={`${eyebrow ? "mt-1.5 " : ""}text-2xl font-bold tracking-tight text-slate-900`}>
           {title}
         </h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>
+        {description ? (
+          <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>
+        ) : null}
         {meta ? (
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-500">{meta}</div>
         ) : null}

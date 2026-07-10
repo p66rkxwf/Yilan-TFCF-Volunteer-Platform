@@ -91,7 +91,7 @@ export default function SupportRequestsPage() {
     <>
       <PageHeader
         title="支援需求"
-        description="志工與訪客透過支援頁送出的問題，可標記已處理。"
+
       />
 
       <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">

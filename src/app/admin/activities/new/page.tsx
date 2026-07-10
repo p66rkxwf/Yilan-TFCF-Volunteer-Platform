@@ -11,7 +11,7 @@ export default function NewActivityPage() {
     <>
       <PageHeader
         title="新增活動"
-        description="先建立活動（草稿）→ 到詳情頁新增場次 → 發布開放報名。"
+
         backHref="/admin/activities"
         backLabel="活動管理"
       />

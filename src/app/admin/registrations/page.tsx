@@ -220,7 +220,7 @@ function RegistrationsInner() {
     <>
       <PageHeader
         title="報名審核"
-        description="待審核即佔名額；拒絕後名額即時釋出。可勾選多筆批次處理。"
+
       />
       <TabBar tabs={tabs} active={tab} onChange={changeTab} />
 

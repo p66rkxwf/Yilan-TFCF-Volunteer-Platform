@@ -105,7 +105,7 @@ export default function LogsPage() {
 
   return (
     <>
-      <PageHeader title="操作紀錄" description="記錄誰、何時、做了什麼；系統自動行為操作人留空。" />
+      <PageHeader title="操作紀錄" />
 
       <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
         <Panel padded={false} fill>

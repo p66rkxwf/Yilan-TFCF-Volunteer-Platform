@@ -363,7 +363,7 @@ export default function ReportsPage() {
 
   return (
     <>
-      <PageHeader title="報表與統計" description="整體概況與各式明細匯出（CSV，Excel 可直接開啟）。" />
+      <PageHeader title="報表與統計" />
 
       <div className="flex-1 space-y-5 p-4 sm:p-6">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -378,7 +378,7 @@ export default function ReportsPage() {
           ))}
         </div>
 
-        <Panel title="篩選條件" description="出席明細與操作紀錄依日期區間；期間達標名單依所選期間。">
+        <Panel title="篩選條件">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="起始日期">
               <input

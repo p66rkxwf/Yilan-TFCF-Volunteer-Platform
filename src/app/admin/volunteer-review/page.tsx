@@ -213,7 +213,7 @@ function VolunteerReviewInner() {
   if (!isAdmin) {
     return (
       <>
-        <PageHeader title="帳號審核" description="審核新註冊學生帳號與停用申請。" />
+        <PageHeader title="帳號審核" />
         <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
             此頁僅限單位管理員以上操作。
@@ -227,7 +227,7 @@ function VolunteerReviewInner() {
     <>
       <PageHeader
         title="帳號審核"
-        description="審核新註冊學生帳號與停用申請。核准帳號時須指定負責社工。"
+
       />
       <TabBar tabs={tabs} active={tab} onChange={changeTab} />
 
