@@ -57,6 +57,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
     } | null>(null);
     const rootRef = React.useRef<HTMLDivElement>(null);
     const triggerRef = React.useRef<HTMLButtonElement>(null);
+    const menuRef = React.useRef<HTMLDivElement>(null);
     const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
     const generatedId = React.useId();
     const triggerId = id ?? `select-${generatedId}`;
@@ -169,7 +170,12 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
       };
 
       // 選單為 fixed 定位，捲動/縮放後座標會失準：直接關閉（與操作選單一致）。
-      const handleReposition = () => closeMenu();
+      // 但選單「自己內部」的捲動（例如 hover 選項觸發 scrollIntoView）不算頁面捲動，不應關閉選單。
+      const handleReposition = (event: Event) => {
+        const target = event.target;
+        if (target instanceof Node && menuRef.current?.contains(target)) return;
+        closeMenu();
+      };
 
       document.addEventListener("pointerdown", handlePointerDown);
       document.addEventListener("keydown", handleKeyDown);
@@ -311,6 +317,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
 
         {isOpen && menuPos ? (
           <div
+            ref={menuRef}
             id={listboxId}
             role="listbox"
             aria-labelledby={triggerId}

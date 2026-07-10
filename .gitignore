@@ -40,6 +40,9 @@ public/storage/attachments/*
 # local-only business spec docs (not committed)
 /files/
 
+# local-only docs (not committed)
+/docs/
+
 # backups
 /backups/
 
