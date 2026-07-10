@@ -78,8 +78,8 @@ export default function AttendanceListPage() {
         description="選擇場次進行點名、代登出席、標記缺席與補登改判。"
       />
 
-      <div className="flex-1 p-4 sm:p-6">
-        <Panel padded={false}>
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
+        <Panel padded={false} fill>
           <Toolbar>
             <SearchInput
               value={search}

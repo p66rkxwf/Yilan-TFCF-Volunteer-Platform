@@ -224,7 +224,7 @@ function RegistrationsInner() {
       />
       <TabBar tabs={tabs} active={tab} onChange={changeTab} />
 
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
         {tab === "overdue" && (
           <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
             以下取消申請的場次已結束仍未審核，不會自動處理，也不列入缺席掃描，請人工裁決：
@@ -232,7 +232,7 @@ function RegistrationsInner() {
           </div>
         )}
 
-        <Panel padded={false}>
+        <Panel padded={false} fill>
           <TableShell>
             <thead>
               <tr>

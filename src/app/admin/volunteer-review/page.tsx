@@ -214,7 +214,7 @@ function VolunteerReviewInner() {
     return (
       <>
         <PageHeader title="帳號審核" description="審核新註冊學生帳號與停用申請。" />
-        <div className="flex-1 p-4 sm:p-6">
+        <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
             此頁僅限單位管理員以上操作。
           </div>
@@ -231,9 +231,9 @@ function VolunteerReviewInner() {
       />
       <TabBar tabs={tabs} active={tab} onChange={changeTab} />
 
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
         {tab === "accounts" ? (
-          <Panel padded={false}>
+          <Panel padded={false} fill>
             <TableShell>
               <thead>
                 <tr>
@@ -335,7 +335,7 @@ function VolunteerReviewInner() {
             </TableShell>
           </Panel>
         ) : (
-          <Panel padded={false}>
+          <Panel padded={false} fill>
             <TableShell>
               <thead>
                 <tr>

@@ -47,6 +47,14 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
   ) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [activeIndex, setActiveIndex] = React.useState(-1);
+    // 選單以 fixed 定位渲染（依觸發鈕位置計算），避免被表格/面板的 overflow 裁切。
+    const [menuPos, setMenuPos] = React.useState<{
+      left: number;
+      width: number;
+      maxHeight: number;
+      top?: number;
+      bottom?: number;
+    } | null>(null);
     const rootRef = React.useRef<HTMLDivElement>(null);
     const triggerRef = React.useRef<HTMLButtonElement>(null);
     const optionRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
@@ -84,6 +92,19 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
     };
 
     const openMenu = (nextIndex?: number) => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const gap = 4;
+        const desired = Math.min(options.length * 40 + 12, 256);
+        const spaceBelow = window.innerHeight - rect.bottom - 8;
+        const openUp = spaceBelow < desired && rect.top > spaceBelow;
+        const maxHeight = Math.max(140, Math.min(desired, openUp ? rect.top - 8 : spaceBelow));
+        setMenuPos(
+          openUp
+            ? { left: rect.left, width: rect.width, maxHeight, bottom: window.innerHeight - rect.top + gap }
+            : { left: rect.left, width: rect.width, maxHeight, top: rect.bottom + gap }
+        );
+      }
       const targetIndex = nextIndex ?? getFallbackIndex();
       setActiveIndex(targetIndex);
       setIsOpen(true);
@@ -92,6 +113,7 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
     const closeMenu = () => {
       setIsOpen(false);
       setActiveIndex(-1);
+      setMenuPos(null);
     };
 
     const moveActiveIndex = (direction: 1 | -1) => {
@@ -146,12 +168,19 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
         }
       };
 
+      // 選單為 fixed 定位，捲動/縮放後座標會失準：直接關閉（與操作選單一致）。
+      const handleReposition = () => closeMenu();
+
       document.addEventListener("pointerdown", handlePointerDown);
       document.addEventListener("keydown", handleKeyDown);
+      document.addEventListener("scroll", handleReposition, true);
+      window.addEventListener("resize", handleReposition);
 
       return () => {
         document.removeEventListener("pointerdown", handlePointerDown);
         document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("scroll", handleReposition, true);
+        window.removeEventListener("resize", handleReposition);
       };
     }, [isOpen]);
 
@@ -280,13 +309,21 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
           </span>
         </button>
 
-        {isOpen ? (
+        {isOpen && menuPos ? (
           <div
             id={listboxId}
             role="listbox"
             aria-labelledby={triggerId}
+            style={{
+              position: "fixed",
+              left: menuPos.left,
+              width: menuPos.width,
+              top: menuPos.top,
+              bottom: menuPos.bottom,
+              maxHeight: menuPos.maxHeight,
+            }}
             className={joinClasses(
-              "absolute top-full z-40 mt-2 max-h-64 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg shadow-slate-900/10",
+              "z-[200] overflow-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg shadow-slate-900/10",
               menuClassName
             )}
           >

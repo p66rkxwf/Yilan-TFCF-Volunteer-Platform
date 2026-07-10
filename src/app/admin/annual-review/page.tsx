@@ -95,13 +95,13 @@ export default function AnnualReviewPage() {
         description="每年 7–8 月使用；以 8/31 為基準日計算學年度年齡，達參考年齡者列入建議清單。"
       />
 
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
         <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
           清單僅為建議：達到（或超過）該階段參考年齡的在職學生會被列入，研究所與博士每年全數列入。
           請逐一判斷後更新階段、標記已審查，或標記畢業結案。系統不自動遞增階段。
         </div>
 
-        <Panel padded={false}>
+        <Panel padded={false} fill>
           <TableShell>
             <thead>
               <tr>

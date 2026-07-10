@@ -48,6 +48,7 @@ export function Panel({
   action,
   children,
   padded = true,
+  fill = false,
   className = "",
 }: {
   title?: string;
@@ -55,18 +56,20 @@ export function Panel({
   action?: React.ReactNode;
   children: React.ReactNode;
   padded?: boolean;
+  // fill：列表/表格主框用。撐滿可用高度（每頁一致），表頭固定、內容於框內捲動。
+  // 需外層 wrapper 為 min-h-0 的 flex 直欄；捲動交給內部 TableShell。
+  fill?: boolean;
   className?: string;
 }) {
-  return (
-    <section
-      // 表格/清單面板（padded=false）給最小高度：短清單時篩選下拉（Select）不會被
-      // 面板的 overflow-hidden 裁掉，選項才看得到。
-      className={`overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${
+  const sectionClass = fill
+    ? `flex min-h-[22rem] flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${className}`
+    : `overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm ${
         padded ? "" : "min-h-96"
-      } ${className}`}
-    >
+      } ${className}`;
+  return (
+    <section className={sectionClass}>
       {(title || action) && (
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5 shrink-0">
           <div className="min-w-0">
             {title && <h2 className="text-sm font-bold text-slate-900">{title}</h2>}
             {description && <p className="mt-0.5 text-xs text-slate-500">{description}</p>}
@@ -74,7 +77,9 @@ export function Panel({
           {action}
         </div>
       )}
-      <div className={padded ? "p-4 sm:p-5" : ""}>{children}</div>
+      <div className={fill ? "flex min-h-0 flex-1 flex-col" : padded ? "p-4 sm:p-5" : ""}>
+        {children}
+      </div>
     </section>
   );
 }
@@ -92,8 +97,10 @@ export function StatusPill({ meta }: { meta: StatusMeta }) {
 // ===== 表格 =====
 
 export function TableShell({ children }: { children: React.ReactNode }) {
+  // fill Panel 內：flex-1 + min-h-0 使表格區撐滿並於框內捲動（表頭 sticky 固定）。
+  // 一般（非 fill）情境：無高度限制，flex-1/min-h-0 無作用、僅在過寬時橫向捲動。
   return (
-    <div className="overflow-x-auto">
+    <div className="min-h-0 flex-1 overflow-auto">
       <table className="w-full border-collapse text-left">{children}</table>
     </div>
   );
@@ -108,7 +115,7 @@ export function Th({
 }) {
   return (
     <th
-      className={`whitespace-nowrap border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500 ${className}`}
+      className={`sticky top-0 z-10 whitespace-nowrap border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500 ${className}`}
     >
       {children}
     </th>
@@ -156,7 +163,7 @@ export function LoadingRow({ colSpan }: { colSpan: number }) {
 
 export function Toolbar({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
       {children}
     </div>
   );
@@ -204,7 +211,7 @@ export function Pagination({
 }) {
   if (pageCount <= 1) return null;
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:px-5">
+    <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 sm:px-5">
       <p className="text-xs text-slate-500">
         第 {page} / {pageCount} 頁{totalCount != null ? `，共 ${totalCount} 筆` : ""}
       </p>

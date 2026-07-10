@@ -280,13 +280,13 @@ export default function StaffPage() {
         }
       />
 
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
         {!isSystemAdmin && (
           <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
             角色指派、停權與建立帳號僅限系統管理員；學生移轉限單位管理員以上。
           </div>
         )}
-        <Panel padded={false}>
+        <Panel padded={false} fill>
           <Toolbar>
             <SearchInput
               value={search}

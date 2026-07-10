@@ -201,7 +201,7 @@ export default function SessionRosterPage() {
         }
       />
 
-      <div className="flex-1 p-4 sm:p-6">
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm">
             <span className="text-slate-500">已核准 </span>
@@ -224,7 +224,7 @@ export default function SessionRosterPage() {
           )}
         </div>
 
-        <Panel padded={false}>
+        <Panel padded={false} fill>
           <TableShell>
             <thead>
               <tr>

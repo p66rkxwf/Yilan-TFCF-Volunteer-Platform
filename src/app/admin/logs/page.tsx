@@ -107,8 +107,8 @@ export default function LogsPage() {
     <>
       <PageHeader title="操作紀錄" description="記錄誰、何時、做了什麼；系統自動行為操作人留空。" />
 
-      <div className="flex-1 p-4 sm:p-6">
-        <Panel padded={false}>
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
+        <Panel padded={false} fill>
           <Toolbar>
             <div className="flex items-end gap-2">
               <Field label="起始日期">

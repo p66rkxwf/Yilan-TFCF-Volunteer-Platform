@@ -94,8 +94,8 @@ export default function SupportRequestsPage() {
         description="志工與訪客透過支援頁送出的問題，可標記已處理。"
       />
 
-      <div className="flex-1 p-4 sm:p-6">
-        <Panel padded={false}>
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
+        <Panel padded={false} fill>
           <Toolbar>
             <SearchInput
               value={search}

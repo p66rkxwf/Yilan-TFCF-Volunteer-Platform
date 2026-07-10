@@ -162,8 +162,8 @@ function BlacklistInner() {
         onClose={() => setReleaseTarget(null)}
       />
 
-      <div className="flex-1 p-4 sm:p-6">
-        <Panel padded={false}>
+      <div className="flex min-h-0 flex-1 flex-col p-4 sm:p-6">
+        <Panel padded={false} fill>
           <TableShell>
             <thead>
               <tr>
