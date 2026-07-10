@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { updatePassword, updateEmail } from "@/lib/actions/auth";
 import {
@@ -67,6 +68,9 @@ export default function SettingsPage() {
 
   const [emailForm, setEmailForm] = useState({ email: "" });
   const [emailLoading, setEmailLoading] = useState(false);
+  // 目前聯絡信箱與驗證狀態（僅志工帳號有 volunteer_profiles；職員為 null）
+  const [contactEmail, setContactEmail] = useState<string | null>(null);
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
 
   const [pendingRequest, setPendingRequest] = useState<DeactivationRequest | null>(null);
   const [isLoadingRequest, setIsLoadingRequest] = useState(true);
@@ -93,6 +97,17 @@ export default function SettingsPage() {
           setPendingRequest(data);
           setIsLoadingRequest(false);
         }
+      });
+
+    supabase
+      .from("volunteer_profiles")
+      .select("email, email_verified_at")
+      .eq("id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        setContactEmail((data?.email as string) ?? null);
+        setEmailVerified(data ? !!data.email_verified_at : null);
       });
 
     return () => {
@@ -139,7 +154,10 @@ export default function SettingsPage() {
     if (result.error) {
       toast.error(result.error);
     } else {
-      toast.success("聯絡 Email 已更新，報名前請至「驗證 Email」重新完成驗證。");
+      toast.success("聯絡 Email 已更新，報名前請點下方「前往驗證」重新完成驗證。");
+      // 變更聯絡信箱會清除驗證狀態（RPC/trigger 端強制），畫面同步反映
+      setContactEmail(emailForm.email.trim());
+      setEmailVerified(false);
       setEmailForm({ email: "" });
     }
     setEmailLoading(false);
@@ -242,6 +260,34 @@ export default function SettingsPage() {
             title="修改聯絡 Email"
             description="供平台與您聯繫用；登入仍請使用帳號。"
           >
+            {contactEmail !== null && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-900">{contactEmail}</p>
+                  {emailVerified ? (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                      <span className="material-symbols-outlined text-[16px]">verified</span>
+                      已完成驗證
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-amber-700">
+                      <span className="material-symbols-outlined text-[16px]">error</span>
+                      尚未驗證，報名活動與自行簽到前需先驗證
+                    </p>
+                  )}
+                </div>
+                {!emailVerified && (
+                  <Link
+                    href="/profile/verify-email"
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">mark_email_read</span>
+                    前往驗證
+                  </Link>
+                )}
+              </div>
+            )}
+
             <form onSubmit={handleEmailUpdate}>
               <dl>
                 <InfoRow label="新 Email">
