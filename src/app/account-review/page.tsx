@@ -3,6 +3,7 @@
 
 import { redirect } from "next/navigation";
 import { getCachedUser, getCachedIdentity } from "@/lib/supabase/cached-auth";
+import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/actions/auth";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +20,15 @@ export default async function AccountReviewPage() {
   }
 
   const isRejected = identity.status === "rejected";
+
+  // 顯示使用者自訂的「帳號」而非系統產生的內部登入信箱（UUID@users.sekinv.com）。
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("volunteer_profiles")
+    .select("username")
+    .eq("id", user.id)
+    .maybeSingle();
+  const accountLabel = (profile?.username as string | undefined) ?? "—";
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-16 text-center">
@@ -61,7 +71,7 @@ export default async function AccountReviewPage() {
         </button>
       </form>
 
-      <p className="mt-6 text-xs text-slate-400">宜蘭家扶中心 · 帳號：{user.email}</p>
+      <p className="mt-6 text-xs text-slate-400">宜蘭家扶中心 · 帳號：{accountLabel}</p>
     </main>
   );
 }
