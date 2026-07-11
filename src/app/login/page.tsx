@@ -60,32 +60,37 @@ function LoginForm() {
 
     setIsLoading(true);
 
-    // 密碼驗證在伺服器端完成（login），前端不再取得任何帳號的 email。
-    const { session, error } = await login(formData.account, formData.password);
+    try {
+      // 密碼驗證在伺服器端完成（login），前端不再取得任何帳號的 email。
+      const { session, error } = await login(formData.account, formData.password);
 
-    if (error || !session) {
-      toast.error(error ?? "帳號或密碼錯誤，請重新輸入。");
+      if (error || !session) {
+        toast.error(error ?? "帳號或密碼錯誤，請重新輸入。");
+        setIsLoading(false);
+        return;
+      }
+
+      // 用瀏覽器端 client 設定 session，讓 Header 等元件的 onAuthStateChange
+      // 立即收到登入事件，不用整頁重新整理。
+      const { error: setError } = await supabase.auth.setSession(session);
+
+      if (setError) {
+        toast.error("登入失敗，請稍後再試。");
+        setIsLoading(false);
+        return;
+      }
+
+      setFlashToast({
+        variant: "success",
+        title: "登入成功",
+        description: "歡迎回來。",
+      });
+      router.push(redirectTo);
+      router.refresh();
+    } catch {
+      toast.error("連線發生問題，請檢查網路後再試一次。");
       setIsLoading(false);
-      return;
     }
-
-    // 用瀏覽器端 client 設定 session，讓 Header 等元件的 onAuthStateChange
-    // 立即收到登入事件，不用整頁重新整理。
-    const { error: setError } = await supabase.auth.setSession(session);
-
-    if (setError) {
-      toast.error("登入失敗，請稍後再試。");
-      setIsLoading(false);
-      return;
-    }
-
-    setFlashToast({
-      variant: "success",
-      title: "登入成功",
-      description: "歡迎回來。",
-    });
-    router.push(redirectTo);
-    router.refresh();
   };
 
   return (

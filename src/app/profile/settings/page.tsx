@@ -132,14 +132,19 @@ export default function SettingsPage() {
     }
 
     setPwLoading(true);
-    const result = await updatePassword(pwForm.password);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("密碼已更新！");
-      setPwForm({ password: "", confirm: "" });
+    try {
+      const result = await updatePassword(pwForm.password);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("密碼已更新！");
+        setPwForm({ password: "", confirm: "" });
+      }
+    } catch {
+      toast.error("連線發生問題，請檢查網路後再試一次。");
+    } finally {
+      setPwLoading(false);
     }
-    setPwLoading(false);
   };
 
   const handleEmailUpdate = async (e: React.FormEvent) => {
@@ -150,53 +155,68 @@ export default function SettingsPage() {
       return;
     }
     setEmailLoading(true);
-    const result = await updateEmail(emailForm.email);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("聯絡 Email 已更新，報名前請點下方「前往驗證」重新完成驗證。");
-      // 變更聯絡信箱會清除驗證狀態（RPC/trigger 端強制），畫面同步反映
-      setContactEmail(emailForm.email.trim());
-      setEmailVerified(false);
-      setEmailForm({ email: "" });
+    try {
+      const result = await updateEmail(emailForm.email);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("聯絡 Email 已更新，報名前請點下方「前往驗證」重新完成驗證。");
+        // 變更聯絡信箱會清除驗證狀態（RPC/trigger 端強制），畫面同步反映
+        setContactEmail(emailForm.email.trim());
+        setEmailVerified(false);
+        setEmailForm({ email: "" });
+      }
+    } catch {
+      toast.error("連線發生問題，請檢查網路後再試一次。");
+    } finally {
+      setEmailLoading(false);
     }
-    setEmailLoading(false);
   };
 
   const handleSubmitDeactivation = async () => {
     setDeactivateLoading(true);
 
-    const result = await requestDeactivation(deactivateReason.trim() || undefined);
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("停用申請已送出，待管理員審核。");
-      setShowDeactivateConfirm(false);
-      setDeactivateReason("");
-      if (user) {
-        const { data } = await supabase
-          .from("deactivation_requests")
-          .select("*")
-          .eq("volunteer_id", user.id)
-          .eq("status", "pending")
-          .maybeSingle();
-        setPendingRequest(data);
+    try {
+      const result = await requestDeactivation(deactivateReason.trim() || undefined);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("停用申請已送出，待管理員審核。");
+        setShowDeactivateConfirm(false);
+        setDeactivateReason("");
+        if (user) {
+          const { data } = await supabase
+            .from("deactivation_requests")
+            .select("*")
+            .eq("volunteer_id", user.id)
+            .eq("status", "pending")
+            .maybeSingle();
+          setPendingRequest(data);
+        }
       }
+    } catch {
+      toast.error("連線發生問題，請檢查網路後再試一次。");
+    } finally {
+      setDeactivateLoading(false);
     }
-    setDeactivateLoading(false);
   };
 
   const handleWithdrawDeactivation = async () => {
     setWithdrawLoading(true);
 
-    const result = await withdrawDeactivationRequest();
-    if (result.error) {
-      toast.error(result.error);
-    } else {
-      toast.success("已撤回停用申請。");
-      setPendingRequest(null);
+    try {
+      const result = await withdrawDeactivationRequest();
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success("已撤回停用申請。");
+        setPendingRequest(null);
+      }
+    } catch {
+      toast.error("連線發生問題，請檢查網路後再試一次。");
+    } finally {
+      setWithdrawLoading(false);
     }
-    setWithdrawLoading(false);
   };
 
   const inputCls =
