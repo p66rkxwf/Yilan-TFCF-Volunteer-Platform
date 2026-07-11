@@ -94,6 +94,9 @@ export default function ActivityDetailPage() {
   // 全體在職職員皆可管理活動（能進到後台即為在職職員）。RLS/RPC 端由
   // fn_can_manage_activity（supabase/v2/09_relax_activity_management.sql）同步放寬。
   const canManage = Boolean(activity);
+  // 發布需至少一個有效（未取消）場次；無有效場次時不提供發布入口，
+  // 避免彈出確認框後才被後端擋（DB trigger 仍為最終防線）。
+  const hasPublishableSession = sessions.some((s) => !s.cancelled_at);
 
   const handleConfirm = async () => {
     if (!confirm || !activity) return;
@@ -193,7 +196,7 @@ export default function ActivityDetailPage() {
               triggerLabel="操作"
               ariaLabel={`${activity.title} 的操作`}
               actions={[
-                activity.status === "draft" && {
+                activity.status === "draft" && hasPublishableSession && {
                   label: "發布活動",
                   icon: "publish",
                   onSelect: () => setConfirm({ kind: "publish" }),
