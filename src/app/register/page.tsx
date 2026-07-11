@@ -337,6 +337,7 @@ export default function RegisterPage() {
                   name="password"
                   placeholder="至少 8 碼"
                   type="password"
+                  autoComplete="new-password"
                   value={formData.password}
                   onChange={handleChange}
                 />
@@ -356,6 +357,7 @@ export default function RegisterPage() {
                   name="confirmPassword"
                   placeholder="再輸入一次密碼"
                   type="password"
+                  autoComplete="new-password"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                 />

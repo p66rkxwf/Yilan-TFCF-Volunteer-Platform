@@ -119,6 +119,7 @@ function LoginForm() {
               name="account"
               placeholder="請輸入帳號"
               type="text"
+              autoComplete="username"
               value={formData.account}
               onChange={handleChange}
             />
@@ -151,6 +152,7 @@ function LoginForm() {
                 name="password"
                 placeholder="請輸入您的密碼"
                 type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
                 value={formData.password}
                 onChange={handleChange}
               />

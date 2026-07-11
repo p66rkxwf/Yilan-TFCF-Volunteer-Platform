@@ -241,6 +241,7 @@ export default function SettingsPage() {
                     type="password"
                     className={inputCls}
                     placeholder="至少 8 個字元"
+                    autoComplete="new-password"
                     value={pwForm.password}
                     onChange={(e) => setPwForm((p) => ({ ...p, password: e.target.value }))}
                     minLength={8}
@@ -251,6 +252,7 @@ export default function SettingsPage() {
                     type="password"
                     className={inputCls}
                     placeholder="再次輸入新密碼"
+                    autoComplete="new-password"
                     value={pwForm.confirm}
                     onChange={(e) => setPwForm((p) => ({ ...p, confirm: e.target.value }))}
                     minLength={8}
