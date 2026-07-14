@@ -190,9 +190,6 @@ export function AdminShell({
                   {STAFF_ROLE[profile.role] ?? profile.role}
                 </p>
               </div>
-              <span className="material-symbols-outlined shrink-0 text-[16px] text-slate-400">
-                settings
-              </span>
             </Link>
             <button
               onClick={handleSignOut}

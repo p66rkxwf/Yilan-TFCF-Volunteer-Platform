@@ -541,8 +541,9 @@ export default function StaffPage() {
             onClick={() => !isActing && setEditTarget(null)}
             aria-label="關閉"
           />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="px-6 py-5">
+          {/* 內容較高（6 欄），限制在視窗高度內、表單區自行捲動，避免小螢幕顯示不全 */}
+          <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col rounded-2xl border border-slate-200 bg-white shadow-xl">
+            <div className="overflow-y-auto px-6 py-5">
               <h3 className="text-lg font-bold text-slate-900">編輯職員基本資料</h3>
               <p className="mt-1 text-sm text-slate-500">
                 姓名與職稱由系統管理員在此維護；職員可於側欄「帳號設定」自改電話、地區、Email、帳號。
@@ -611,7 +612,7 @@ export default function StaffPage() {
                 </Field>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
+            <div className="flex shrink-0 items-center justify-end gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50/60 px-6 py-4">
               <Button size="sm" variant="ghost" disabled={isActing} onClick={() => setEditTarget(null)}>
                 取消
               </Button>
