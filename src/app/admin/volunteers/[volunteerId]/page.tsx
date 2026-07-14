@@ -36,7 +36,12 @@ import {
   RowActionMenu,
   inputClass,
 } from "@/components/admin/ui";
-import { isValidTaiwanPhone, isValidBirthDate } from "@/lib/validation";
+import {
+  isValidTaiwanPhone,
+  isValidBirthDate,
+  isValidEmail,
+  isValidUsername,
+} from "@/lib/validation";
 import {
   VOLUNTEER_STATUS,
   REGISTRATION_STATUS,
@@ -101,11 +106,20 @@ export default function VolunteerDetailPage() {
   const [showResetPw, setShowResetPw] = useState(false);
 
   const [showEditProfile, setShowEditProfile] = useState(false);
-  const [editForm, setEditForm] = useState({ fullName: "", phone: "", region: "", birthDate: "" });
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    phone: "",
+    region: "",
+    birthDate: "",
+    email: "",
+    username: "",
+  });
   const [editErrors, setEditErrors] = useState<{
     fullName?: string;
     phone?: string;
     birthDate?: string;
+    email?: string;
+    username?: string;
   }>({});
 
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
@@ -241,6 +255,8 @@ export default function VolunteerDetailPage() {
       phone: volunteer.phone,
       region: volunteer.region ?? "",
       birthDate: volunteer.birth_date,
+      email: volunteer.email,
+      username: volunteer.username,
     });
     setEditErrors({});
     setShowEditProfile(true);
@@ -253,19 +269,37 @@ export default function VolunteerDetailPage() {
     else if (!isValidTaiwanPhone(editForm.phone)) errors.phone = "電話格式不正確（例：0912345678）";
     if (!editForm.birthDate) errors.birthDate = "請選擇生日";
     else if (!isValidBirthDate(editForm.birthDate)) errors.birthDate = "生日不可為未來日期";
+    if (isSysAdmin) {
+      if (!isValidEmail(editForm.email)) errors.email = "Email 格式不正確";
+      if (!isValidUsername(editForm.username))
+        errors.username = "帳號格式不正確（4～30 碼英數與 . _ -）";
+    }
     setEditErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setIsActing(true);
+    // 聯絡 Email/帳號 僅系統管理員可代改（RPC 亦強制）；一般職員不帶這兩個參數。
     const result = await updateVolunteerProfile({
       volunteerId,
       fullName: editForm.fullName,
       phone: editForm.phone,
       region: editForm.region,
       birthDate: editForm.birthDate,
+      ...(isSysAdmin
+        ? { email: editForm.email.trim(), username: editForm.username.trim() }
+        : {}),
     });
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
+    const emailChanged = isSysAdmin && volunteer && editForm.email.trim() !== volunteer.email;
+    const usernameChanged =
+      isSysAdmin && volunteer && editForm.username.trim() !== volunteer.username;
     toast.success("已更新學生基本資料");
+    if (emailChanged) {
+      toast.info("聯絡 Email 已變更並重置驗證狀態，該學生需重新完成 Email 驗證才能報名／簽到。");
+    }
+    if (usernameChanged) {
+      toast.info(`該學生下次登入請改用新帳號「${editForm.username.trim()}」。`);
+    }
     setShowEditProfile(false);
     await load();
   };
@@ -692,6 +726,7 @@ export default function VolunteerDetailPage() {
               <h3 className="text-lg font-bold text-slate-900">編輯基本資料</h3>
               <p className="mt-1 text-sm text-slate-500">
                 姓名已鎖定學生自助修改，改由此處維護。學制調整請至「年度審查」。
+                {isSysAdmin && "聯絡 Email 與帳號僅系統管理員可代改。"}
               </p>
               <div className="mt-4 space-y-4">
                 <Field label="姓名" required error={editErrors.fullName}>
@@ -725,6 +760,35 @@ export default function VolunteerDetailPage() {
                     menuClassName="bg-white"
                   />
                 </Field>
+                {isSysAdmin && (
+                  <>
+                    <Field
+                      label="聯絡 Email"
+                      required
+                      error={editErrors.email}
+                      hint="代改後會重置驗證狀態，該學生需重新驗證才能報名／簽到"
+                    >
+                      <input
+                        type="email"
+                        className={inputClass}
+                        value={editForm.email}
+                        onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                      />
+                    </Field>
+                    <Field
+                      label="帳號"
+                      required
+                      error={editErrors.username}
+                      hint="該學生以此帳號登入，變更後即刻生效（密碼不變）"
+                    >
+                      <input
+                        className={inputClass}
+                        value={editForm.username}
+                        onChange={(e) => setEditForm((f) => ({ ...f, username: e.target.value }))}
+                      />
+                    </Field>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">

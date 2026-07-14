@@ -270,3 +270,39 @@ export async function updateEmail(newEmail: string): Promise<AuthResult> {
   return { success: true };
 }
 
+// 志工自改登入帳號。密碼與現有 session 不受影響（session 綁 user id），
+// 下次登入改用新帳號。白名單 trigger 擋 username 自改，故走 RPC（28）：
+// 內部驗證格式、跨職員/志工兩表唯一，並記 audit；此處僅先做唯一性預檢
+// 提早回中文錯誤（race 由 RPC 內檢查與 UNIQUE 約束兜底）。
+export async function updateOwnVolunteerUsername(newUsername: string): Promise<AuthResult> {
+  const username = newUsername.trim();
+  if (!/^[A-Za-z0-9._-]{4,30}$/.test(username)) {
+    return { error: "帳號格式不正確（4～30 碼英數與 . _ -）" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "尚未登入。" };
+
+  const admin = adminClient();
+  const [{ data: existingStaff }, { data: existingVolunteer }] = await Promise.all([
+    admin.from("staff_profiles").select("id").eq("username", username).maybeSingle(),
+    admin
+      .from("volunteer_profiles")
+      .select("id")
+      .eq("username", username)
+      .neq("id", user.id)
+      .maybeSingle(),
+  ]);
+  if (existingStaff || existingVolunteer) return { error: "此帳號已被使用" };
+
+  const { error } = await supabase.rpc("rpc_update_own_volunteer_username", {
+    p_username: username,
+  });
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+

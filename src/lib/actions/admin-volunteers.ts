@@ -92,16 +92,37 @@ export async function createVolunteer(input: CreateVolunteerInput): Promise<Acti
 }
 
 // 後台編輯學生基本資料（姓名/電話/區域/生日）。姓名已鎖定學生自助修改，改由此處維護。
-// 權限與欄位驗證由 rpc_admin_update_volunteer_profile 內部強制（在職職員；見 22）。
+// 聯絡 Email/帳號 兩欄僅系統管理員可代改（email/username 不傳＝不更動；一般職員的 UI 不帶）；
+// 代改 Email 會一併重置驗證狀態。權限與欄位驗證由 rpc_admin_update_volunteer_profile
+// 內部強制（在職職員；帳號資訊限系統管理員；見 22、28）。
 export async function updateVolunteerProfile(input: {
   volunteerId: string;
   fullName: string;
   phone: string;
   region?: string;
   birthDate?: string;
+  email?: string;
+  username?: string;
 }): Promise<ActionResult> {
   const { supabase, error: authError } = await requireAdmin();
   if (authError) return { error: authError };
+
+  // 帳號唯一性預檢（中文訊息；僅在要變更帳號時查，race 由 RPC 內檢查與 UNIQUE 兜底）。
+  // 學生聯絡 Email 允許重複（手足共用家長信箱，見 13），不做唯一性檢查。
+  const username = input.username?.trim();
+  if (username) {
+    const admin = adminClient();
+    const [{ data: existingStaff }, { data: existingVolunteer }] = await Promise.all([
+      admin.from("staff_profiles").select("id").eq("username", username).maybeSingle(),
+      admin
+        .from("volunteer_profiles")
+        .select("id")
+        .eq("username", username)
+        .neq("id", input.volunteerId)
+        .maybeSingle(),
+    ]);
+    if (existingStaff || existingVolunteer) return { error: "此帳號已被使用" };
+  }
 
   const { error } = await supabase.rpc("rpc_admin_update_volunteer_profile", {
     p_volunteer_id: input.volunteerId,
@@ -109,6 +130,8 @@ export async function updateVolunteerProfile(input: {
     p_phone: input.phone,
     p_region: input.region?.trim() || null,
     p_birth_date: input.birthDate || null,
+    p_email: input.email?.trim() || null,
+    p_username: username || null,
   });
 
   if (error) return { error: error.message };

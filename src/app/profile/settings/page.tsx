@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { updatePassword, updateEmail } from "@/lib/actions/auth";
+import { updatePassword, updateEmail, updateOwnVolunteerUsername } from "@/lib/actions/auth";
 import {
   requestDeactivation,
   withdrawDeactivationRequest,
@@ -72,6 +72,11 @@ export default function SettingsPage() {
   const [contactEmail, setContactEmail] = useState<string | null>(null);
   const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
 
+  const [usernameForm, setUsernameForm] = useState({ username: "" });
+  const [usernameLoading, setUsernameLoading] = useState(false);
+  // 目前登入帳號（僅志工帳號有 volunteer_profiles；職員為 null）
+  const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+
   const [pendingRequest, setPendingRequest] = useState<DeactivationRequest | null>(null);
   const [isLoadingRequest, setIsLoadingRequest] = useState(true);
   const [deactivateReason, setDeactivateReason] = useState("");
@@ -101,13 +106,14 @@ export default function SettingsPage() {
 
     supabase
       .from("volunteer_profiles")
-      .select("email, email_verified_at")
+      .select("email, email_verified_at, username")
       .eq("id", user.id)
       .maybeSingle()
       .then(({ data }) => {
         if (!active) return;
         setContactEmail((data?.email as string) ?? null);
         setEmailVerified(data ? !!data.email_verified_at : null);
+        setCurrentUsername((data?.username as string) ?? null);
       });
 
     return () => {
@@ -144,6 +150,35 @@ export default function SettingsPage() {
       toast.error("連線發生問題，請檢查網路後再試一次。");
     } finally {
       setPwLoading(false);
+    }
+  };
+
+  const handleUsernameUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const username = usernameForm.username.trim();
+    if (!username) {
+      toast.error("請輸入新帳號。");
+      return;
+    }
+    if (!/^[A-Za-z0-9._-]{4,30}$/.test(username)) {
+      toast.error("帳號格式不正確（4～30 碼英數與 . _ -）。");
+      return;
+    }
+    setUsernameLoading(true);
+    try {
+      const result = await updateOwnVolunteerUsername(username);
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`帳號已更新，下次登入請改用「${username}」（密碼不變）。`);
+        setCurrentUsername(username);
+        setUsernameForm({ username: "" });
+      }
+    } catch {
+      toast.error("連線發生問題，請檢查網路後再試一次。");
+    } finally {
+      setUsernameLoading(false);
     }
   };
 
@@ -271,6 +306,48 @@ export default function SettingsPage() {
                     </span>
                   )}
                   更新密碼
+                </button>
+              </div>
+            </form>
+          </SettingsSection>
+
+          {/* Username */}
+          <SettingsSection
+            icon="badge"
+            title="修改帳號"
+            description="變更登入用的帳號名稱；密碼與現有登入狀態不受影響，下次登入改用新帳號。"
+          >
+            {currentUsername !== null && (
+              <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs text-slate-500">目前帳號</p>
+                <p className="truncate text-sm font-semibold text-slate-900">{currentUsername}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleUsernameUpdate}>
+              <dl>
+                <InfoRow label="新帳號">
+                  <input
+                    className={inputCls}
+                    placeholder="4～30 碼英數與 . _ -"
+                    autoComplete="username"
+                    value={usernameForm.username}
+                    onChange={(e) => setUsernameForm({ username: e.target.value })}
+                  />
+                </InfoRow>
+              </dl>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={usernameLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {usernameLoading && (
+                    <span className="material-symbols-outlined animate-spin text-[16px]">
+                      progress_activity
+                    </span>
+                  )}
+                  更新帳號
                 </button>
               </div>
             </form>

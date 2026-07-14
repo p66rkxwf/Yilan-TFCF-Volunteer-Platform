@@ -63,6 +63,11 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
     通知（→單位管理員以上）兩個 AFTER INSERT 觸發器。**分兩步執行**（STEP1 ALTER TYPE 加 4 個
     通知型別→STEP2 其餘）。**未執行前，志工/後台的自訂服務頁會查無資料、送審/審核 RPC 不存在。**
     另需 `wrangler deploy` 更新 orchestrator worker（新增 4 個型別信件模板）。
+21. `28_profile_edit.sql` — 個人資料編輯強化：系統管理員可編輯職員 6 欄（姓名/電話/地區/Email/
+    帳號/職稱；auth 信箱同步由 server action 處理）與學生的聯絡 Email/帳號（代改 Email 一併重置
+    驗證狀態）；職員可於後台「帳號設定」自改 4 欄；學生可於前台自改登入帳號。共 4 支 RPC，
+    全程記 audit。並移除 `rpc_admin_update_volunteer_profile` 舊簽名（擴充參數）。
+    **未執行本檔前，職員／學生的「編輯」、後台「帳號設定」與前台「修改帳號」會回錯（RPC 不存在）**。
 
 ### 部署後手動步驟
 

@@ -173,19 +173,30 @@ export function AdminShell({
         </nav>
 
         <div className="border-t border-white/10 p-3">
-          <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">
-              {profile.full_name.slice(0, 1)}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-white">{profile.full_name}</p>
-              <p className="truncate text-[11px] text-slate-400">
-                {STAFF_ROLE[profile.role] ?? profile.role}
-              </p>
-            </div>
+          <div className="flex items-center gap-1 rounded-lg py-1.5 pl-2 pr-1">
+            {/* 頭像＋姓名連到「帳號設定」（全體職員可自改聯絡與登入資訊） */}
+            <Link
+              href="/admin/account"
+              title="帳號設定"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 transition-colors hover:bg-white/5"
+              onClick={() => setMobileNavOpen(false)}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">
+                {profile.full_name.slice(0, 1)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold text-white">{profile.full_name}</p>
+                <p className="truncate text-[11px] text-slate-400">
+                  {STAFF_ROLE[profile.role] ?? profile.role}
+                </p>
+              </div>
+              <span className="material-symbols-outlined shrink-0 text-[16px] text-slate-400">
+                settings
+              </span>
+            </Link>
             <button
               onClick={handleSignOut}
-              className="text-slate-400 transition-colors hover:text-white"
+              className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
               title="登出"
             >
               <span className="material-symbols-outlined text-[18px]">logout</span>

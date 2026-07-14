@@ -620,7 +620,34 @@ export interface Database {
           p_phone: string;
           p_region?: string | null;
           p_birth_date?: string | null;
+          p_email?: string | null;
+          p_username?: string | null;
         };
+        Returns: void;
+      };
+      rpc_admin_update_staff_profile: {
+        Args: {
+          p_staff_id: string;
+          p_full_name: string;
+          p_phone: string;
+          p_email: string;
+          p_username: string;
+          p_job_title: StaffJobTitle;
+          p_region?: string | null;
+        };
+        Returns: void;
+      };
+      rpc_update_own_staff_profile: {
+        Args: {
+          p_phone: string;
+          p_email: string;
+          p_username: string;
+          p_region?: string | null;
+        };
+        Returns: void;
+      };
+      rpc_update_own_volunteer_username: {
+        Args: { p_username: string };
         Returns: void;
       };
       rpc_archive_record: { Args: { p_table: string; p_id: string }; Returns: void };

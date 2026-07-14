@@ -133,8 +133,11 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   volunteer_cancel: "志工取消/申請取消報名",
   volunteer_self_checkin: "志工自行簽到",
   verify_email: "完成 Email 驗證",
+  update_own_volunteer_username: "學生修改登入帳號",
   // 後台維護
   admin_update_volunteer_profile: "編輯學生基本資料",
+  admin_update_staff_profile: "編輯職員基本資料",
+  update_own_staff_profile: "職員更新個人帳號資料",
   set_volunteer_worker: "改派負責社工",
   reassign_worker: "批量移轉負責社工",
   archive_record: "封存資料",

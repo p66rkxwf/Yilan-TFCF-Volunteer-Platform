@@ -14,6 +14,7 @@ import {
   reassignWorker,
   resetStaffPassword,
 } from "@/lib/actions/admin-users";
+import { updateStaffProfile } from "@/lib/actions/staff-profile";
 import {
   archiveRecord,
   restoreRecord,
@@ -38,7 +39,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { STAFF_ROLE, STAFF_JOB_TITLE, STAFF_STATUS } from "@/lib/admin/labels";
-import { isValidTaiwanPhone } from "@/lib/validation";
+import { isValidEmail, isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
 import { YILAN_REGIONS } from "@/lib/types/database";
 import type { StaffRole, StaffJobTitle, StaffAccountStatus } from "@/lib/types/database";
 
@@ -70,8 +71,20 @@ export default function StaffPage() {
   const [statusConfirm, setStatusConfirm] = useState<StaffRow | null>(null);
   const [resetPwTarget, setResetPwTarget] = useState<StaffRow | null>(null);
   const [editTarget, setEditTarget] = useState<StaffRow | null>(null);
-  const [editForm, setEditForm] = useState({ fullName: "", phone: "", region: "" });
-  const [editErrors, setEditErrors] = useState<{ fullName?: string; phone?: string }>({});
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    phone: "",
+    region: "",
+    email: "",
+    username: "",
+    jobTitle: "social_worker" as StaffJobTitle,
+  });
+  const [editErrors, setEditErrors] = useState<{
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    username?: string;
+  }>({});
   const [showArchived, setShowArchived] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<StaffRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<StaffRow | null>(null);
@@ -194,7 +207,14 @@ export default function StaffPage() {
   };
 
   const openEdit = (row: StaffRow) => {
-    setEditForm({ fullName: row.full_name, phone: row.phone, region: row.region ?? "" });
+    setEditForm({
+      fullName: row.full_name,
+      phone: row.phone,
+      region: row.region ?? "",
+      email: row.email,
+      username: row.username,
+      jobTitle: row.job_title,
+    });
     setEditErrors({});
     setEditTarget(row);
   };
@@ -229,27 +249,35 @@ export default function StaffPage() {
     await load();
   };
 
-  // 職員姓名已鎖定自助修改；系統管理員在此代為維護（走 staff_update_by_sysadmin policy）。
+  // 職員姓名/職稱已鎖定自助修改；系統管理員在此代為維護（改走 server action＋RPC，
+  // 全程稽核；Email 為登入信箱，action 內會同步 auth.users）。
   const submitEdit = async () => {
     if (!editTarget) return;
     const errors: typeof editErrors = {};
     if (!editForm.fullName.trim()) errors.fullName = "請輸入姓名";
     if (!editForm.phone.trim()) errors.phone = "請輸入聯絡電話";
     else if (!isValidTaiwanPhone(editForm.phone)) errors.phone = "電話格式不正確（例：0912345678 或 03-1234567）";
+    if (!isValidEmail(editForm.email)) errors.email = "Email 格式不正確";
+    if (!isValidUsername(editForm.username)) errors.username = "帳號格式不正確（4～30 碼英數與 . _ -）";
     setEditErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setIsActing(true);
-    const { error } = await supabase
-      .from("staff_profiles")
-      .update({
-        full_name: editForm.fullName.trim(),
-        phone: editForm.phone.trim(),
-        region: editForm.region.trim() || null,
-      })
-      .eq("id", editTarget.id);
+    const result = await updateStaffProfile({
+      staffId: editTarget.id,
+      fullName: editForm.fullName.trim(),
+      phone: editForm.phone.trim(),
+      region: editForm.region.trim() || undefined,
+      email: editForm.email.trim(),
+      username: editForm.username.trim(),
+      jobTitle: editForm.jobTitle,
+    });
     setIsActing(false);
-    if (error) return void toast.error(`更新失敗：${error.message}`);
+    if (result.error) return void toast.error(`更新失敗：${result.error}`);
+    const usernameChanged = editForm.username.trim() !== editTarget.username;
     toast.success("已更新職員基本資料");
+    if (usernameChanged) {
+      toast.info(`該職員下次登入請改用新帳號「${editForm.username.trim()}」。`);
+    }
     setEditTarget(null);
     await load();
   };
@@ -517,7 +545,7 @@ export default function StaffPage() {
             <div className="px-6 py-5">
               <h3 className="text-lg font-bold text-slate-900">編輯職員基本資料</h3>
               <p className="mt-1 text-sm text-slate-500">
-                姓名已鎖定職員自助修改，由系統管理員在此維護。帳號 {editTarget.username}。
+                姓名與職稱由系統管理員在此維護；職員可於側欄「帳號設定」自改電話、地區、Email、帳號。
               </p>
               <div className="mt-4 space-y-4">
                 <Field label="姓名" required error={editErrors.fullName}>
@@ -540,6 +568,44 @@ export default function StaffPage() {
                     onValueChange={(v) => setEditForm((f) => ({ ...f, region: v }))}
                     placeholder="請選擇地區"
                     options={YILAN_REGIONS.map((r) => ({ value: r, label: r }))}
+                    menuClassName="bg-white"
+                  />
+                </Field>
+                <Field
+                  label="Email"
+                  required
+                  error={editErrors.email}
+                  hint="同時是該職員的登入信箱，變更後即刻生效"
+                >
+                  <input
+                    type="email"
+                    className={inputClass}
+                    value={editForm.email}
+                    onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                  />
+                </Field>
+                <Field
+                  label="帳號"
+                  required
+                  error={editErrors.username}
+                  hint="該職員以此帳號登入，變更後即刻生效（密碼不變）"
+                >
+                  <input
+                    className={inputClass}
+                    value={editForm.username}
+                    onChange={(e) => setEditForm((f) => ({ ...f, username: e.target.value }))}
+                  />
+                </Field>
+                <Field label="職稱" required>
+                  <Select
+                    value={editForm.jobTitle}
+                    onValueChange={(v) =>
+                      setEditForm((f) => ({ ...f, jobTitle: v as StaffJobTitle }))
+                    }
+                    options={Object.entries(STAFF_JOB_TITLE).map(([value, label]) => ({
+                      value,
+                      label,
+                    }))}
                     menuClassName="bg-white"
                   />
                 </Field>
