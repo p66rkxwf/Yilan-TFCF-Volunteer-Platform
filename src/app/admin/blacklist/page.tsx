@@ -189,7 +189,7 @@ function BlacklistInner() {
                   <tr key={event.id} className="transition-colors hover:bg-slate-50">
                     <Td>
                       {event.volunteer ? (
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/volunteers/${event.volunteer.id}`}
                           className="font-semibold text-slate-900 hover:text-primary"
                         >

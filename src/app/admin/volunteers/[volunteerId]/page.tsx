@@ -524,7 +524,7 @@ export default function VolunteerDetailPage() {
                   <tr key={reg.id} className="transition-colors hover:bg-slate-50">
                     <Td>
                       {reg.session?.activity ? (
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/activities/${reg.session.activity.id}`}
                           className="font-medium text-slate-900 hover:text-primary"
                         >
@@ -567,7 +567,7 @@ export default function VolunteerDetailPage() {
           padded={false}
           action={
             isAdmin && volunteer.is_blacklisted ? (
-              <Link
+              <Link prefetch={false}
                 href="/admin/blacklist"
                 className="text-xs font-semibold text-primary hover:text-primary/80"
               >

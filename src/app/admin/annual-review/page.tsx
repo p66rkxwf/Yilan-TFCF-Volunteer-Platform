@@ -123,7 +123,7 @@ export default function AnnualReviewPage() {
                 rows.map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-slate-50">
                     <Td>
-                      <Link
+                      <Link prefetch={false}
                         href={`/admin/volunteers/${row.id}`}
                         className="font-semibold text-slate-900 hover:text-primary"
                       >

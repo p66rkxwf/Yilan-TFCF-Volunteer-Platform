@@ -355,7 +355,7 @@ function VolunteerReviewInner() {
                     <tr key={row.id} className="transition-colors hover:bg-slate-50">
                       <Td>
                         {row.volunteer ? (
-                          <Link
+                          <Link prefetch={false}
                             href={`/admin/volunteers/${row.volunteer.id}`}
                             className="font-semibold text-slate-900 hover:text-primary"
                           >

@@ -23,7 +23,7 @@ export function PageHeader({
   return (
     <div className="border-b border-slate-200 bg-white px-4 py-5 sm:px-6">
       {backHref && (
-        <Link
+        <Link prefetch={false}
           href={backHref}
           className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
         >
@@ -467,7 +467,7 @@ export function RowActionMenu({
         >
           {items.map((action) =>
             action.href && !action.disabled ? (
-              <Link
+              <Link prefetch={false}
                 key={action.label}
                 href={action.href}
                 role="menuitem"

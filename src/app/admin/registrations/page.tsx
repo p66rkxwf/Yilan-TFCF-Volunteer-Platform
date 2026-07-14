@@ -274,7 +274,7 @@ function RegistrationsInner() {
                     )}
                     <Td>
                       {row.volunteer ? (
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/volunteers/${row.volunteer.id}`}
                           className="font-semibold text-slate-900 hover:text-primary"
                         >

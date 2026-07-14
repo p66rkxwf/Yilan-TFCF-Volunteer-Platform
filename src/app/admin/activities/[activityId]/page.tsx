@@ -286,7 +286,7 @@ export default function ActivityDetailPage() {
           padded={false}
           action={
             canManage && ["draft", "open", "closed"].includes(activity.status) ? (
-              <Link
+              <Link prefetch={false}
                 href={`/admin/activities/${activity.id}/sessions/new`}
                 className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
               >

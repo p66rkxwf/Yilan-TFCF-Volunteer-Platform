@@ -142,9 +142,13 @@ export function AdminShell({
                       ? pathname === item.href
                       : pathname.startsWith(item.href);
                     return (
+                      // prefetch={false}：側欄 15 個連結若預抓，一進後台會同時打出十幾個
+                      // RSC render，在 Workers 免費方案 10ms CPU 上限下整批被砍（error 1102）。
+                      // 後台為內部工具，點擊時才載入即可。
                       <Link
                         key={item.href}
                         href={item.href}
+                        prefetch={false}
                         className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors ${
                           isActive
                             ? "bg-primary font-semibold text-white"
@@ -164,6 +168,7 @@ export function AdminShell({
           <div className="border-t border-white/10 pt-3">
             <Link
               href="/"
+              prefetch={false}
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
             >
               <span className="material-symbols-outlined text-[19px]">home</span>
@@ -178,6 +183,7 @@ export function AdminShell({
             <Link
               href="/admin/account"
               title="帳號設定"
+              prefetch={false}
               className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 transition-colors hover:bg-white/5"
               onClick={() => setMobileNavOpen(false)}
             >

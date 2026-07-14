@@ -155,7 +155,7 @@ export default function AnnouncementsPage() {
         title="公告管理"
 
         actions={
-          <Link
+          <Link prefetch={false}
             href="/admin/announcements/new"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
           >
@@ -226,7 +226,7 @@ export default function AnnouncementsPage() {
                             push_pin
                           </span>
                         )}
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/announcements/${row.id}/edit`}
                           className="font-semibold text-slate-900 hover:text-primary"
                         >

@@ -138,7 +138,7 @@ export default function AdminActivitiesPage() {
         title="活動管理"
 
         actions={
-          <Link
+          <Link prefetch={false}
             href="/admin/activities/new"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
           >
@@ -229,7 +229,7 @@ export default function AdminActivitiesPage() {
                   return (
                     <tr key={row.id} className="transition-colors hover:bg-slate-50">
                       <Td>
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/activities/${row.id}`}
                           className="font-semibold text-slate-900 hover:text-primary"
                         >

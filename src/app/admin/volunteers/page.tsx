@@ -137,7 +137,7 @@ export default function VolunteersPage() {
         title="學生名冊"
 
         actions={
-          <Link
+          <Link prefetch={false}
             href="/admin/volunteers/new"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
           >
@@ -240,7 +240,7 @@ export default function VolunteersPage() {
                 paged.map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-slate-50">
                     <Td>
-                      <Link
+                      <Link prefetch={false}
                         href={`/admin/volunteers/${row.id}`}
                         className="font-semibold text-slate-900 hover:text-primary"
                       >

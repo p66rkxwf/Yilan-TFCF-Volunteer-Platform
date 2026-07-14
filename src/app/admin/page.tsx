@@ -131,7 +131,7 @@ export default async function AdminDashboardPage() {
       <div className="flex-1 space-y-5 p-4 sm:p-6">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {queues.map((queue) => (
-            <Link
+            <Link prefetch={false}
               key={queue.label}
               href={queue.href}
               className={`group rounded-xl border bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${
@@ -168,7 +168,7 @@ export default async function AdminDashboardPage() {
             description="即將開始的活動場次與報名狀況。"
             padded={false}
             action={
-              <Link
+              <Link prefetch={false}
                 href="/admin/activities"
                 className="text-xs font-semibold text-primary hover:text-primary/80"
               >
@@ -193,7 +193,7 @@ export default async function AdminDashboardPage() {
                     <tr key={s.activity_session_id} className="transition-colors hover:bg-slate-50">
                       <Td className="whitespace-nowrap">{formatSessionRange(s.start_at, s.end_at)}</Td>
                       <Td>
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/activities/${s.activity_id}`}
                           className="font-semibold text-slate-900 hover:text-primary"
                         >
@@ -224,7 +224,7 @@ export default async function AdminDashboardPage() {
             description="等最久的報名申請，優先處理。"
             padded={false}
             action={
-              <Link
+              <Link prefetch={false}
                 href="/admin/registrations"
                 className="text-xs font-semibold text-primary hover:text-primary/80"
               >

@@ -191,7 +191,7 @@ export default function SessionRosterPage() {
         backLabel="出席簽到"
         actions={
           session?.activities ? (
-            <Link
+            <Link prefetch={false}
               href={`/admin/activities/${session.activities.id}`}
               className="inline-flex items-center rounded-lg border-2 border-zinc-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-zinc-100"
             >
@@ -265,7 +265,7 @@ export default function SessionRosterPage() {
                       </Td>
                       <Td>
                         {row.volunteer ? (
-                          <Link
+                          <Link prefetch={false}
                             href={`/admin/volunteers/${row.volunteer.id}`}
                             className="font-semibold text-slate-900 hover:text-primary"
                           >
