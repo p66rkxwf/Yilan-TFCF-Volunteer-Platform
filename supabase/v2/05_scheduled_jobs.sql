@@ -1,7 +1,7 @@
 -- =========================================================
 -- 志工管理平台 05_scheduled_jobs.sql（定案版）
--- 內容：排程工作函式 ＋ pg_cron 排程註冊
--- 前置：01 → 02 → 03 → 04；並於 Supabase 啟用 pg_cron extension
+-- 內容：排程工作函式（觸發不在 SQL 層：由 Cloudflare Cron Worker 執行，見 §G）
+-- 前置：01 → 02 → 03 → 04；不需 pg_cron extension
 --
 -- 冪等設計：所有 job 可安全重跑 ——
 -- - 黑名單觸發由 (registration_id) 部分唯一索引擋重複

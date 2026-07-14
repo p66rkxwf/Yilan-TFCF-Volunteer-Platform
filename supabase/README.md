@@ -81,19 +81,15 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
    ```
    沒有這一步後台無法登入使用（無人有權限審核其他職員/志工帳號）。
 3. `system_settings`、`grade_reference_ages` 已由 `01_schema.sql` 種好預設值，不需額外動作。
-4. **設定 Auth Redirect URLs**：忘記密碼信件連結（`resetPassword` → `/auth/callback`）需要 Supabase
-   Dashboard → Authentication → URL Configuration 的 Redirect URLs 加入站台網址
-   （例如 `https://<你的網域>/auth/callback`），流程才會生效；本機開發請加入
-   `http://localhost:3000/auth/callback`。
-5. **部署寄信 worker（Cloudflare Cron Worker）**：通知一律先寫入 `notification_outbox` 佇列，需由
+4. **部署寄信 worker（Cloudflare Cron Worker）**：通知一律先寫入 `notification_outbox` 佇列，需由
    worker 消費才會實際寄出。worker 位於 `workers/orchestrator/`（Cloudflare Cron Worker，Resend 寄送，
    並一併觸發第 1 點的 5 支 `job_*`）。部署步驟（於 `workers/orchestrator/`）：
    1. `npm install`
    2. 設定 secrets：`wrangler secret put` 依序設定 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、
       `RESEND_API_KEY`、`MAIL_FROM`（例：`宜蘭家扶志工平台 <noreply@你的網域>`）、`SITE_URL`
       （寄件網域需先在 Resend 驗證）。
-   3. `wrangler deploy`（`wrangler.jsonc` 已含 6 個 cron trigger）。細節見
-      `workers/orchestrator/README.md`。
+   3. `wrangler deploy`（`wrangler.jsonc` 為單一每分鐘 cron，各排程於 worker 內依 UTC 時間分派）。
+      細節見 `workers/orchestrator/README.md`。
    > `supabase/functions/send-notifications/` 為舊版 Supabase Edge Function 實作，已 deprecated，僅留參考。
    未設定 `RESEND_API_KEY` 時 worker 會略過 outbox 消化而不寄出（等同暫時停用，佇列仍會累積）。
 

@@ -2,7 +2,8 @@
 
 // 志工活動列表（精簡列表）：一列一活動，顯示場次日期區間、地點、場次數、
 // 名額狀態，整列連到活動詳情頁逐場次報名。可報名/截止以「場次截止時間」
-// 即時計算，不依賴活動 status 欄位（pg_cron 狀態推進可能延遲或未啟用）。
+// 即時計算，不依賴活動 status 欄位（排程推進由 Cloudflare Cron Worker
+// 每 15 分執行一次，可能延遲）。
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";

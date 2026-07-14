@@ -172,7 +172,6 @@ npm run dev
 │  │  ├─ profile/         # 志工個人中心：favorites/registrations/certificate/settings
 │  │  ├─ volunteer/       # 志工活動瀏覽與報名（[activityId] 詳情頁）
 │  │  ├─ announcements/   # 最新消息列表與詳情頁
-│  │  ├─ auth/callback/   # Supabase auth 重導向 route handler（忘記密碼等）
 │  │  ├─ account-review/  # 志工帳號審核中／未通過提示頁
 │  │  ├─ login/、register/、forgot-password/
 │  │  ├─ scholarship/、resource/、support/、terms/、privacy/

@@ -14,7 +14,7 @@
 -- ---------------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA extensions;   -- EXCLUDE 約束需要（uuid = 搭配 range &&）
--- pg_cron 請於 Supabase Dashboard > Database > Extensions 啟用（05 會用到）
+-- 不需啟用 pg_cron：排程由 Cloudflare Cron Worker 觸發（見 05 §G 與 12）
 
 -- ---------------------------------------------------------
 -- 1. ENUM 型別

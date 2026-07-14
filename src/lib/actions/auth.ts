@@ -8,34 +8,8 @@ import {
 } from "@/lib/birthday";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
-
-// 還原站台網址（供重設密碼信件的 redirect 連結使用）。
-// 安全性：優先採用固定的 NEXT_PUBLIC_SITE_URL，避免攻擊者以偽造的
-// Host/Origin 標頭污染重設密碼連結（host header injection → reset token 外洩）。
-// 僅在未設定該環境變數時，才回退到請求標頭（本機開發便利）。
-// 註：Supabase 端仍會以 Auth Redirect URL allowlist 再把關（見 supabase/README §4）。
-async function getSiteOrigin(): Promise<string> {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configured) return configured.replace(/\/+$/, "");
-
-  // 正式環境「只」信任 NEXT_PUBLIC_SITE_URL：Host / Origin 標頭皆可由發起請求者
-  // 偽造，若拿來組重設密碼連結，攻擊者能把寄給受害者的連結指向自己的網域，
-  // 竊取 reset code（host header injection）。故正式環境不回退到任何請求標頭——
-  // 未設定即回傳空字串，讓 Supabase 以其 Site URL allowlist 兜底（連結會失效而非被劫持）。
-  // 僅本機開發為便利才回退到請求標頭。
-  if (process.env.NODE_ENV === "production") return "";
-
-  const headersList = await headers();
-  const origin = headersList.get("origin");
-  if (origin) return origin;
-
-  const host = headersList.get("host");
-  const proto = headersList.get("x-forwarded-proto") ?? "https";
-  return host ? `${proto}://${host}` : "";
-}
 
 // admin client 刻意保持 untyped（見專案慣例）；permissive cast 避免
 // service-role client 在部分查詢鏈上被推斷成 never。
@@ -217,30 +191,6 @@ export async function signUp(formData: {
     // 比照 admin-volunteers.ts / admin-users.ts 的回滾處理。
     await admin.auth.admin.deleteUser(authData.user.id);
     return { error: `註冊失敗：${profileError.message}` };
-  }
-
-  return { success: true };
-}
-
-export async function resetPassword(
-  email: string,
-  turnstileToken?: string | null
-): Promise<AuthResult> {
-  // 防濫用：公開重設端點易被機器人灌爆，先過 Turnstile（未設金鑰時自動放行）。
-  const humanVerified = await verifyTurnstile(turnstileToken ?? null);
-  if (!humanVerified) {
-    return { error: "人機驗證失敗，請重新完成驗證後再送出。" };
-  }
-
-  const supabase = await createClient();
-  const origin = await getSiteOrigin();
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?next=/profile/settings`,
-  });
-
-  if (error) {
-    return { error: `發送失敗：${error.message}` };
   }
 
   return { success: true };
