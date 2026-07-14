@@ -371,7 +371,9 @@ export default function VolunteerDetailPage() {
     );
   }
 
-  const belowThreshold = threshold != null && hours != null && hours.total_hours < threshold;
+  // 無出席紀錄者在 v_volunteer_hours 沒有資料列（hours 為 null），時數視為 0——
+  // 否則 0 小時反而會被判定「已達標」。
+  const belowThreshold = threshold != null && (hours?.total_hours ?? 0) < threshold;
 
   return (
     <>
