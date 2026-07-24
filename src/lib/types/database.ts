@@ -128,6 +128,7 @@ export interface ActivitySession {
   session_type: SessionType;
   location: string | null;
   note: string | null;
+  counts_hours: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -448,12 +449,20 @@ export interface Database {
         Row: ActivitySession;
         Insert: Omit<
           ActivitySession,
-          "id" | "created_at" | "updated_at" | "cancelled_at" | "session_type" | "location" | "note"
+          | "id"
+          | "created_at"
+          | "updated_at"
+          | "cancelled_at"
+          | "session_type"
+          | "location"
+          | "note"
+          | "counts_hours"
         > & {
           cancelled_at?: string | null;
           session_type?: SessionType;
           location?: string | null;
           note?: string | null;
+          counts_hours?: boolean;
         };
         Update: Partial<Omit<ActivitySession, "id" | "created_at" | "updated_at">>;
         Relationships: [];
