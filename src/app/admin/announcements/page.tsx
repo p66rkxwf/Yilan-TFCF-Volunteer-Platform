@@ -159,7 +159,7 @@ export default function AnnouncementsPage() {
             href="/admin/announcements/new"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
             新增公告
           </Link>
         }
@@ -222,7 +222,7 @@ export default function AnnouncementsPage() {
                     <Td>
                       <span className="flex items-center gap-1.5">
                         {row.is_pinned && (
-                          <span className="material-symbols-outlined text-[16px] text-amber-500">
+                          <span aria-hidden="true" className="material-symbols-outlined text-[16px] text-amber-500">
                             push_pin
                           </span>
                         )}

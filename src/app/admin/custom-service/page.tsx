@@ -191,7 +191,7 @@ function CustomServiceInner() {
         title="自訂服務審核"
         actions={
           <Button size="sm" onClick={openSubmit}>
-            <span className="material-symbols-outlined text-[18px]">person_add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">person_add</span>
             代志工登錄
           </Button>
         }

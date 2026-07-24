@@ -41,7 +41,7 @@ export default async function AnnouncementsPage() {
 
       {rows.length === 0 ? (
         <div className="py-16 text-center">
-          <span className="material-symbols-outlined mb-2 text-4xl text-slate-300">inbox</span>
+          <span aria-hidden="true" className="material-symbols-outlined mb-2 text-4xl text-slate-300">inbox</span>
           <p className="text-sm text-slate-500">目前沒有公告。</p>
         </div>
       ) : (
@@ -54,7 +54,7 @@ export default async function AnnouncementsPage() {
                   className="group flex items-center gap-3 py-3.5 transition-colors hover:bg-slate-50/70"
                 >
                   {row.is_pinned && (
-                    <span className="material-symbols-outlined shrink-0 text-[18px] text-amber-500">
+                    <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[18px] text-amber-500">
                       push_pin
                     </span>
                   )}
@@ -64,7 +64,7 @@ export default async function AnnouncementsPage() {
                   <time className="shrink-0 text-xs text-slate-400">
                     {row.published_at ? DATE_FORMATTER.format(new Date(row.published_at)) : ""}
                   </time>
-                  <span className="material-symbols-outlined shrink-0 text-[18px] text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary">
+                  <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[18px] text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary">
                     chevron_right
                   </span>
                 </Link>

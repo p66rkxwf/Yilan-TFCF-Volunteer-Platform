@@ -208,7 +208,7 @@ export function SupportContent() {
         <ul className="mt-2 space-y-3">
           {CONTACT_GUIDES.map((guide) => (
             <li key={guide.title} className="flex gap-2.5">
-              <span className="material-symbols-outlined text-[20px] text-primary">{guide.icon}</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-primary">{guide.icon}</span>
               <span>
                 <span className="block text-sm font-semibold text-slate-800">{guide.title}</span>
                 <span className="text-xs leading-5 text-slate-500">{guide.description}</span>
@@ -230,7 +230,7 @@ export function SupportContent() {
               className="flex items-center justify-between rounded px-2 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
             >
               {link.label}
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_forward</span>
             </Link>
           ))}
         </div>

@@ -127,7 +127,7 @@ export default function HistoryPage() {
             href="/profile/certificate"
             className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
           >
-            <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">workspace_premium</span>
             服務時數紀錄
           </Link>
         }
@@ -137,7 +137,7 @@ export default function HistoryPage() {
         <div className="w-full space-y-5">
           {!isLoading && rows.length > 0 && (
             <div className="flex flex-wrap items-baseline gap-2 border-b border-slate-200 pb-4 text-sm text-slate-500">
-              <span className="material-symbols-outlined text-[18px] text-primary">history</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-primary">history</span>
               歷年參加
               <span className="text-2xl font-bold text-slate-900">{rows.length}</span>
               場，其中出席
@@ -147,13 +147,13 @@ export default function HistoryPage() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+              <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
                 progress_activity
               </span>
             </div>
           ) : rows.length === 0 ? (
             <div className="py-16 text-center">
-              <span className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
+              <span aria-hidden="true" className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
                 event_busy
               </span>
               <p className="mb-4 text-sm text-slate-500">尚無已結束的參加紀錄</p>
@@ -206,14 +206,14 @@ export default function HistoryPage() {
                         </div>
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
                           <span className="inline-flex items-center gap-1">
-                            <span className="material-symbols-outlined text-[14px]">
+                            <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
                               calendar_today
                             </span>
                             {formatSessionRange(reg.session_start_at, reg.session_end_at)}
                           </span>
                           {reg.activity_location && (
                             <span className="inline-flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[14px]">
+                              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
                                 location_on
                               </span>
                               {reg.activity_location}
@@ -223,13 +223,13 @@ export default function HistoryPage() {
                             reg.attendance === "makeup_attended") &&
                             reg.service_hours != null && (
                               <span className="inline-flex items-center gap-1 font-semibold text-primary">
-                                <span className="material-symbols-outlined text-[14px]">timer</span>
+                                <span aria-hidden="true" className="material-symbols-outlined text-[14px]">timer</span>
                                 服務 {reg.service_hours} 小時
                               </span>
                             )}
                         </div>
                       </div>
-                      <span className="material-symbols-outlined shrink-0 text-[18px] text-slate-300 transition-colors group-hover:text-primary">
+                      <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[18px] text-slate-300 transition-colors group-hover:text-primary">
                         arrow_forward
                       </span>
                     </div>

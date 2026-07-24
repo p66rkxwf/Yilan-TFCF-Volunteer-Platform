@@ -41,7 +41,7 @@ function SettingsSection({
   return (
     <section>
       <div className="mb-4 flex items-start gap-2.5 border-b border-slate-200 pb-2.5">
-        <span
+        <span aria-hidden="true"
           className={`material-symbols-outlined text-[20px] ${
             danger ? "text-amber-600" : "text-primary"
           }`}
@@ -301,7 +301,7 @@ export default function SettingsPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {pwLoading && (
-                    <span className="material-symbols-outlined animate-spin text-[16px]">
+                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">
                       progress_activity
                     </span>
                   )}
@@ -343,7 +343,7 @@ export default function SettingsPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {usernameLoading && (
-                    <span className="material-symbols-outlined animate-spin text-[16px]">
+                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">
                       progress_activity
                     </span>
                   )}
@@ -365,12 +365,12 @@ export default function SettingsPage() {
                   <p className="truncate text-sm font-semibold text-slate-900">{contactEmail}</p>
                   {emailVerified ? (
                     <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-emerald-700">
-                      <span className="material-symbols-outlined text-[16px]">verified</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[16px]">verified</span>
                       已完成驗證
                     </p>
                   ) : (
                     <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-amber-700">
-                      <span className="material-symbols-outlined text-[16px]">error</span>
+                      <span aria-hidden="true" className="material-symbols-outlined text-[16px]">error</span>
                       尚未驗證，報名活動與自行簽到前需先驗證
                     </p>
                   )}
@@ -380,7 +380,7 @@ export default function SettingsPage() {
                     href="/profile/verify-email"
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
                   >
-                    <span className="material-symbols-outlined text-[18px]">mark_email_read</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">mark_email_read</span>
                     前往驗證
                   </Link>
                 )}
@@ -406,7 +406,7 @@ export default function SettingsPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {emailLoading && (
-                    <span className="material-symbols-outlined animate-spin text-[16px]">
+                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">
                       progress_activity
                     </span>
                   )}
@@ -425,7 +425,7 @@ export default function SettingsPage() {
           >
             {isLoadingRequest ? (
               <div className="flex items-center justify-center py-6">
-                <span className="material-symbols-outlined animate-spin text-2xl text-primary">
+                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-primary">
                   progress_activity
                 </span>
               </div>
@@ -446,7 +446,7 @@ export default function SettingsPage() {
                     className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold transition-colors hover:bg-slate-50 disabled:opacity-60"
                   >
                     {withdrawLoading && (
-                      <span className="material-symbols-outlined animate-spin text-[16px]">
+                      <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">
                         progress_activity
                       </span>
                     )}

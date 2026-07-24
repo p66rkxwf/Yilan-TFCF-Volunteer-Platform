@@ -30,7 +30,7 @@ export function AnnouncementBanner({ items }: { items: BannerItem[] }) {
       className="group flex items-center gap-3 border-b border-primary/20 bg-primary/5 px-6 py-2.5 text-sm transition-colors hover:bg-primary/10 md:px-16"
     >
       <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-white">
-        <span className="material-symbols-outlined text-[15px]">campaign</span>
+        <span aria-hidden="true" className="material-symbols-outlined text-[15px]">campaign</span>
         公告
       </span>
       <span className="min-w-0 flex-1 truncate font-medium text-slate-700 group-hover:text-primary">
@@ -48,7 +48,7 @@ export function AnnouncementBanner({ items }: { items: BannerItem[] }) {
           ))}
         </span>
       )}
-      <span className="material-symbols-outlined shrink-0 text-[18px] text-primary/60 transition-transform group-hover:translate-x-0.5">
+      <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[18px] text-primary/60 transition-transform group-hover:translate-x-0.5">
         chevron_right
       </span>
     </Link>

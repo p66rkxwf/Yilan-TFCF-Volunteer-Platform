@@ -37,7 +37,7 @@ export default async function AccountReviewPage() {
           isRejected ? "bg-amber-100 text-amber-600" : "bg-amber-100 text-amber-600"
         }`}
       >
-        <span className="material-symbols-outlined text-[28px]">
+        <span aria-hidden="true" className="material-symbols-outlined text-[28px]">
           {isRejected ? "cancel" : "hourglass_top"}
         </span>
       </div>

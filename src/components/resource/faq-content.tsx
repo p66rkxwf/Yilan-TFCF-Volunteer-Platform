@@ -122,7 +122,7 @@ export function FaqContent() {
       {/* 搜尋 + 分類 */}
       <div>
         <div className="flex h-11 items-center rounded-lg border border-slate-200 bg-white px-3">
-          <span className="material-symbols-outlined text-[20px] text-slate-400">search</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-slate-400">search</span>
           <input
             type="text"
             value={searchQuery}
@@ -166,7 +166,7 @@ export function FaqContent() {
                     </span>
                     <h3 className="text-sm font-bold text-slate-900">{item.question}</h3>
                   </span>
-                  <span className="material-symbols-outlined shrink-0 text-[20px] text-slate-400 transition-transform group-open:rotate-180">
+                  <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[20px] text-slate-400 transition-transform group-open:rotate-180">
                     expand_more
                   </span>
                 </summary>
@@ -176,7 +176,7 @@ export function FaqContent() {
           </div>
         ) : (
           <div className="py-12 text-center">
-            <span className="material-symbols-outlined text-4xl text-slate-300">search_off</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-4xl text-slate-300">search_off</span>
             <h3 className="mt-3 text-base font-bold text-slate-900">找不到符合條件的問題</h3>
             <p className="mt-1 text-sm text-slate-500">可嘗試更換關鍵字，或直接前往聯絡支援頁回報。</p>
             <Link
@@ -199,7 +199,7 @@ export function FaqContent() {
               href={link.href}
               className="flex items-center gap-2.5 rounded px-2 py-2 transition-colors hover:bg-primary/5"
             >
-              <span className="material-symbols-outlined text-[20px] text-primary">{link.icon}</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-primary">{link.icon}</span>
               <span>
                 <span className="text-sm font-semibold text-slate-800">{link.title}</span>
                 <span className="ml-2 text-xs text-slate-500">{link.description}</span>

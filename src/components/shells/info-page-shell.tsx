@@ -26,7 +26,7 @@ export function InfoPageShell({
       <div className="border-b border-slate-200 pb-5">
         {eyebrow ? (
           <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-primary">
-            {icon ? <span className="material-symbols-outlined text-[16px]">{icon}</span> : null}
+            {icon ? <span aria-hidden="true" className="material-symbols-outlined text-[16px]">{icon}</span> : null}
             {eyebrow}
           </p>
         ) : null}

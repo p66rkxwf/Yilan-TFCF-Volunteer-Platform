@@ -153,7 +153,7 @@ export default function FavoritesPage() {
             href="/volunteer"
             className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
             瀏覽活動
           </Link>
         }
@@ -163,13 +163,13 @@ export default function FavoritesPage() {
         <div className="w-full">
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+              <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
                 progress_activity
               </span>
             </div>
           ) : favorites.length === 0 ? (
             <div className="py-16 text-center">
-              <span className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
+              <span aria-hidden="true" className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
                 bookmark_border
               </span>
               <p className="mb-4 text-sm text-slate-500">還沒有收藏任何活動</p>
@@ -203,13 +203,13 @@ export default function FavoritesPage() {
                           </div>
                           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
                             <span className="inline-flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[14px]">calendar_today</span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">calendar_today</span>
                               {formatRange(fav.firstStart, fav.lastEnd)}
                               {fav.sessionCount > 0 && ` · ${fav.sessionCount} 場次`}
                             </span>
                             {fav.location && (
                               <span className="inline-flex items-center gap-1">
-                                <span className="material-symbols-outlined text-[14px]">location_on</span>
+                                <span aria-hidden="true" className="material-symbols-outlined text-[14px]">location_on</span>
                                 {fav.location}
                               </span>
                             )}
@@ -223,7 +223,7 @@ export default function FavoritesPage() {
                         title="取消收藏"
                         className="shrink-0 p-1 text-primary transition-colors hover:text-primary/70 disabled:opacity-60"
                       >
-                        <span
+                        <span aria-hidden="true"
                           className="material-symbols-outlined text-[22px]"
                           style={{ fontVariationSettings: "'FILL' 1" }}
                         >

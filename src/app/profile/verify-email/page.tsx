@@ -78,7 +78,7 @@ export default function VerifyEmailPage() {
           ) : verified ? (
             <div className="rounded-md border border-emerald-200 bg-emerald-50 p-6">
               <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
-                <span className="material-symbols-outlined text-[20px]">verified</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">verified</span>
                 您的 Email（{email}）已完成驗證
               </p>
               <p className="mt-2 text-sm text-emerald-700/80">
@@ -89,7 +89,7 @@ export default function VerifyEmailPage() {
                 className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
               >
                 前往活動列表
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_forward</span>
               </Link>
             </div>
           ) : (
@@ -110,7 +110,7 @@ export default function VerifyEmailPage() {
                   disabled={sending || cooldown > 0}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
                 >
-                  <span className="material-symbols-outlined text-[18px]">mail</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">mail</span>
                   {cooldown > 0 ? `重新寄送（${cooldown}）` : sentOnce ? "重新寄送驗證碼" : "寄送驗證碼"}
                 </button>
               </div>

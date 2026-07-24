@@ -161,7 +161,7 @@ function LoginForm() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
               >
-                <span className="material-symbols-outlined text-[20px]">
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
                   {showPassword ? "visibility_off" : "visibility"}
                 </span>
               </button>
@@ -177,13 +177,13 @@ function LoginForm() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <span className="material-symbols-outlined animate-spin text-[20px]">
+              <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[20px]">
                 progress_activity
               </span>
             ) : (
               <>
                 登入
-                <span className="material-symbols-outlined text-[20px]">
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
                   arrow_forward
                 </span>
               </>
