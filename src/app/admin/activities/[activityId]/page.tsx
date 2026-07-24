@@ -35,7 +35,8 @@ type ConfirmAction =
   | { kind: "close" }
   | { kind: "cancelActivity" }
   | { kind: "deleteDraft" }
-  | { kind: "cancelSession"; sessionId: string; label: string };
+  | { kind: "cancelSession"; sessionId: string; label: string }
+  | { kind: "deleteSession"; sessionId: string; label: string };
 
 export default function ActivityDetailPage() {
   const { activityId } = useParams<{ activityId: string }>();
@@ -135,6 +136,13 @@ export default function ActivityDetailPage() {
         });
         if (error) throw error;
         toast.success(`場次已取消，連動取消 ${data ?? 0} 筆報名並通知學生`);
+      } else if (confirm.kind === "deleteSession") {
+        const { error } = await supabase
+          .from("activity_sessions")
+          .delete()
+          .eq("id", confirm.sessionId);
+        if (error) throw error;
+        toast.success("場次已刪除");
       }
       setConfirm(null);
       await load();
@@ -181,6 +189,12 @@ export default function ActivityDetailPage() {
       title: "取消此場次？",
       description:
         "該場所有有效報名將連動取消並逐筆通知學生（颱風停辦等情況）。已結束的場次不可取消。此操作不可復原。",
+      danger: true,
+    },
+    deleteSession: {
+      title: "刪除此場次？",
+      description:
+        "僅能刪除沒有任何報名紀錄的場次（含已取消的報名）；若已有報名，請改用「取消場次」。此操作不可復原。",
       danger: true,
     },
   };
@@ -411,6 +425,17 @@ export default function ActivityDetailPage() {
                                     label: formatSessionRange(session.start_at, session.end_at),
                                   }),
                               },
+                            canManage && {
+                              label: "刪除場次",
+                              icon: "delete_forever",
+                              danger: true,
+                              onSelect: () =>
+                                setConfirm({
+                                  kind: "deleteSession",
+                                  sessionId: session.id,
+                                  label: formatSessionRange(session.start_at, session.end_at),
+                                }),
+                            },
                           ]}
                         />
                       </Td>
