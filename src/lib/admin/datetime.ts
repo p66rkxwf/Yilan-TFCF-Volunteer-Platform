@@ -63,6 +63,62 @@ export function isoToTaipeiLocal(iso: string | null | undefined): string {
   return shifted.toISOString().slice(0, 16);
 }
 
+// 使用者自行輸入的台灣時間文字 → ISO（UTC）；格式或日期非法時回 null。
+// 接受「YYYY-MM-DD HH:mm」（亦允許 / 分隔、以 T 或空白分隔日期時間）。
+export function parseTaipeiInput(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = text.trim().match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})[ T](\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const [, ys, mos, ds, hs, mis] = m;
+  const y = Number(ys);
+  const mo = Number(mos);
+  const d = Number(ds);
+  const h = Number(hs);
+  const mi = Number(mis);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || h > 23 || mi > 59) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const local = `${y}-${pad(mo)}-${pad(d)}T${pad(h)}:${pad(mi)}`;
+  // 以嚴格 ISO 解析：不合法日期（如 2/30、4/31）會得到 Invalid Date
+  const date = new Date(`${local}:00+08:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  // 二次確認未被進位（部分引擎對越界日期會回捲）：比對回轉後的台北本地值
+  if (isoToTaipeiLocal(date.toISOString()) !== local) return null;
+  return date.toISOString();
+}
+
+// ISO → 使用者輸入用文字（台灣時間，YYYY-MM-DD HH:mm）
+export function formatTaipeiInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return isoToTaipeiLocal(iso).replace("T", " ");
+}
+
+// 使用者輸入的日期文字（YYYY-MM-DD，允許 /）→ 正規化 YYYY-MM-DD；非法（含 2/30 等）回 null
+export function normalizeDateInput(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = text.trim().match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const iso = `${y}-${pad(mo)}-${pad(d)}`;
+  // 以中午避開換日；越界日期（如 2/30）在嚴格 ISO 解析下為 Invalid Date
+  if (Number.isNaN(new Date(`${iso}T12:00:00+08:00`).getTime())) return null;
+  return iso;
+}
+
+// 使用者輸入的時間文字（H:mm 或 HH:mm）→ 正規化 HH:mm；非法回 null
+export function normalizeTimeInput(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const m = text.trim().match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const mi = Number(m[2]);
+  if (h > 23 || mi > 59) return null;
+  return `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`;
+}
+
 // 場次時長（小時，1 位小數）
 export function sessionHours(startIso: string, endIso: string): number {
   const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
