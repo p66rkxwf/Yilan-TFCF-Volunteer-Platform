@@ -115,6 +115,8 @@ export interface Activity {
   updated_at: string;
 }
 
+export type SessionType = "regular" | "briefing";
+
 export interface ActivitySession {
   id: string;
   activity_id: string;
@@ -123,6 +125,9 @@ export interface ActivitySession {
   capacity: number;
   registration_deadline_at: string;
   cancelled_at: string | null;
+  session_type: SessionType;
+  location: string | null;
+  note: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -441,8 +446,14 @@ export interface Database {
       };
       activity_sessions: {
         Row: ActivitySession;
-        Insert: Omit<ActivitySession, "id" | "created_at" | "updated_at" | "cancelled_at"> & {
+        Insert: Omit<
+          ActivitySession,
+          "id" | "created_at" | "updated_at" | "cancelled_at" | "session_type" | "location" | "note"
+        > & {
           cancelled_at?: string | null;
+          session_type?: SessionType;
+          location?: string | null;
+          note?: string | null;
         };
         Update: Partial<Omit<ActivitySession, "id" | "created_at" | "updated_at">>;
         Relationships: [];
