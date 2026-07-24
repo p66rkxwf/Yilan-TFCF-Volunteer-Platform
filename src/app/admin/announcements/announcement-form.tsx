@@ -10,7 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass, Panel } from "@/components/admin/ui";
-import { Markdown } from "@/components/admin/markdown";
+import { MarkdownEditor } from "@/components/admin/markdown-editor";
 import type { Announcement, AnnouncementStatus } from "@/lib/types/database";
 
 export function AnnouncementForm({
@@ -28,7 +28,6 @@ export function AnnouncementForm({
   const [title, setTitle] = useState(announcement?.title ?? "");
   const [content, setContent] = useState(announcement?.content ?? "");
   const [isPinned, setIsPinned] = useState(announcement?.is_pinned ?? false);
-  const [showPreview, setShowPreview] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
 
@@ -91,47 +90,8 @@ export function AnnouncementForm({
             />
           </Field>
 
-          <Field
-            label="內容"
-            required
-            error={errors.content}
-            hint="支援 Markdown：# 標題、**粗體**、*斜體*、- 清單、> 引用、[文字](網址)。"
-          >
-            <div className="mb-2 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowPreview(false)}
-                className={`rounded-lg px-3 py-1 text-xs font-semibold ${
-                  !showPreview ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-100"
-                }`}
-              >
-                編輯
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowPreview(true)}
-                className={`rounded-lg px-3 py-1 text-xs font-semibold ${
-                  showPreview ? "bg-primary/10 text-primary" : "text-slate-500 hover:bg-slate-100"
-                }`}
-              >
-                預覽
-              </button>
-            </div>
-            {showPreview ? (
-              <div className="min-h-48 rounded-lg border border-slate-200 bg-slate-50/50 p-4">
-                {content.trim() ? (
-                  <Markdown content={content} />
-                ) : (
-                  <p className="text-sm text-slate-400">（無內容可預覽）</p>
-                )}
-              </div>
-            ) : (
-              <textarea
-                className={`${inputClass} min-h-48 font-mono text-sm`}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-              />
-            )}
+          <Field label="內容" required error={errors.content}>
+            <MarkdownEditor value={content} onChange={setContent} minHeightClass="min-h-48" />
           </Field>
 
           <label className="flex cursor-pointer items-center gap-2 text-sm">

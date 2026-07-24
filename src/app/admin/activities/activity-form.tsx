@@ -1,7 +1,7 @@
 "use client";
 
 // 活動基本資料表單（新增／編輯共用）。
-// 主辦人為多選（在職職員）；日期、名額、截止皆屬「場次」層，不在此表單。
+// 負責人為多選（在職職員）；日期、名額、截止皆屬「場次」層，不在此表單。
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass, Panel, SearchInput } from "@/components/admin/ui";
+import { MarkdownEditor } from "@/components/admin/markdown-editor";
 import { Select } from "@/components/ui/select";
 import { STAFF_JOB_TITLE } from "@/lib/admin/labels";
 import type { Activity, ActivityType, StaffJobTitle } from "@/lib/types/database";
@@ -109,7 +110,7 @@ export function ActivityForm({
       nextErrors.cancelWindow = "取消審核天數需為 0 或正整數";
     }
     if (organizerIds.size === 0) {
-      nextErrors.organizers = "請至少指定一位主辦人（負責審核與接收提醒）";
+      nextErrors.organizers = "請至少指定一位負責人（負責審核與接收提醒）";
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -147,7 +148,7 @@ export function ActivityForm({
         activityId = data.id as string;
       }
 
-      // 主辦人差異同步（先刪後補；集合小，逐筆即可）
+      // 負責人差異同步（先刪後補；集合小，逐筆即可）
       const desired = organizerIds;
       const current = new Set(initialOrganizerIds ?? []);
       const toAdd = [...desired].filter((id) => !current.has(id));
@@ -192,12 +193,13 @@ export function ActivityForm({
             />
           </Field>
 
-          <Field label="活動說明" hint="支援換行；學生在前台會看到此內容。">
-            <textarea
-              className={`${inputClass} min-h-32`}
+          <Field label="活動說明">
+            <MarkdownEditor
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={setContent}
+              minHeightClass="min-h-32"
               placeholder="活動內容、注意事項、集合方式…"
+              hint="支援 Markdown：# 標題、**粗體**、*斜體*、- 清單、> 引用、[文字](網址)；學生在前台會看到此內容。"
             />
           </Field>
 
@@ -242,8 +244,8 @@ export function ActivityForm({
       </Panel>
 
       <Panel
-        title="主辦人"
-        description="主辦人負責審核報名並接收審核提醒；可多位。姓名與電話會公開給學生。"
+        title="負責人"
+        description="負責人負責審核報名並接收審核提醒；可多位。姓名與電話會公開給學生。"
       >
         <div className="space-y-3">
           <SearchInput
@@ -277,7 +279,7 @@ export function ActivityForm({
           {errors.organizers ? (
             <p className="text-xs font-semibold text-amber-700">{errors.organizers}</p>
           ) : (
-            <p className="text-xs text-slate-500">已選 {organizerIds.size} 位主辦人</p>
+            <p className="text-xs text-slate-500">已選 {organizerIds.size} 位負責人</p>
           )}
         </div>
       </Panel>

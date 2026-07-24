@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { selfCheckIn } from "@/lib/actions/registrations";
+import { Markdown } from "@/components/admin/markdown";
 import { formatSessionRange } from "@/lib/admin/datetime";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
@@ -136,7 +137,7 @@ export default function RegistrationDetailPage() {
   if (isLoading || !reg) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
-        <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
           progress_activity
         </span>
       </div>
@@ -162,7 +163,7 @@ export default function RegistrationDetailPage() {
           href="/profile/registrations"
           className="inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
         >
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_back</span>
           返回我的報名
         </Link>
 
@@ -188,7 +189,7 @@ export default function RegistrationDetailPage() {
           <div className="mt-4 space-y-2.5 text-base text-slate-700">
             {reg.session && (
               <p className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-slate-400">
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-slate-400">
                   calendar_today
                 </span>
                 <span>
@@ -200,7 +201,7 @@ export default function RegistrationDetailPage() {
             )}
             {reg.activity?.location && (
               <p className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-slate-400">
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-slate-400">
                   location_on
                 </span>
                 <span>
@@ -210,7 +211,7 @@ export default function RegistrationDetailPage() {
               </p>
             )}
             <p className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[20px] text-slate-400">schedule</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-slate-400">schedule</span>
               <span>
                 <span className="font-medium text-slate-500">報名時間：</span>
                 {DATETIME_FORMATTER.format(new Date(reg.created_at))}
@@ -218,7 +219,7 @@ export default function RegistrationDetailPage() {
             </p>
             {reg.checked_in_at && (
               <p className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-slate-400">
+                <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-slate-400">
                   how_to_reg
                 </span>
                 <span>
@@ -230,7 +231,7 @@ export default function RegistrationDetailPage() {
             {(reg.attendance === "attended" || reg.attendance === "makeup_attended") &&
               reg.service_hours != null && (
                 <p className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px] text-primary">timer</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-primary">timer</span>
                   <span className="font-semibold text-primary">
                     服務時數：{reg.service_hours} 小時
                   </span>
@@ -241,9 +242,7 @@ export default function RegistrationDetailPage() {
           {reg.activity?.content && (
             <div className="mt-4 border-t border-slate-100 pt-4">
               <p className="mb-1.5 text-sm font-medium text-slate-500">活動說明</p>
-              <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
-                {reg.activity.content}
-              </p>
+              <Markdown content={reg.activity.content} />
             </div>
           )}
 
@@ -262,7 +261,7 @@ export default function RegistrationDetailPage() {
               className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
             >
               查看活動頁面
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_forward</span>
             </Link>
           )}
         </div>
@@ -283,7 +282,7 @@ export default function RegistrationDetailPage() {
                 disabled={isCheckingIn}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <span className="material-symbols-outlined text-[18px]">how_to_reg</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">how_to_reg</span>
                 {isCheckingIn ? "簽到中…" : "立即簽到"}
               </button>
             </div>
