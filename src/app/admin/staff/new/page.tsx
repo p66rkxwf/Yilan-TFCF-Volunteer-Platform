@@ -113,7 +113,7 @@ export default function NewStaffPage() {
                   onChange={(e) => set("fullName", e.target.value)}
                 />
               </Field>
-              <Field label="聯絡電話" required error={errors.phone} hint="主辦人電話會公開於前台。">
+              <Field label="聯絡電話" required error={errors.phone} hint="負責人電話會公開於前台。">
                 <input
                   className={inputClass}
                   value={form.phone}

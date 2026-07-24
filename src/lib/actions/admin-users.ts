@@ -43,7 +43,7 @@ export async function createStaff(input: {
   if (!input.fullName.trim()) return { error: "請輸入姓名" };
   if (!username) return { error: "請輸入帳號" };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return { error: "請輸入有效的 Email" };
-  if (!input.phone.trim()) return { error: "電話為必填（主辦人電話會公開於前台）" };
+  if (!input.phone.trim()) return { error: "電話為必填（負責人電話會公開於前台）" };
 
   const admin = adminClient();
 

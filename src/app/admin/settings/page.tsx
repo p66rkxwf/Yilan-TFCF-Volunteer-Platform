@@ -267,7 +267,7 @@ export default function SettingsPage() {
               )}
               {numField(
                 "報名審核提醒天數",
-                "場次開始前幾天起，每日提醒主辦人。",
+                "場次開始前幾天起，每日提醒負責人。",
                 settings.review_reminder_days_before,
                 (v) => setSettings({ ...settings, review_reminder_days_before: v })
               )}
