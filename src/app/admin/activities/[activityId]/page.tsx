@@ -21,7 +21,7 @@ import {
   RowActionMenu,
 } from "@/components/admin/ui";
 import { Markdown } from "@/components/admin/markdown";
-import { ACTIVITY_STATUS, ACTIVITY_TYPE } from "@/lib/admin/labels";
+import { ACTIVITY_STATUS } from "@/lib/admin/labels";
 import { formatDateTime, formatSessionRange, sessionHours } from "@/lib/admin/datetime";
 import type { Activity, ActivitySession, ActivityStats } from "@/lib/types/database";
 
@@ -251,7 +251,6 @@ export default function ActivityDetailPage() {
               <DescriptionItem label="狀態">
                 <StatusPill meta={meta} />
               </DescriptionItem>
-              <DescriptionItem label="類型">{ACTIVITY_TYPE[activity.activity_type]}</DescriptionItem>
               <DescriptionItem label="地點">{activity.location}</DescriptionItem>
               <DescriptionItem label="取消審核門檻">
                 {activity.cancel_review_window_days === 0

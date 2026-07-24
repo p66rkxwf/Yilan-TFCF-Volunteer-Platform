@@ -105,7 +105,6 @@ export interface Activity {
   created_by: string;
   title: string;
   content: string | null;
-  activity_type: ActivityType;
   location: string;
   cancel_review_window_days: number;
   status: ActivityStatus;

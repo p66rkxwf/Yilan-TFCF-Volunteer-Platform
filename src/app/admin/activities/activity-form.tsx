@@ -11,9 +11,8 @@ import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass, Panel, SearchInput } from "@/components/admin/ui";
 import { MarkdownEditor } from "@/components/admin/markdown-editor";
-import { Select } from "@/components/ui/select";
 import { STAFF_JOB_TITLE } from "@/lib/admin/labels";
-import type { Activity, ActivityType, StaffJobTitle } from "@/lib/types/database";
+import type { Activity, StaffJobTitle } from "@/lib/types/database";
 
 interface StaffOption {
   id: string;
@@ -24,7 +23,6 @@ interface StaffOption {
 export interface ActivityFormValue {
   title: string;
   content: string;
-  activity_type: ActivityType;
   location: string;
   cancel_review_window_days: number;
   organizerIds: string[];
@@ -46,9 +44,6 @@ export function ActivityForm({
 
   const [title, setTitle] = useState(activity?.title ?? "");
   const [content, setContent] = useState(activity?.content ?? "");
-  const [activityType, setActivityType] = useState<ActivityType>(
-    activity?.activity_type ?? "general"
-  );
   const [location, setLocation] = useState(activity?.location ?? "");
   const [cancelWindow, setCancelWindow] = useState(
     String(activity?.cancel_review_window_days ?? 0)
@@ -125,7 +120,6 @@ export function ActivityForm({
           .update({
             title: title.trim(),
             content: content.trim() || null,
-            activity_type: activityType,
             location: location.trim(),
             cancel_review_window_days: windowDays,
           })
@@ -137,7 +131,6 @@ export function ActivityForm({
           .insert({
             title: title.trim(),
             content: content.trim() || null,
-            activity_type: activityType,
             location: location.trim(),
             cancel_review_window_days: windowDays,
             created_by: currentUserId,
@@ -202,28 +195,15 @@ export function ActivityForm({
             />
           </Field>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="活動類型">
-              <Select
-                value={activityType}
-                onValueChange={(v) => setActivityType(v as ActivityType)}
-                options={[
-                  { value: "general", label: "一般活動" },
-                  { value: "custom", label: "自訂活動（可覆寫時數）" },
-                ]}
-              />
-            </Field>
-
-            <Field label="活動地點" required error={errors.location}>
-              <input
-                className={inputClass}
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="例：宜蘭家扶中心 2 樓"
-                maxLength={120}
-              />
-            </Field>
-          </div>
+          <Field label="活動地點" required error={errors.location}>
+            <input
+              className={inputClass}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="例：宜蘭家扶中心 2 樓"
+              maxLength={120}
+            />
+          </Field>
 
           <Field
             label="取消審核天數門檻"

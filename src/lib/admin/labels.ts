@@ -2,7 +2,6 @@
 
 import type {
   ActivityStatus,
-  ActivityType,
   AnnouncementStatus,
   AttendanceStatus,
   CancelReason,
@@ -29,10 +28,6 @@ export const ACTIVITY_STATUS: Record<ActivityStatus, StatusMeta> = {
   cancelled: { label: "已取消", badge: "bg-slate-200 text-slate-600" },
 };
 
-export const ACTIVITY_TYPE: Record<ActivityType, string> = {
-  general: "一般活動",
-  custom: "自訂活動",
-};
 
 export const REGISTRATION_STATUS: Record<RegistrationStatus, StatusMeta> = {
   pending: { label: "待審核", badge: "bg-amber-100 text-amber-700" },

@@ -28,7 +28,7 @@ import {
   restoreRecord,
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
-import { ACTIVITY_STATUS, ACTIVITY_TYPE } from "@/lib/admin/labels";
+import { ACTIVITY_STATUS } from "@/lib/admin/labels";
 import { formatSessionRange } from "@/lib/admin/datetime";
 import type { Activity, ActivityStatus } from "@/lib/types/database";
 
@@ -216,7 +216,6 @@ export default function AdminActivitiesPage() {
             <thead>
               <tr>
                 <Th>活動</Th>
-                <Th>類型</Th>
                 <Th>狀態</Th>
                 <Th className="text-right">場次數</Th>
                 <Th>下一場</Th>
@@ -243,7 +242,6 @@ export default function AdminActivitiesPage() {
                         </Link>
                         <p className="text-xs text-slate-400">{row.location}</p>
                       </Td>
-                      <Td className="whitespace-nowrap">{ACTIVITY_TYPE[row.activity_type]}</Td>
                       <Td>
                         <StatusPill meta={ACTIVITY_STATUS[row.status as ActivityStatus]} />
                       </Td>
