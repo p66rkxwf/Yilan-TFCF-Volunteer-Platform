@@ -1,6 +1,6 @@
 "use client";
 
-// 活動詳情：基本資料、狀態操作、主辦人、場次清單（含各場報名統計與操作）。
+// 活動詳情：基本資料、狀態操作、負責人、場次清單（含各場報名統計與操作）。
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -20,6 +20,7 @@ import {
   DescriptionItem,
   RowActionMenu,
 } from "@/components/admin/ui";
+import { Markdown } from "@/components/admin/markdown";
 import { ACTIVITY_STATUS, ACTIVITY_TYPE } from "@/lib/admin/labels";
 import { formatDateTime, formatSessionRange, sessionHours } from "@/lib/admin/datetime";
 import type { Activity, ActivitySession, ActivityStats } from "@/lib/types/database";
@@ -248,7 +249,7 @@ export default function ActivityDetailPage() {
               </DescriptionItem>
               <DescriptionItem label="活動說明">
                 {activity.content ? (
-                  <span className="whitespace-pre-wrap">{activity.content}</span>
+                  <Markdown content={activity.content} />
                 ) : (
                   <span className="text-slate-400">（未填寫）</span>
                 )}
@@ -257,11 +258,11 @@ export default function ActivityDetailPage() {
           </Panel>
 
           <Panel
-            title="主辦人"
+            title="負責人"
 
           >
             {organizers.length === 0 ? (
-              <p className="text-sm text-slate-400">尚未指定主辦人（編輯活動以加入）</p>
+              <p className="text-sm text-slate-400">尚未指定負責人（編輯活動以加入）</p>
             ) : (
               <ul className="space-y-2">
                 {organizers.map((o) => (
@@ -290,7 +291,7 @@ export default function ActivityDetailPage() {
                 href={`/admin/activities/${activity.id}/sessions/new`}
                 className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
               >
-                <span className="material-symbols-outlined text-[16px]">add</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">add</span>
                 新增場次
               </Link>
             ) : undefined
@@ -317,25 +318,55 @@ export default function ActivityDetailPage() {
                   const stat = stats.get(session.id);
                   const isCancelled = Boolean(session.cancelled_at);
                   const isEnded = session.end_at <= nowIso;
+                  const isBriefing = session.session_type === "briefing";
                   return (
                     <tr key={session.id} className="transition-colors hover:bg-slate-50">
                       <Td className="whitespace-nowrap">
-                        {formatSessionRange(session.start_at, session.end_at)}
+                        <div className="flex items-center gap-2">
+                          <span>{formatSessionRange(session.start_at, session.end_at)}</span>
+                          {isBriefing && (
+                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                              說明會
+                            </span>
+                          )}
+                        </div>
+                        {session.location && (
+                          <div className="mt-0.5 text-xs font-normal text-slate-400">
+                            ＠{session.location}
+                          </div>
+                        )}
                       </Td>
                       <Td className="whitespace-nowrap text-slate-500">
-                        {formatDateTime(session.registration_deadline_at)}
+                        {isBriefing ? "—" : formatDateTime(session.registration_deadline_at)}
                       </Td>
-                      <Td className="text-right">{sessionHours(session.start_at, session.end_at)}</Td>
                       <Td className="text-right">
-                        {stat ? `${stat.active_registrations}／${session.capacity}` : `—／${session.capacity}`}
+                        {isBriefing ? "—" : sessionHours(session.start_at, session.end_at)}
                       </Td>
-                      <Td className="text-right">{stat?.approved_count ?? 0}</Td>
+                      <Td className="text-right">
+                        {isBriefing
+                          ? "—"
+                          : stat
+                            ? `${stat.active_registrations}／${session.capacity}`
+                            : `—／${session.capacity}`}
+                      </Td>
+                      <Td className="text-right">{isBriefing ? "—" : (stat?.approved_count ?? 0)}</Td>
                       <Td className="whitespace-nowrap text-right">
-                        {stat ? `${stat.attended_count}／${stat.absent_count}` : "0／0"}
+                        {isBriefing
+                          ? "—"
+                          : stat
+                            ? `${stat.attended_count}／${stat.absent_count}`
+                            : "0／0"}
                       </Td>
                       <Td>
                         {isCancelled ? (
                           <StatusPill meta={{ label: "已取消", badge: "bg-slate-200 text-slate-600" }} />
+                        ) : isBriefing ? (
+                          <StatusPill
+                            meta={{
+                              label: isEnded ? "已結束" : "公告中",
+                              badge: "bg-primary/10 text-primary",
+                            }}
+                          />
                         ) : isEnded ? (
                           <StatusPill meta={{ label: "已結束", badge: "bg-slate-200 text-slate-600" }} />
                         ) : session.registration_deadline_at <= nowIso ? (
@@ -348,12 +379,13 @@ export default function ActivityDetailPage() {
                         <RowActionMenu
                           ariaLabel="場次操作"
                           actions={[
-                            {
+                            !isBriefing && {
                               label: "名單/點名",
                               icon: "fact_check",
                               href: `/admin/attendance/${session.id}`,
                             },
-                            canManage &&
+                            !isBriefing &&
+                              canManage &&
                               !isCancelled &&
                               !isEnded && {
                                 label: "指派學生",

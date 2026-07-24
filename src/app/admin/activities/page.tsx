@@ -35,7 +35,13 @@ import type { Activity, ActivityStatus } from "@/lib/types/database";
 const PAGE_SIZE = 20;
 
 interface ActivityRow extends Activity {
-  activity_sessions: { id: string; start_at: string; end_at: string; cancelled_at: string | null }[];
+  activity_sessions: {
+    id: string;
+    start_at: string;
+    end_at: string;
+    cancelled_at: string | null;
+    session_type: string;
+  }[];
   creator: { full_name: string } | null;
 }
 
@@ -61,7 +67,7 @@ export default function AdminActivitiesPage() {
     let q = supabase
       .from("activities")
       .select(
-        "*, activity_sessions(id, start_at, end_at, cancelled_at), creator:created_by(full_name)"
+        "*, activity_sessions(id, start_at, end_at, cancelled_at, session_type), creator:created_by(full_name)"
       )
       .order("created_at", { ascending: false })
       .limit(1000);
@@ -123,7 +129,7 @@ export default function AdminActivitiesPage() {
   // 下一場未取消場次（未來優先，否則顯示最近一場）
   const nextSessionText = (row: ActivityRow) => {
     const active = row.activity_sessions
-      .filter((s) => !s.cancelled_at)
+      .filter((s) => !s.cancelled_at && s.session_type !== "briefing")
       .sort((a, b) => a.start_at.localeCompare(b.start_at));
     if (active.length === 0) return "—";
     const now = new Date().toISOString();
@@ -142,7 +148,7 @@ export default function AdminActivitiesPage() {
             href="/admin/activities/new"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
             新增活動
           </Link>
         }
@@ -225,7 +231,10 @@ export default function AdminActivitiesPage() {
                 <EmptyRow colSpan={7} message="沒有符合條件的活動" />
               ) : (
                 paged.map((row) => {
-                  const activeSessions = row.activity_sessions.filter((s) => !s.cancelled_at);
+                  const regularSessions = row.activity_sessions.filter(
+                    (s) => s.session_type !== "briefing"
+                  );
+                  const activeSessions = regularSessions.filter((s) => !s.cancelled_at);
                   return (
                     <tr key={row.id} className="transition-colors hover:bg-slate-50">
                       <Td>
@@ -243,9 +252,9 @@ export default function AdminActivitiesPage() {
                       </Td>
                       <Td className="text-right">
                         {activeSessions.length}
-                        {row.activity_sessions.length !== activeSessions.length && (
+                        {regularSessions.length !== activeSessions.length && (
                           <span className="text-xs text-slate-400">
-                            （含取消 {row.activity_sessions.length}）
+                            （含取消 {regularSessions.length}）
                           </span>
                         )}
                       </Td>

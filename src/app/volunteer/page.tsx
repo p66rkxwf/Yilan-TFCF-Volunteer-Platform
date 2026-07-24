@@ -121,7 +121,10 @@ export default function VolunteerPage() {
     const nowIso = new Date().toISOString();
 
     const items: ActivityListItem[] = (acts ?? []).map((a: any) => {
-      const sessions = (a.activity_sessions ?? []).filter((s: any) => !s.cancelled_at);
+      // 行前說明會為純資訊場次，不列入報名狀態、名額與場次數計算。
+      const sessions = (a.activity_sessions ?? []).filter(
+        (s: any) => !s.cancelled_at && s.session_type !== "briefing"
+      );
       const registerable = sessions.filter(
         (s: any) =>
           s.registration_deadline_at > nowIso && (openBySession.get(s.id) ?? s.capacity) > 0
@@ -184,7 +187,7 @@ export default function VolunteerPage() {
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
-        <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
           progress_activity
         </span>
       </div>
@@ -212,7 +215,7 @@ export default function VolunteerPage() {
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex h-12 flex-1 items-stretch rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="flex items-center justify-center pl-4 text-slate-400">
-              <span className="material-symbols-outlined">search</span>
+              <span aria-hidden="true" className="material-symbols-outlined">search</span>
             </div>
             <input
               className="w-full min-w-0 flex-1 border-none bg-transparent px-4 text-slate-900 placeholder:text-slate-400 focus:ring-0"
@@ -237,7 +240,7 @@ export default function VolunteerPage() {
               hideFull ? "bg-primary text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
-            <span className="material-symbols-outlined text-[18px]">
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
               {hideFull ? "check_circle" : "filter_alt"}
             </span>
             只看可報名
@@ -250,7 +253,7 @@ export default function VolunteerPage() {
               showClosed ? "bg-primary text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
             }`}
           >
-            <span className="material-symbols-outlined text-[18px]">
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
               {showClosed ? "visibility" : "visibility_off"}
             </span>
             顯示已截止
@@ -296,7 +299,7 @@ export default function VolunteerPage() {
                     {/* 中排：帶標籤橫向排列（日期／場次／地點），窄螢幕自動換行 */}
                     <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-2 text-sm text-slate-700">
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[18px] text-slate-400">
+                        <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-slate-400">
                           calendar_today
                         </span>
                         <span>
@@ -306,7 +309,7 @@ export default function VolunteerPage() {
                       </span>
                       {a.sessionCount > 0 && (
                         <span className="inline-flex items-center gap-1.5">
-                          <span className="material-symbols-outlined text-[18px] text-slate-400">
+                          <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-slate-400">
                             event_repeat
                           </span>
                           <span>
@@ -316,7 +319,7 @@ export default function VolunteerPage() {
                         </span>
                       )}
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[18px] text-slate-400">
+                        <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-slate-400">
                           location_on
                         </span>
                         <span>
@@ -379,7 +382,7 @@ export default function VolunteerPage() {
           </ul>
         ) : (
           <div className="py-16 text-center text-slate-400">
-            <span className="material-symbols-outlined mb-3 block text-5xl">search_off</span>
+            <span aria-hidden="true" className="material-symbols-outlined mb-3 block text-5xl">search_off</span>
             <p className="text-sm">
               {activities.length === 0 ? "目前沒有任何志工活動" : "找不到符合條件的志工活動"}
             </p>
