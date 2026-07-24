@@ -30,6 +30,9 @@ const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   timeZone: "Asia/Taipei",
 });
 
+// 週標題（日曆/預覽共用）
+export const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
+
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
   return DATE_TIME_FORMATTER.format(new Date(iso));
@@ -61,6 +64,19 @@ export function isoToTaipeiLocal(iso: string | null | undefined): string {
   if (!iso) return "";
   const shifted = new Date(new Date(iso).getTime() + 8 * 60 * 60 * 1000);
   return shifted.toISOString().slice(0, 16);
+}
+
+// ISO → 台灣本地的 { date: 'YYYY-MM-DD', time: 'HH:mm' }（供日期/時間分欄輸入用）
+export function splitTaipeiLocal(iso: string | null | undefined): { date: string; time: string } {
+  const local = isoToTaipeiLocal(iso);
+  if (!local) return { date: "", time: "" };
+  const [date, time] = local.split("T");
+  return { date, time };
+}
+
+// 今天（台灣）的 YYYY-MM-DD，供日曆預設月份/今日標記
+export function todayTaipeiDate(): string {
+  return isoToTaipeiLocal(new Date().toISOString()).slice(0, 10);
 }
 
 // 使用者自行輸入的台灣時間文字 → ISO（UTC）；格式或日期非法時回 null。
