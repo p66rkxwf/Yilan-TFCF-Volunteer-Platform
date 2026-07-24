@@ -23,6 +23,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { todayTaipeiDate } from "@/lib/admin/datetime";
 import {
   PageHeader,
   Panel,
@@ -747,11 +749,11 @@ export default function VolunteerDetailPage() {
                   />
                 </Field>
                 <Field label="生日" error={editErrors.birthDate}>
-                  <input
-                    type="date"
-                    className={`${inputClass} date-input`}
+                  <DatePicker
                     value={editForm.birthDate}
-                    onChange={(e) => setEditForm((f) => ({ ...f, birthDate: e.target.value }))}
+                    onChange={(v) => setEditForm((f) => ({ ...f, birthDate: v }))}
+                    invalid={!!editErrors.birthDate}
+                    max={todayTaipeiDate()}
                   />
                 </Field>
                 <Field label="地區">

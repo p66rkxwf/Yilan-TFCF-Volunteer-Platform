@@ -13,6 +13,7 @@ import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../admin-context";
 import { purgeNow, type PurgeCounts } from "@/lib/actions/admin-archive";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
@@ -399,19 +400,17 @@ export default function SettingsPage() {
                   />
                 </Field>
                 <Field label="開始日期" required error={periodErrors.start_date}>
-                  <input
-                    type="date"
-                    className={`${inputClass} date-input`}
+                  <DatePicker
                     value={newPeriod.start_date}
-                    onChange={(e) => setNewPeriod({ ...newPeriod, start_date: e.target.value })}
+                    onChange={(v) => setNewPeriod({ ...newPeriod, start_date: v })}
+                    invalid={!!periodErrors.start_date}
                   />
                 </Field>
                 <Field label="結束日期" required error={periodErrors.end_date}>
-                  <input
-                    type="date"
-                    className={`${inputClass} date-input`}
+                  <DatePicker
                     value={newPeriod.end_date}
-                    onChange={(e) => setNewPeriod({ ...newPeriod, end_date: e.target.value })}
+                    onChange={(v) => setNewPeriod({ ...newPeriod, end_date: v })}
+                    invalid={!!periodErrors.end_date}
                   />
                 </Field>
                 <div className="flex items-end">

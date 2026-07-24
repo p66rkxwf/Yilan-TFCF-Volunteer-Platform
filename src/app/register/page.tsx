@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { todayTaipeiDate } from "@/lib/admin/datetime";
 import {
   getBirthdayValidationError,
   normalizeBirthdayForSubmit,
@@ -110,13 +112,6 @@ export default function RegisterPage() {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
-  };
-
-  const handleBirthdayBlur = () => {
-    setFormData((prev) => ({
-      ...prev,
-      birthday: normalizeBirthdayForSubmit(prev.birthday),
-    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -241,22 +236,20 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-2">
             <label htmlFor="reg-birthday" className="text-slate-900 text-sm font-bold">生日</label>
             <div className="relative">
-              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                 cake
               </span>
-              <input
-                className={`date-input w-full min-w-0 pl-10 pr-4 py-3 rounded-lg border ${errors.birthday ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+              <DatePicker
                 id="reg-birthday"
-                name="birthday"
-                type="text"
-                inputMode="numeric"
-                autoComplete="bday"
-                maxLength={10}
-                placeholder="YYYY-MM-DD"
-                pattern="\d{4}-\d{2}-\d{2}"
                 value={formData.birthday}
-                onChange={handleChange}
-                onBlur={handleBirthdayBlur}
+                onChange={(v) => {
+                  setFormData((prev) => ({ ...prev, birthday: normalizeBirthdayInput(v) }));
+                  if (errors.birthday) setErrors((prev) => ({ ...prev, birthday: "" }));
+                }}
+                invalid={!!errors.birthday}
+                max={todayTaipeiDate()}
+                aria-label="生日"
+                inputClassName={`w-full min-w-0 pl-10 pr-10 py-3 rounded-lg border ${errors.birthday ? "border-amber-400" : "border-slate-200"} bg-white text-sm text-slate-900 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
               />
             </div>
             <FieldError field="birthday" />

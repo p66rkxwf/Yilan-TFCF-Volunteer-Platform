@@ -24,8 +24,15 @@ import {
   RowActionMenu,
   inputClass,
 } from "@/components/admin/ui";
+import { DateTimeField } from "@/components/ui/datetime-field";
 import { submitCustomService, reviewCustomService } from "@/lib/actions/custom-service";
-import { taipeiLocalToIso, formatSessionRange, formatDateTime } from "@/lib/admin/datetime";
+import {
+  taipeiLocalToIso,
+  formatSessionRange,
+  formatDateTime,
+  normalizeDateInput,
+  normalizeTimeInput,
+} from "@/lib/admin/datetime";
 import type { CustomServiceRecord, CustomServiceStatus } from "@/lib/types/database";
 
 type TabKey = "pending" | "reviewed";
@@ -40,11 +47,11 @@ const STATUS_META: Record<CustomServiceStatus, { label: string; badge: string }>
   rejected: { label: "已退回", badge: "bg-slate-200 text-slate-600" },
 };
 
-function hoursBetween(startLocal: string, endLocal: string): number | null {
-  if (!startLocal || !endLocal) return null;
-  const ms = new Date(endLocal).getTime() - new Date(startLocal).getTime();
-  if (!(ms > 0)) return null;
-  return Math.round((ms / 3_600_000) * 10) / 10;
+// 日期＋時間 → ISO（兩者皆有效才回傳）
+function toIso(date: string, time: string): string | null {
+  const d = normalizeDateInput(date);
+  const t = normalizeTimeInput(time);
+  return d && t ? taipeiLocalToIso(`${d}T${t}`) : null;
 }
 
 function CustomServiceInner() {
@@ -71,8 +78,10 @@ function CustomServiceInner() {
   const [form, setForm] = useState({
     volunteerId: "",
     title: "",
-    startLocal: "",
-    endLocal: "",
+    startDate: "",
+    startTime: "",
+    endDate: "",
+    endTime: "",
     leaderName: "",
     description: "",
   });
@@ -133,7 +142,16 @@ function CustomServiceInner() {
   };
 
   const openSubmit = async () => {
-    setForm({ volunteerId: "", title: "", startLocal: "", endLocal: "", leaderName: "", description: "" });
+    setForm({
+      volunteerId: "",
+      title: "",
+      startDate: "",
+      startTime: "",
+      endDate: "",
+      endTime: "",
+      leaderName: "",
+      description: "",
+    });
     setFormErrors({});
     setShowSubmit(true);
     if (volunteers.length === 0) {
@@ -147,19 +165,25 @@ function CustomServiceInner() {
     }
   };
 
-  const previewHours = useMemo(
-    () => hoursBetween(form.startLocal, form.endLocal),
-    [form.startLocal, form.endLocal]
-  );
+  const previewHours = useMemo(() => {
+    const s = toIso(form.startDate, form.startTime);
+    const e = toIso(form.endDate, form.endTime);
+    if (!s || !e) return null;
+    const ms = new Date(e).getTime() - new Date(s).getTime();
+    return ms > 0 ? Math.round((ms / 3_600_000) * 10) / 10 : null;
+  }, [form.startDate, form.startTime, form.endDate, form.endTime]);
 
   const submitForVolunteer = async () => {
     const errs: Record<string, string> = {};
+    const startIso = toIso(form.startDate, form.startTime);
+    const endIso = toIso(form.endDate, form.endTime);
     if (!form.volunteerId) errs.volunteerId = "請選擇志工";
     if (!form.title.trim()) errs.title = "請填寫活動名稱";
-    if (!form.startLocal) errs.startLocal = "請選擇開始時間";
-    if (!form.endLocal) errs.endLocal = "請選擇結束時間";
-    else if (form.startLocal && form.endLocal <= form.startLocal)
-      errs.endLocal = "結束時間需晚於開始時間";
+    if (!form.startDate.trim() || !form.startTime.trim()) errs.start = "請填寫開始日期與時間";
+    else if (!startIso) errs.start = "開始日期或時間格式不正確";
+    if (!form.endDate.trim() || !form.endTime.trim()) errs.end = "請填寫結束日期與時間";
+    else if (!endIso) errs.end = "結束日期或時間格式不正確";
+    else if (startIso && endIso && endIso <= startIso) errs.end = "結束時間需晚於開始時間";
     if (!form.leaderName.trim()) errs.leaderName = "請填寫活動負責人";
     setFormErrors(errs);
     if (Object.keys(errs).length > 0) return;
@@ -170,8 +194,8 @@ function CustomServiceInner() {
       title: form.title,
       leaderName: form.leaderName,
       description: form.description,
-      startIso: taipeiLocalToIso(form.startLocal),
-      endIso: taipeiLocalToIso(form.endLocal),
+      startIso: startIso!,
+      endIso: endIso!,
     });
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
@@ -411,22 +435,24 @@ function CustomServiceInner() {
                   />
                 </Field>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="開始時間" required error={formErrors.startLocal}>
-                    <input
-                      type="datetime-local"
-                      className={inputClass}
-                      value={form.startLocal}
-                      onChange={(e) => setForm((f) => ({ ...f, startLocal: e.target.value }))}
-                    />
-                  </Field>
-                  <Field label="結束時間" required error={formErrors.endLocal}>
-                    <input
-                      type="datetime-local"
-                      className={inputClass}
-                      value={form.endLocal}
-                      onChange={(e) => setForm((f) => ({ ...f, endLocal: e.target.value }))}
-                    />
-                  </Field>
+                  <DateTimeField
+                    label="開始時間"
+                    required
+                    error={formErrors.start}
+                    dateValue={form.startDate}
+                    onDateChange={(d) => setForm((f) => ({ ...f, startDate: d }))}
+                    timeValue={form.startTime}
+                    onTimeChange={(t) => setForm((f) => ({ ...f, startTime: t }))}
+                  />
+                  <DateTimeField
+                    label="結束時間"
+                    required
+                    error={formErrors.end}
+                    dateValue={form.endDate}
+                    onDateChange={(d) => setForm((f) => ({ ...f, endDate: d }))}
+                    timeValue={form.endTime}
+                    onTimeChange={(t) => setForm((f) => ({ ...f, endTime: t }))}
+                  />
                 </div>
                 {previewHours != null && (
                   <p className="text-sm text-slate-500">

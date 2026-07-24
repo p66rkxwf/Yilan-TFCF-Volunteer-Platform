@@ -10,8 +10,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../admin-context";
-import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
+import { PageHeader, Panel, Field } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toCsv, downloadCsv } from "@/utils/csv";
 import {
   ACTIVITY_STATUS,
@@ -381,20 +382,10 @@ export default function ReportsPage() {
         <Panel title="篩選條件">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="起始日期">
-              <input
-                type="date"
-                className={`${inputClass} date-input`}
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
+              <DatePicker value={dateFrom} onChange={setDateFrom} />
             </Field>
             <Field label="結束日期">
-              <input
-                type="date"
-                className={`${inputClass} date-input`}
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
+              <DatePicker value={dateTo} onChange={setDateTo} />
             </Field>
             <Field label="期間（期間達標名單用）">
               <Select
