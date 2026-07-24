@@ -1,8 +1,7 @@
 "use client";
 
 // 場次表單（新增／編輯共用）。起訖時間、名額、報名截止皆掛場次層。
-// 時間改為使用者自行輸入文字（日期 YYYY-MM-DD ＋ 時間 HH:mm 分開兩欄）＋送出驗證，
-// 不再依賴瀏覽器日曆。
+// 日期用自製日曆（可打字/點選）、時間免冒號輸入；送出驗證，不用瀏覽器原生日曆。
 // 場次類型：正式（可報名）／行前說明會（純資訊、不可報名、不計時數）。
 // 已結束場次禁改起訖（DB trigger 亦強制）；未給截止預設＝場次開始。
 
@@ -14,78 +13,9 @@ import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass, Panel } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
-import { isoToTaipeiLocal, normalizeDateInput, normalizeTimeInput, taipeiLocalToIso } from "@/lib/admin/datetime";
+import { DateTimeField } from "@/components/ui/datetime-field";
+import { normalizeDateInput, normalizeTimeInput, splitTaipeiLocal, taipeiLocalToIso } from "@/lib/admin/datetime";
 import type { ActivitySession, SessionType } from "@/lib/types/database";
-
-const DATE_PLACEHOLDER = "2026-07-24";
-const TIME_PLACEHOLDER = "14:00";
-
-function splitTaipeiIso(iso: string | null | undefined): { date: string; time: string } {
-  const local = isoToTaipeiLocal(iso);
-  if (!local) return { date: "", time: "" };
-  const [date, time] = local.split("T");
-  return { date, time };
-}
-
-// 日期＋時間分兩欄輸入的欄位（Field 的變體：單一 label 對應兩個獨立 input，
-// 各自以 aria-label 標示，錯誤/提示訊息顯示於兩欄下方）。
-function DateTimeField({
-  label,
-  required,
-  error,
-  hint,
-  dateValue,
-  onDateChange,
-  timeValue,
-  onTimeChange,
-  disabled,
-}: {
-  label: string;
-  required?: boolean;
-  error?: string;
-  hint?: string;
-  dateValue: string;
-  onDateChange: (v: string) => void;
-  timeValue: string;
-  onTimeChange: (v: string) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-        {label}
-        {required && <span className="ml-0.5 text-slate-400">*</span>}
-      </label>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          inputMode="numeric"
-          className={`${inputClass} flex-1`}
-          value={dateValue}
-          onChange={(e) => onDateChange(e.target.value)}
-          placeholder={DATE_PLACEHOLDER}
-          aria-label={`${label} - 日期`}
-          disabled={disabled}
-        />
-        <input
-          type="text"
-          inputMode="numeric"
-          className={`${inputClass} w-24`}
-          value={timeValue}
-          onChange={(e) => onTimeChange(e.target.value)}
-          placeholder={TIME_PLACEHOLDER}
-          aria-label={`${label} - 時間`}
-          disabled={disabled}
-        />
-      </div>
-      {error ? (
-        <p className="mt-1 text-xs font-semibold text-amber-700">{error}</p>
-      ) : (
-        hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>
-      )}
-    </div>
-  );
-}
 
 export function SessionForm({
   activityId,
@@ -102,9 +32,9 @@ export function SessionForm({
 
   const [sessionType, setSessionType] = useState<SessionType>(session?.session_type ?? "regular");
 
-  const initialStart = splitTaipeiIso(session?.start_at);
-  const initialEnd = splitTaipeiIso(session?.end_at);
-  const initialDeadline = splitTaipeiIso(session?.registration_deadline_at);
+  const initialStart = splitTaipeiLocal(session?.start_at);
+  const initialEnd = splitTaipeiLocal(session?.end_at);
+  const initialDeadline = splitTaipeiLocal(session?.registration_deadline_at);
   const [startDate, setStartDate] = useState(initialStart.date);
   const [startTime, setStartTime] = useState(initialStart.time);
   const [endDate, setEndDate] = useState(initialEnd.date);

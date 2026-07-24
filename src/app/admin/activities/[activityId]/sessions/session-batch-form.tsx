@@ -4,7 +4,7 @@
 // 累積一份日期清單 → 預覽 → 逐筆建立。批次場次同一時段、不同日期，
 // 故批次內不會互相重疊（只需去除重複日期）；與既有場次的重疊由 DB
 // EXCLUDE 約束逐筆擋下，失敗場次會列明。
-// 時間／日期改為使用者自行輸入文字（HH:mm、YYYY-MM-DD）＋驗證，不依賴瀏覽器日曆。
+// 日期用自製日曆（可打字/點選）、時間免冒號輸入；不依賴瀏覽器原生日曆。
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,8 @@ import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass, Panel } from "@/components/admin/ui";
+import { DatePicker } from "@/components/ui/date-picker";
+import { TimeInput } from "@/components/ui/time-input";
 import { normalizeDateInput, normalizeTimeInput, taipeiLocalToIso } from "@/lib/admin/datetime";
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
@@ -154,23 +156,19 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
       <Panel title="共用時段、名額與地點" description="以下設定會套用到所有選定的日期。">
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <Field label="開始時間" required error={errors.startTime} hint="格式 HH:mm，例 09:00">
-              <input
-                type="text"
-                inputMode="numeric"
-                className={inputClass}
+            <Field label="開始時間" required error={errors.startTime}>
+              <TimeInput
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={setStartTime}
+                invalid={!!errors.startTime}
                 placeholder="09:00"
               />
             </Field>
-            <Field label="結束時間" required error={errors.endTime} hint="格式 HH:mm，例 12:00">
-              <input
-                type="text"
-                inputMode="numeric"
-                className={inputClass}
+            <Field label="結束時間" required error={errors.endTime}>
+              <TimeInput
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={setEndTime}
+                invalid={!!errors.endTime}
                 placeholder="12:00"
               />
             </Field>
@@ -198,15 +196,8 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
 
       <Panel title="重複產生器" description="從起始日起，每週同一天重複，一次加入多個日期。">
         <div className="flex flex-wrap items-end gap-3">
-          <Field label="起始日期" hint="格式 YYYY-MM-DD">
-            <input
-              type="text"
-              inputMode="numeric"
-              className={inputClass}
-              value={repeatStart}
-              onChange={(e) => setRepeatStart(e.target.value)}
-              placeholder="2026-07-24"
-            />
+          <Field label="起始日期">
+            <DatePicker value={repeatStart} onChange={setRepeatStart} className="w-44" />
           </Field>
           <Field label="連續週數">
             <input
@@ -229,15 +220,8 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
 
       <Panel title="手動加入日期" description="也可逐一加入不規則的日期。">
         <div className="flex flex-wrap items-end gap-3">
-          <Field label="日期" hint="格式 YYYY-MM-DD">
-            <input
-              type="text"
-              inputMode="numeric"
-              className={inputClass}
-              value={manualDate}
-              onChange={(e) => setManualDate(e.target.value)}
-              placeholder="2026-07-24"
-            />
+          <Field label="日期">
+            <DatePicker value={manualDate} onChange={setManualDate} className="w-44" />
           </Field>
           <Button type="button" size="sm" variant="outline" onClick={addManual}>
             加入
