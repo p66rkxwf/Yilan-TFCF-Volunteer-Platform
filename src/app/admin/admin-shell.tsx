@@ -101,7 +101,9 @@ export function AdminShell({
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100">
       {mobileNavOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="關閉選單"
           className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={() => setMobileNavOpen(false)}
         />
@@ -114,7 +116,7 @@ export function AdminShell({
       >
         <div className="flex items-center gap-3 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white">
-            <span className="material-symbols-outlined text-[20px]">volunteer_activism</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">volunteer_activism</span>
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-white">後台管理系統</p>
@@ -155,7 +157,7 @@ export function AdminShell({
                             : "text-slate-300 hover:bg-white/5 hover:text-white"
                         }`}
                       >
-                        <span className="material-symbols-outlined text-[19px]">{item.icon}</span>
+                        <span aria-hidden="true" className="material-symbols-outlined text-[19px]">{item.icon}</span>
                         {item.label}
                       </Link>
                     );
@@ -171,7 +173,7 @@ export function AdminShell({
               prefetch={false}
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
             >
-              <span className="material-symbols-outlined text-[19px]">home</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[19px]">home</span>
               回到前台
             </Link>
           </div>
@@ -202,7 +204,7 @@ export function AdminShell({
               className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
               title="登出"
             >
-              <span className="material-symbols-outlined text-[18px]">logout</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">logout</span>
             </button>
           </div>
         </div>
@@ -215,12 +217,16 @@ export function AdminShell({
             aria-label="開啟選單"
             className="rounded-lg p-1.5 text-slate-600 transition-colors hover:bg-slate-100"
           >
-            <span className="material-symbols-outlined">menu</span>
+            <span aria-hidden="true" className="material-symbols-outlined">menu</span>
           </button>
           <span className="text-sm font-bold text-slate-900">後台管理系統</span>
         </div>
 
-        <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex min-w-0 flex-1 flex-col overflow-y-auto outline-none"
+        >
           <AdminProvider profile={profile}>{children}</AdminProvider>
         </main>
       </div>

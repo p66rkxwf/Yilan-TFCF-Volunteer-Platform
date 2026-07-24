@@ -119,10 +119,11 @@ export default function CustomServicePage() {
 
             <div className="mt-5 space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                <label htmlFor="cs-title" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   活動名稱 <span className="text-slate-400">*</span>
                 </label>
                 <input
+                  id="cs-title"
                   className={inputCls}
                   value={form.title}
                   onChange={(e) => set("title", e.target.value)}
@@ -136,10 +137,11 @@ export default function CustomServicePage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  <label htmlFor="cs-start" className="mb-1.5 block text-sm font-semibold text-slate-700">
                     開始時間 <span className="text-slate-400">*</span>
                   </label>
                   <input
+                    id="cs-start"
                     type="datetime-local"
                     className={inputCls}
                     value={form.startLocal}
@@ -150,10 +152,11 @@ export default function CustomServicePage() {
                   )}
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  <label htmlFor="cs-end" className="mb-1.5 block text-sm font-semibold text-slate-700">
                     結束時間 <span className="text-slate-400">*</span>
                   </label>
                   <input
+                    id="cs-end"
                     type="datetime-local"
                     className={inputCls}
                     value={form.endLocal}
@@ -173,10 +176,11 @@ export default function CustomServicePage() {
               )}
 
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                <label htmlFor="cs-leader" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   活動負責人 <span className="text-slate-400">*</span>
                 </label>
                 <input
+                  id="cs-leader"
                   className={inputCls}
                   value={form.leaderName}
                   onChange={(e) => set("leaderName", e.target.value)}
@@ -189,8 +193,9 @@ export default function CustomServicePage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">說明</label>
+                <label htmlFor="cs-desc" className="mb-1.5 block text-sm font-semibold text-slate-700">說明</label>
                 <textarea
+                  id="cs-desc"
                   className={`${inputCls} min-h-24`}
                   value={form.description}
                   onChange={(e) => set("description", e.target.value)}
@@ -206,7 +211,7 @@ export default function CustomServicePage() {
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
               >
                 {isSaving && (
-                  <span className="material-symbols-outlined animate-spin text-[18px]">
+                  <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[18px]">
                     progress_activity
                   </span>
                 )}

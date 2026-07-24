@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export type ConfirmDialogProps = {
   open: boolean;
@@ -30,9 +30,13 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const titleId = useId();
   const [typed, setTyped] = useState("");
+  const requireInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) setTyped("");
+    if (!open) return;
+    setTyped("");
+    // 對話框開啟時將焦點移入強確認輸入框（取代 autoFocus，維持無障礙焦點管理）
+    requestAnimationFrame(() => requireInputRef.current?.focus());
   }, [open]);
 
   useEffect(() => {
@@ -75,10 +79,10 @@ export function ConfirmDialog({
                 此操作無法復原，請輸入「{requireText}」以確認：
               </label>
               <input
+                ref={requireInputRef}
                 value={typed}
                 onChange={(e) => setTyped(e.target.value)}
                 placeholder={requireText}
-                autoFocus
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-300 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15"
               />
             </div>

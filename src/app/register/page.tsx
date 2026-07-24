@@ -179,13 +179,14 @@ export default function RegisterPage() {
         >
           {/* 真實姓名 */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-900 text-sm font-bold">真實姓名</label>
+            <label htmlFor="reg-name" className="text-slate-900 text-sm font-bold">真實姓名</label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 person
               </span>
               <input
                 className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.name ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                id="reg-name"
                 name="name"
                 placeholder="請輸入您的姓名"
                 type="text"
@@ -198,13 +199,14 @@ export default function RegisterPage() {
 
           {/* 帳號 */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-900 text-sm font-bold">帳號</label>
+            <label htmlFor="reg-account" className="text-slate-900 text-sm font-bold">帳號</label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 badge
               </span>
               <input
                 className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.account ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                id="reg-account"
                 name="account"
                 placeholder="請設定您的帳號"
                 type="text"
@@ -217,13 +219,14 @@ export default function RegisterPage() {
 
           {/* Email */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-900 text-sm font-bold">Email</label>
+            <label htmlFor="reg-email" className="text-slate-900 text-sm font-bold">Email</label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 mail
               </span>
               <input
                 className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.email ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                id="reg-email"
                 name="email"
                 placeholder="example@email.com"
                 type="email"
@@ -236,13 +239,14 @@ export default function RegisterPage() {
 
           {/* 生日 */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-900 text-sm font-bold">生日</label>
+            <label htmlFor="reg-birthday" className="text-slate-900 text-sm font-bold">生日</label>
             <div className="relative">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 cake
               </span>
               <input
                 className={`date-input w-full min-w-0 pl-10 pr-4 py-3 rounded-lg border ${errors.birthday ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                id="reg-birthday"
                 name="birthday"
                 type="text"
                 inputMode="numeric"
@@ -261,13 +265,14 @@ export default function RegisterPage() {
           {/* 電話 + 學制階段 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-slate-900 text-sm font-bold">電話</label>
+              <label htmlFor="reg-phone" className="text-slate-900 text-sm font-bold">電話</label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   call
                 </span>
                 <input
                   className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.phone ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                  id="reg-phone"
                   name="phone"
                   placeholder="請輸入聯絡電話"
                   type="tel"
@@ -278,9 +283,9 @@ export default function RegisterPage() {
               <FieldError field="phone" />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-slate-900 text-sm font-bold">學制階段</label>
+              <span className="text-slate-900 text-sm font-bold">學制階段</span>
               <div className="relative">
-                <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
+                <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                   school
                 </span>
                 <Select
@@ -304,9 +309,9 @@ export default function RegisterPage() {
 
           {/* 區域 */}
           <div className="flex flex-col gap-2">
-            <label className="text-slate-900 text-sm font-bold">區域</label>
+            <span className="text-slate-900 text-sm font-bold">區域</span>
             <div className="relative">
-              <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
+              <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                 location_on
               </span>
               <Select
@@ -327,13 +332,14 @@ export default function RegisterPage() {
           {/* 密碼 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <label className="text-slate-900 text-sm font-bold">密碼</label>
+              <label htmlFor="reg-password" className="text-slate-900 text-sm font-bold">密碼</label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   lock
                 </span>
                 <input
                   className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.password ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                  id="reg-password"
                   name="password"
                   placeholder="至少 8 碼"
                   type="password"
@@ -345,15 +351,16 @@ export default function RegisterPage() {
               <FieldError field="password" />
             </div>
             <div className="flex flex-col gap-2">
-              <label className="text-slate-900 text-sm font-bold">
+              <label htmlFor="reg-confirmPassword" className="text-slate-900 text-sm font-bold">
                 確認密碼
               </label>
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   lock_reset
                 </span>
                 <input
                   className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.confirmPassword ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
+                  id="reg-confirmPassword"
                   name="confirmPassword"
                   placeholder="再輸入一次密碼"
                   type="password"
@@ -382,13 +389,13 @@ export default function RegisterPage() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <span className="material-symbols-outlined animate-spin text-[20px]">
+                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[20px]">
                   progress_activity
                 </span>
               ) : (
                 <>
                   <span>註冊成為志工</span>
-                  <span className="material-symbols-outlined">arrow_forward</span>
+                  <span aria-hidden="true" className="material-symbols-outlined">arrow_forward</span>
                 </>
               )}
             </button>

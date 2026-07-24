@@ -21,7 +21,9 @@ export function RootLayoutClient({ children }: { children: ReactNode }) {
         <AuthProvider>
           <div className="bg-background-light font-display text-slate-900 min-h-screen flex flex-col">
             <Header />
-            {children}
+            <div id="main-content" tabIndex={-1} className="flex flex-1 flex-col outline-none">
+              {children}
+            </div>
             <Footer />
           </div>
         </AuthProvider>
