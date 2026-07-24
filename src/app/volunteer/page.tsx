@@ -121,10 +121,7 @@ export default function VolunteerPage() {
     const nowIso = new Date().toISOString();
 
     const items: ActivityListItem[] = (acts ?? []).map((a: any) => {
-      // 行前說明會為純資訊場次，不列入報名狀態、名額與場次數計算。
-      const sessions = (a.activity_sessions ?? []).filter(
-        (s: any) => !s.cancelled_at && s.session_type !== "briefing"
-      );
+      const sessions = (a.activity_sessions ?? []).filter((s: any) => !s.cancelled_at);
       const registerable = sessions.filter(
         (s: any) =>
           s.registration_deadline_at > nowIso && (openBySession.get(s.id) ?? s.capacity) > 0

@@ -129,7 +129,7 @@ export default function AdminActivitiesPage() {
   // 下一場未取消場次（未來優先，否則顯示最近一場）
   const nextSessionText = (row: ActivityRow) => {
     const active = row.activity_sessions
-      .filter((s) => !s.cancelled_at && s.session_type !== "briefing")
+      .filter((s) => !s.cancelled_at)
       .sort((a, b) => a.start_at.localeCompare(b.start_at));
     if (active.length === 0) return "—";
     const now = new Date().toISOString();
@@ -231,10 +231,7 @@ export default function AdminActivitiesPage() {
                 <EmptyRow colSpan={7} message="沒有符合條件的活動" />
               ) : (
                 paged.map((row) => {
-                  const regularSessions = row.activity_sessions.filter(
-                    (s) => s.session_type !== "briefing"
-                  );
-                  const activeSessions = regularSessions.filter((s) => !s.cancelled_at);
+                  const activeSessions = row.activity_sessions.filter((s) => !s.cancelled_at);
                   return (
                     <tr key={row.id} className="transition-colors hover:bg-slate-50">
                       <Td>
@@ -252,9 +249,9 @@ export default function AdminActivitiesPage() {
                       </Td>
                       <Td className="text-right">
                         {activeSessions.length}
-                        {regularSessions.length !== activeSessions.length && (
+                        {row.activity_sessions.length !== activeSessions.length && (
                           <span className="text-xs text-slate-400">
-                            （含取消 {regularSessions.length}）
+                            （含取消 {row.activity_sessions.length}）
                           </span>
                         )}
                       </Td>

@@ -351,36 +351,23 @@ export default function ActivityDetailPage() {
                         )}
                       </Td>
                       <Td className="whitespace-nowrap text-slate-500">
-                        {isBriefing ? "—" : formatDateTime(session.registration_deadline_at)}
+                        {formatDateTime(session.registration_deadline_at)}
                       </Td>
                       <Td className="text-right">
-                        {isBriefing ? "—" : sessionHours(session.start_at, session.end_at)}
+                        {session.counts_hours ? sessionHours(session.start_at, session.end_at) : "—"}
                       </Td>
                       <Td className="text-right">
-                        {isBriefing
-                          ? "—"
-                          : stat
-                            ? `${stat.active_registrations}／${session.capacity}`
-                            : `—／${session.capacity}`}
+                        {stat
+                          ? `${stat.active_registrations}／${session.capacity}`
+                          : `—／${session.capacity}`}
                       </Td>
-                      <Td className="text-right">{isBriefing ? "—" : (stat?.approved_count ?? 0)}</Td>
+                      <Td className="text-right">{stat?.approved_count ?? 0}</Td>
                       <Td className="whitespace-nowrap text-right">
-                        {isBriefing
-                          ? "—"
-                          : stat
-                            ? `${stat.attended_count}／${stat.absent_count}`
-                            : "0／0"}
+                        {stat ? `${stat.attended_count}／${stat.absent_count}` : "0／0"}
                       </Td>
                       <Td>
                         {isCancelled ? (
                           <StatusPill meta={{ label: "已取消", badge: "bg-slate-200 text-slate-600" }} />
-                        ) : isBriefing ? (
-                          <StatusPill
-                            meta={{
-                              label: isEnded ? "已結束" : "公告中",
-                              badge: "bg-primary/10 text-primary",
-                            }}
-                          />
                         ) : isEnded ? (
                           <StatusPill meta={{ label: "已結束", badge: "bg-slate-200 text-slate-600" }} />
                         ) : session.registration_deadline_at <= nowIso ? (
@@ -393,13 +380,12 @@ export default function ActivityDetailPage() {
                         <RowActionMenu
                           ariaLabel="場次操作"
                           actions={[
-                            !isBriefing && {
+                            {
                               label: "名單/點名",
                               icon: "fact_check",
                               href: `/admin/attendance/${session.id}`,
                             },
-                            !isBriefing &&
-                              canManage &&
+                            canManage &&
                               !isCancelled &&
                               !isEnded && {
                                 label: "指派學生",

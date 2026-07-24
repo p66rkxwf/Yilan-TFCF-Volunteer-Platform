@@ -45,6 +45,7 @@ export function SessionForm({
   const [capacity, setCapacity] = useState(String(session?.capacity ?? 10));
   const [location, setLocation] = useState(session?.location ?? "");
   const [note, setNote] = useState(session?.note ?? "");
+  const [countsHours, setCountsHours] = useState(session?.counts_hours ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<{
     start?: string;
@@ -84,28 +85,24 @@ export function SessionForm({
       nextErrors.end = "結束時間必須晚於開始時間";
     }
 
-    // 名額與報名截止：僅正式場次適用
-    let cap = 1;
+    // 名額與報名截止（正式場次與行前說明會皆需，因說明會亦開放報名）
+    const cap = Number(capacity);
+    if (!Number.isInteger(cap) || cap <= 0) nextErrors.capacity = "名額需為正整數";
     let deadlineIso = startIso ?? "";
-    if (!isBriefing) {
-      cap = Number(capacity);
-      if (!Number.isInteger(cap) || cap <= 0) nextErrors.capacity = "名額需為正整數";
-
-      const deadlineFilled = deadlineDate.trim() || deadlineTime.trim();
-      if (deadlineFilled) {
-        const normDeadlineDate = normalizeDateInput(deadlineDate);
-        const normDeadlineTime = normalizeTimeInput(deadlineTime);
-        if (!deadlineDate.trim() || !deadlineTime.trim()) {
-          nextErrors.deadline = "報名截止的日期與時間請一併填寫，或兩者都留空";
-        } else if (!normDeadlineDate || !normDeadlineTime) {
-          nextErrors.deadline = "報名截止日期或時間格式不正確";
-        } else {
-          deadlineIso = taipeiLocalToIso(`${normDeadlineDate}T${normDeadlineTime}`);
-        }
+    const deadlineFilled = deadlineDate.trim() || deadlineTime.trim();
+    if (deadlineFilled) {
+      const normDeadlineDate = normalizeDateInput(deadlineDate);
+      const normDeadlineTime = normalizeTimeInput(deadlineTime);
+      if (!deadlineDate.trim() || !deadlineTime.trim()) {
+        nextErrors.deadline = "報名截止的日期與時間請一併填寫，或兩者都留空";
+      } else if (!normDeadlineDate || !normDeadlineTime) {
+        nextErrors.deadline = "報名截止日期或時間格式不正確";
+      } else {
+        deadlineIso = taipeiLocalToIso(`${normDeadlineDate}T${normDeadlineTime}`);
       }
-      if (!nextErrors.deadline && startIso && deadlineIso && deadlineIso > startIso) {
-        nextErrors.deadline = "報名截止不可晚於場次開始時間";
-      }
+    }
+    if (!nextErrors.deadline && startIso && deadlineIso && deadlineIso > startIso) {
+      nextErrors.deadline = "報名截止不可晚於場次開始時間";
     }
 
     setErrors(nextErrors);
@@ -115,20 +112,21 @@ export function SessionForm({
     try {
       const loc = location.trim() || null;
       const noteVal = isBriefing ? note.trim() || null : null;
+      // 正式場次一律計時數；行前說明會由勾選決定
+      const creditsHours = isBriefing ? countsHours : true;
 
       if (isEdit && session) {
-        // 已結束場次：DB 禁改起訖，故僅送可變欄位（名額、截止、地點、說明）
-        const payload: Record<string, unknown> = { location: loc, note: noteVal };
+        // 已結束場次：DB 禁改起訖，故僅送可變欄位（名額、截止、地點、說明、計時數）
+        const payload: Record<string, unknown> = {
+          capacity: cap,
+          registration_deadline_at: deadlineIso,
+          location: loc,
+          note: noteVal,
+          counts_hours: creditsHours,
+        };
         if (!isEnded) {
           payload.start_at = startIso;
           payload.end_at = endIso;
-        }
-        if (isBriefing) {
-          // 說明會：名額固定 1、截止＝開始（皆為佔位，前台不使用）
-          if (!isEnded) payload.registration_deadline_at = startIso;
-        } else {
-          payload.capacity = cap;
-          payload.registration_deadline_at = deadlineIso;
         }
         const { error } = await supabase
           .from("activity_sessions")
@@ -141,11 +139,12 @@ export function SessionForm({
           activity_id: activityId,
           start_at: startIso!,
           end_at: endIso!,
-          capacity: isBriefing ? 1 : cap,
-          registration_deadline_at: isBriefing ? startIso! : deadlineIso,
+          capacity: cap,
+          registration_deadline_at: deadlineIso,
           session_type: sessionType,
           location: loc,
           note: noteVal,
+          counts_hours: creditsHours,
         });
         if (error) throw error;
         toast.success(isBriefing ? "行前說明會已新增" : "場次已新增");
@@ -172,21 +171,21 @@ export function SessionForm({
           {isEdit ? (
             <Field label="場次類型">
               <p className="text-sm font-medium text-slate-700">
-                {isBriefing ? "行前說明會（純資訊、不可報名）" : "正式場次（可報名）"}
+                {isBriefing ? "行前說明會" : "正式場次"}
                 <span className="ml-2 text-xs text-slate-400">建立後不可變更類型</span>
               </p>
             </Field>
           ) : (
             <Field
               label="場次類型"
-              hint="行前說明會為純資訊場次：志工不需（也無法）報名，也不計入服務時數。"
+              hint="行前說明會同樣開放報名；可另外勾選出席是否計入服務時數。"
             >
               <Select
                 value={sessionType}
                 onValueChange={(v) => setSessionType(v as SessionType)}
                 options={[
-                  { value: "regular", label: "正式場次（可報名）" },
-                  { value: "briefing", label: "行前說明會（僅公告）" },
+                  { value: "regular", label: "正式場次" },
+                  { value: "briefing", label: "行前說明會" },
                 ]}
               />
             </Field>
@@ -215,28 +214,26 @@ export function SessionForm({
             />
           </div>
 
-          {!isBriefing && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="名額" required error={errors.capacity}>
-                <input
-                  type="number"
-                  min={1}
-                  className={inputClass}
-                  value={capacity}
-                  onChange={(e) => setCapacity(e.target.value)}
-                />
-              </Field>
-              <DateTimeField
-                label="報名截止時間"
-                error={errors.deadline}
-                hint="留空＝可報名至場次開始時刻。"
-                dateValue={deadlineDate}
-                onDateChange={setDeadlineDate}
-                timeValue={deadlineTime}
-                onTimeChange={setDeadlineTime}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="名額" required error={errors.capacity}>
+              <input
+                type="number"
+                min={1}
+                className={inputClass}
+                value={capacity}
+                onChange={(e) => setCapacity(e.target.value)}
               />
-            </div>
-          )}
+            </Field>
+            <DateTimeField
+              label="報名截止時間"
+              error={errors.deadline}
+              hint="留空＝可報名至場次開始時刻。"
+              dateValue={deadlineDate}
+              onDateChange={setDeadlineDate}
+              timeValue={deadlineTime}
+              onTimeChange={setDeadlineTime}
+            />
+          </div>
 
           <Field
             label="地點"
@@ -260,6 +257,18 @@ export function SessionForm({
                 placeholder="例：請於開始前 10 分鐘上線；連結 https://…"
               />
             </Field>
+          )}
+
+          {isBriefing && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={countsHours}
+                onChange={(e) => setCountsHours(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/30"
+              />
+              <span className="font-medium text-slate-700">此說明會出席計入服務時數</span>
+            </label>
           )}
         </div>
       </Panel>
