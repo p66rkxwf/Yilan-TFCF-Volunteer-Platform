@@ -29,7 +29,7 @@ export function MarkdownEditor({
   onChange,
   placeholder,
   minHeightClass = "min-h-48",
-  hint = "支援 Markdown：# 標題、**粗體**、*斜體*、- 清單、> 引用、[文字](網址)。",
+  hint,
   "aria-describedby": ariaDescribedBy,
   "aria-invalid": ariaInvalid,
 }: {
@@ -45,20 +45,61 @@ export function MarkdownEditor({
   const ref = useRef<HTMLTextAreaElement>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // 選取範圍前後包字（粗體/斜體）
+  // 以瀏覽器原生 execCommand 取代整段覆寫 value：保留原生復原（Ctrl+Z）歷史，
+  // 並讓游標/捲動位置交由瀏覽器自己處理，避免手動重設位置造成的跳行問題。
+  // 舊瀏覽器不支援 execCommand 時退回整段覆寫（僅該次操作無法原生復原）。
+  const replaceRange = (
+    rangeStart: number,
+    rangeEnd: number,
+    text: string,
+    cursor: { start: number; end: number }
+  ) => {
+    const ta = ref.current;
+    if (!ta) return;
+    ta.focus();
+    ta.setSelectionRange(rangeStart, rangeEnd);
+    const applied =
+      typeof document.execCommand === "function" &&
+      document.execCommand("insertText", false, text);
+    if (!applied) {
+      onChange(value.slice(0, rangeStart) + text + value.slice(rangeEnd));
+    }
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.selectionStart = cursor.start;
+      ta.selectionEnd = cursor.end;
+    });
+  };
+
+  // 選取範圍前後包字（粗體/斜體）；再次對已包字的範圍執行則取消標記（toggle）。
   const surround = (marker: string) => {
     const ta = ref.current;
     if (!ta) return;
     const start = ta.selectionStart;
     const end = ta.selectionEnd;
-    const sel = value.slice(start, end) || (marker === "**" ? "粗體文字" : "斜體文字");
-    const next = value.slice(0, start) + marker + sel + marker + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.selectionStart = start + marker.length;
-      ta.selectionEnd = start + marker.length + sel.length;
-    });
+    const m = marker.length;
+    const selText = value.slice(start, end);
+
+    // 選取範圍本身含頭尾標記（例如選到「**文字**」）→ 取消
+    if (selText.length >= m * 2 && selText.startsWith(marker) && selText.endsWith(marker)) {
+      const inner = selText.slice(m, selText.length - m);
+      replaceRange(start, end, inner, { start, end: start + inner.length });
+      return;
+    }
+
+    // 選取範圍緊鄰外側已是標記（游標在「**」與「**」之間）→ 一併取消外側標記
+    const before = value.slice(Math.max(0, start - m), start);
+    const after = value.slice(end, end + m);
+    if (before === marker && after === marker) {
+      const newStart = start - m;
+      replaceRange(newStart, end + m, selText, { start: newStart, end: newStart + selText.length });
+      return;
+    }
+
+    // 尚未包字 → 新增標記
+    const text = selText || (marker === "**" ? "粗體文字" : "斜體文字");
+    const wrapped = `${marker}${text}${marker}`;
+    replaceRange(start, end, wrapped, { start: start + m, end: start + m + text.length });
   };
 
   // 於各行行首插入前綴（標題/清單/引用）
@@ -73,13 +114,7 @@ export function MarkdownEditor({
       .split("\n")
       .map((line) => prefix + line)
       .join("\n");
-    const next = value.slice(0, lineStart) + prefixed + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      ta.selectionStart = lineStart;
-      ta.selectionEnd = lineStart + prefixed.length;
-    });
+    replaceRange(lineStart, end, prefixed, { start: lineStart, end: lineStart + prefixed.length });
   };
 
   const insertLink = () => {
@@ -89,15 +124,9 @@ export function MarkdownEditor({
     const end = ta.selectionEnd;
     const text = value.slice(start, end) || "連結文字";
     const insert = `[${text}](https://)`;
-    const next = value.slice(0, start) + insert + value.slice(end);
-    onChange(next);
-    requestAnimationFrame(() => {
-      ta.focus();
-      // 選取 "https://" 供直接覆蓋
-      const urlStart = start + text.length + 3; // `[` + text + `](`
-      ta.selectionStart = urlStart;
-      ta.selectionEnd = urlStart + "https://".length;
-    });
+    // 選取 "https://" 供直接覆蓋
+    const urlStart = start + text.length + 3; // `[` + text + `](`
+    replaceRange(start, end, insert, { start: urlStart, end: urlStart + "https://".length });
   };
 
   const run = (action: ToolButton["action"]) => {

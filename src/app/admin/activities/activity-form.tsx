@@ -199,7 +199,6 @@ export function ActivityForm({
               onChange={setContent}
               minHeightClass="min-h-32"
               placeholder="活動內容、注意事項、集合方式…"
-              hint="支援 Markdown：# 標題、**粗體**、*斜體*、- 清單、> 引用、[文字](網址)；學生在前台會看到此內容。"
             />
           </Field>
 
