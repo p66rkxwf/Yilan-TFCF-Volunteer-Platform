@@ -1,7 +1,8 @@
 "use client";
 
 // 場次表單（新增／編輯共用）。起訖時間、名額、報名截止皆掛場次層。
-// 時間改為使用者自行輸入文字（YYYY-MM-DD HH:mm）＋送出驗證，不再依賴瀏覽器日曆。
+// 時間改為使用者自行輸入文字（日期 YYYY-MM-DD ＋ 時間 HH:mm 分開兩欄）＋送出驗證，
+// 不再依賴瀏覽器日曆。
 // 場次類型：正式（可報名）／行前說明會（純資訊、不可報名、不計時數）。
 // 已結束場次禁改起訖（DB trigger 亦強制）；未給截止預設＝場次開始。
 
@@ -13,11 +14,78 @@ import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass, Panel } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
-import { formatTaipeiInput, parseTaipeiInput } from "@/lib/admin/datetime";
+import { isoToTaipeiLocal, normalizeDateInput, normalizeTimeInput, taipeiLocalToIso } from "@/lib/admin/datetime";
 import type { ActivitySession, SessionType } from "@/lib/types/database";
 
-const DATETIME_HINT = "格式：YYYY-MM-DD HH:mm（24 小時制），例如 2026-07-24 14:00";
-const DATETIME_PLACEHOLDER = "2026-07-24 14:00";
+const DATE_PLACEHOLDER = "2026-07-24";
+const TIME_PLACEHOLDER = "14:00";
+
+function splitTaipeiIso(iso: string | null | undefined): { date: string; time: string } {
+  const local = isoToTaipeiLocal(iso);
+  if (!local) return { date: "", time: "" };
+  const [date, time] = local.split("T");
+  return { date, time };
+}
+
+// 日期＋時間分兩欄輸入的欄位（Field 的變體：單一 label 對應兩個獨立 input，
+// 各自以 aria-label 標示，錯誤/提示訊息顯示於兩欄下方）。
+function DateTimeField({
+  label,
+  required,
+  error,
+  hint,
+  dateValue,
+  onDateChange,
+  timeValue,
+  onTimeChange,
+  disabled,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  hint?: string;
+  dateValue: string;
+  onDateChange: (v: string) => void;
+  timeValue: string;
+  onTimeChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+        {label}
+        {required && <span className="ml-0.5 text-slate-400">*</span>}
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          inputMode="numeric"
+          className={`${inputClass} flex-1`}
+          value={dateValue}
+          onChange={(e) => onDateChange(e.target.value)}
+          placeholder={DATE_PLACEHOLDER}
+          aria-label={`${label} - 日期`}
+          disabled={disabled}
+        />
+        <input
+          type="text"
+          inputMode="numeric"
+          className={`${inputClass} w-24`}
+          value={timeValue}
+          onChange={(e) => onTimeChange(e.target.value)}
+          placeholder={TIME_PLACEHOLDER}
+          aria-label={`${label} - 時間`}
+          disabled={disabled}
+        />
+      </div>
+      {error ? (
+        <p className="mt-1 text-xs font-semibold text-amber-700">{error}</p>
+      ) : (
+        hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>
+      )}
+    </div>
+  );
+}
 
 export function SessionForm({
   activityId,
@@ -33,11 +101,17 @@ export function SessionForm({
   const isEnded = session ? session.end_at <= new Date().toISOString() : false;
 
   const [sessionType, setSessionType] = useState<SessionType>(session?.session_type ?? "regular");
-  const [startText, setStartText] = useState(formatTaipeiInput(session?.start_at));
-  const [endText, setEndText] = useState(formatTaipeiInput(session?.end_at));
-  const [deadlineText, setDeadlineText] = useState(
-    formatTaipeiInput(session?.registration_deadline_at)
-  );
+
+  const initialStart = splitTaipeiIso(session?.start_at);
+  const initialEnd = splitTaipeiIso(session?.end_at);
+  const initialDeadline = splitTaipeiIso(session?.registration_deadline_at);
+  const [startDate, setStartDate] = useState(initialStart.date);
+  const [startTime, setStartTime] = useState(initialStart.time);
+  const [endDate, setEndDate] = useState(initialEnd.date);
+  const [endTime, setEndTime] = useState(initialEnd.time);
+  const [deadlineDate, setDeadlineDate] = useState(initialDeadline.date);
+  const [deadlineTime, setDeadlineTime] = useState(initialDeadline.time);
+
   const [capacity, setCapacity] = useState(String(session?.capacity ?? 10));
   const [location, setLocation] = useState(session?.location ?? "");
   const [note, setNote] = useState(session?.note ?? "");
@@ -55,13 +129,27 @@ export function SessionForm({
     e.preventDefault();
     const nextErrors: typeof errors = {};
 
-    // 起訖時間：格式 + 邏輯驗證
-    const startIso = parseTaipeiInput(startText);
-    const endIso = parseTaipeiInput(endText);
-    if (!startText.trim()) nextErrors.start = "請輸入開始時間";
-    else if (!startIso) nextErrors.start = "時間格式不正確（需 YYYY-MM-DD HH:mm）";
-    if (!endText.trim()) nextErrors.end = "請輸入結束時間";
-    else if (!endIso) nextErrors.end = "時間格式不正確（需 YYYY-MM-DD HH:mm）";
+    // 開始時間：日期＋時間需一併填寫、格式正確
+    const normStartDate = normalizeDateInput(startDate);
+    const normStartTime = normalizeTimeInput(startTime);
+    if (!startDate.trim() || !startTime.trim()) {
+      nextErrors.start = "請輸入開始日期與時間";
+    } else if (!normStartDate || !normStartTime) {
+      nextErrors.start = "開始日期或時間格式不正確";
+    }
+    const startIso =
+      normStartDate && normStartTime ? taipeiLocalToIso(`${normStartDate}T${normStartTime}`) : null;
+
+    // 結束時間
+    const normEndDate = normalizeDateInput(endDate);
+    const normEndTime = normalizeTimeInput(endTime);
+    if (!endDate.trim() || !endTime.trim()) {
+      nextErrors.end = "請輸入結束日期與時間";
+    } else if (!normEndDate || !normEndTime) {
+      nextErrors.end = "結束日期或時間格式不正確";
+    }
+    const endIso = normEndDate && normEndTime ? taipeiLocalToIso(`${normEndDate}T${normEndTime}`) : null;
+
     if (startIso && endIso && endIso <= startIso) {
       nextErrors.end = "結束時間必須晚於開始時間";
     }
@@ -72,12 +160,20 @@ export function SessionForm({
     if (!isBriefing) {
       cap = Number(capacity);
       if (!Number.isInteger(cap) || cap <= 0) nextErrors.capacity = "名額需為正整數";
-      if (deadlineText.trim()) {
-        const parsed = parseTaipeiInput(deadlineText);
-        if (!parsed) nextErrors.deadline = "時間格式不正確（需 YYYY-MM-DD HH:mm）";
-        else deadlineIso = parsed;
+
+      const deadlineFilled = deadlineDate.trim() || deadlineTime.trim();
+      if (deadlineFilled) {
+        const normDeadlineDate = normalizeDateInput(deadlineDate);
+        const normDeadlineTime = normalizeTimeInput(deadlineTime);
+        if (!deadlineDate.trim() || !deadlineTime.trim()) {
+          nextErrors.deadline = "報名截止的日期與時間請一併填寫，或兩者都留空";
+        } else if (!normDeadlineDate || !normDeadlineTime) {
+          nextErrors.deadline = "報名截止日期或時間格式不正確";
+        } else {
+          deadlineIso = taipeiLocalToIso(`${normDeadlineDate}T${normDeadlineTime}`);
+        }
       }
-      if (startIso && deadlineIso && deadlineIso > startIso) {
+      if (!nextErrors.deadline && startIso && deadlineIso && deadlineIso > startIso) {
         nextErrors.deadline = "報名截止不可晚於場次開始時間";
       }
     }
@@ -167,28 +263,26 @@ export function SessionForm({
           )}
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="開始時間" required error={errors.start} hint={DATETIME_HINT}>
-              <input
-                type="text"
-                inputMode="numeric"
-                className={inputClass}
-                value={startText}
-                onChange={(e) => setStartText(e.target.value)}
-                placeholder={DATETIME_PLACEHOLDER}
-                disabled={isEnded}
-              />
-            </Field>
-            <Field label="結束時間" required error={errors.end} hint={DATETIME_HINT}>
-              <input
-                type="text"
-                inputMode="numeric"
-                className={inputClass}
-                value={endText}
-                onChange={(e) => setEndText(e.target.value)}
-                placeholder={DATETIME_PLACEHOLDER}
-                disabled={isEnded}
-              />
-            </Field>
+            <DateTimeField
+              label="開始時間"
+              required
+              error={errors.start}
+              dateValue={startDate}
+              onDateChange={setStartDate}
+              timeValue={startTime}
+              onTimeChange={setStartTime}
+              disabled={isEnded}
+            />
+            <DateTimeField
+              label="結束時間"
+              required
+              error={errors.end}
+              dateValue={endDate}
+              onDateChange={setEndDate}
+              timeValue={endTime}
+              onTimeChange={setEndTime}
+              disabled={isEnded}
+            />
           </div>
 
           {!isBriefing && (
@@ -202,20 +296,15 @@ export function SessionForm({
                   onChange={(e) => setCapacity(e.target.value)}
                 />
               </Field>
-              <Field
+              <DateTimeField
                 label="報名截止時間"
                 error={errors.deadline}
-                hint="留空＝可報名至場次開始時刻。格式同上。"
-              >
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  className={inputClass}
-                  value={deadlineText}
-                  onChange={(e) => setDeadlineText(e.target.value)}
-                  placeholder={DATETIME_PLACEHOLDER}
-                />
-              </Field>
+                hint="留空＝可報名至場次開始時刻。"
+                dateValue={deadlineDate}
+                onDateChange={setDeadlineDate}
+                timeValue={deadlineTime}
+                onTimeChange={setDeadlineTime}
+              />
             </div>
           )}
 
