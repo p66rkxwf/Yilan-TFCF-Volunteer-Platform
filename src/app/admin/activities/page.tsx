@@ -28,14 +28,20 @@ import {
   restoreRecord,
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
-import { ACTIVITY_STATUS, ACTIVITY_TYPE } from "@/lib/admin/labels";
+import { ACTIVITY_STATUS } from "@/lib/admin/labels";
 import { formatSessionRange } from "@/lib/admin/datetime";
 import type { Activity, ActivityStatus } from "@/lib/types/database";
 
 const PAGE_SIZE = 20;
 
 interface ActivityRow extends Activity {
-  activity_sessions: { id: string; start_at: string; end_at: string; cancelled_at: string | null }[];
+  activity_sessions: {
+    id: string;
+    start_at: string;
+    end_at: string;
+    cancelled_at: string | null;
+    session_type: string;
+  }[];
   creator: { full_name: string } | null;
 }
 
@@ -61,7 +67,7 @@ export default function AdminActivitiesPage() {
     let q = supabase
       .from("activities")
       .select(
-        "*, activity_sessions(id, start_at, end_at, cancelled_at), creator:created_by(full_name)"
+        "*, activity_sessions(id, start_at, end_at, cancelled_at, session_type), creator:created_by(full_name)"
       )
       .order("created_at", { ascending: false })
       .limit(1000);
@@ -142,7 +148,7 @@ export default function AdminActivitiesPage() {
             href="/admin/activities/new"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
             新增活動
           </Link>
         }
@@ -210,7 +216,6 @@ export default function AdminActivitiesPage() {
             <thead>
               <tr>
                 <Th>活動</Th>
-                <Th>類型</Th>
                 <Th>狀態</Th>
                 <Th className="text-right">場次數</Th>
                 <Th>下一場</Th>
@@ -237,7 +242,6 @@ export default function AdminActivitiesPage() {
                         </Link>
                         <p className="text-xs text-slate-400">{row.location}</p>
                       </Td>
-                      <Td className="whitespace-nowrap">{ACTIVITY_TYPE[row.activity_type]}</Td>
                       <Td>
                         <StatusPill meta={ACTIVITY_STATUS[row.status as ActivityStatus]} />
                       </Td>

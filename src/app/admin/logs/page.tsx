@@ -18,9 +18,9 @@ import {
   LoadingRow,
   Toolbar,
   Field,
-  inputClass,
 } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { AUDIT_ACTION_LABELS, AUDIT_ACTOR_KIND_LABELS } from "@/lib/admin/labels";
 import { formatDateTime } from "@/lib/admin/datetime";
 
@@ -112,20 +112,10 @@ export default function LogsPage() {
           <Toolbar>
             <div className="flex items-end gap-2">
               <Field label="起始日期">
-                <input
-                  type="date"
-                  className={`${inputClass} date-input`}
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                />
+                <DatePicker value={dateFrom} onChange={setDateFrom} className="w-40" />
               </Field>
               <Field label="結束日期">
-                <input
-                  type="date"
-                  className={`${inputClass} date-input`}
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                />
+                <DatePicker value={dateTo} onChange={setDateTo} className="w-40" />
               </Field>
               <Button size="sm" variant="outline" onClick={load}>
                 查詢

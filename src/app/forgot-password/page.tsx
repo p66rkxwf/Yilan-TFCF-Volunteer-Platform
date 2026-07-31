@@ -18,7 +18,7 @@ export default function ForgotPasswordPage() {
 
         <div className="flex flex-col items-center gap-6 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10">
           <div className="flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <span className="material-symbols-outlined text-3xl">support_agent</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-3xl">support_agent</span>
           </div>
           <p className="max-w-[320px] text-center text-sm leading-relaxed text-slate-600">
             透過「支援」頁面留下你的帳號與問題，或依平台公告的聯絡方式與管理團隊聯繫。
@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
             href="/login"
             className="flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
           >
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-lg">arrow_back</span>
             返回登入
           </Link>
         </div>

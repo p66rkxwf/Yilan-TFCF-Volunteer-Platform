@@ -150,7 +150,7 @@ export default function RegistrationsPage() {
             href="/volunteer"
             className="flex items-center gap-2 rounded-lg bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
           >
-            <span className="material-symbols-outlined text-[18px]">add</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
             瀏覽活動
           </Link>
         }
@@ -162,7 +162,7 @@ export default function RegistrationsPage() {
           {!isLoading && totalHours > 0 ? (
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-4">
               <div className="flex items-baseline gap-2">
-                <span className="material-symbols-outlined text-[18px] text-primary">timer</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px] text-primary">timer</span>
                 <span className="text-sm text-slate-500">累計服務時數</span>
                 <span className="text-2xl font-bold text-slate-900">{totalHours}</span>
                 <span className="text-sm text-slate-500">
@@ -173,7 +173,7 @@ export default function RegistrationsPage() {
                 href="/profile/certificate"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
               >
-                <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">workspace_premium</span>
                 服務時數紀錄
               </Link>
             </div>
@@ -205,13 +205,13 @@ export default function RegistrationsPage() {
           {/* List */}
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
-              <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+              <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
                 progress_activity
               </span>
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
-              <span className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
+              <span aria-hidden="true" className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
                 inbox
               </span>
               <p className="mb-4 text-sm text-slate-500">
@@ -262,20 +262,20 @@ export default function RegistrationsPage() {
                         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-500">
                           {reg.session_start_at && reg.session_end_at && (
                             <span className="inline-flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[14px]">calendar_today</span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">calendar_today</span>
                               {formatSessionRange(reg.session_start_at, reg.session_end_at)}
                             </span>
                           )}
                           {reg.activity_location && (
                             <span className="inline-flex items-center gap-1">
-                              <span className="material-symbols-outlined text-[14px]">location_on</span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">location_on</span>
                               {reg.activity_location}
                             </span>
                           )}
                           {(reg.attendance === "attended" || reg.attendance === "makeup_attended") &&
                           reg.service_hours != null ? (
                             <span className="inline-flex items-center gap-1 font-semibold text-primary">
-                              <span className="material-symbols-outlined text-[14px]">timer</span>
+                              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">timer</span>
                               服務 {reg.service_hours} 小時
                             </span>
                           ) : null}
@@ -293,7 +293,7 @@ export default function RegistrationsPage() {
                           取消報名
                         </button>
                       )}
-                      <span className="material-symbols-outlined shrink-0 text-[18px] text-slate-300 transition-colors group-hover:text-primary">
+                      <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[18px] text-slate-300 transition-colors group-hover:text-primary">
                         arrow_forward
                       </span>
                     </li>
@@ -308,7 +308,7 @@ export default function RegistrationsPage() {
       <ConfirmDialog
         open={!!confirmCancelReg}
         title={confirmCancelReg ? `確定要取消「${confirmCancelReg.activity_title}」的報名嗎？` : ""}
-        description="視活動的取消審核門檻，取消申請可能會立即生效，也可能需要主辦人審核後才會生效。"
+        description="視活動的取消審核門檻，取消申請可能會立即生效，也可能需要負責人審核後才會生效。"
         confirmText="取消報名"
         cancelText="返回"
         isLoading={isCancelling}

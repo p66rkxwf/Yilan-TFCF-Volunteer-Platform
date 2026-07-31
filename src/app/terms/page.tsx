@@ -108,7 +108,7 @@ export default function TermsPage() {
                 href={document.href}
                 className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
               >
-                <span className="material-symbols-outlined text-[18px]">{document.icon}</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">{document.icon}</span>
                 {document.label}
               </Link>
             ))}

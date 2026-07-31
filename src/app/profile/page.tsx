@@ -136,7 +136,7 @@ export default function ProfilePage() {
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
           progress_activity
         </span>
       </div>
@@ -271,7 +271,7 @@ export default function ProfilePage() {
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSaving && (
-                    <span className="material-symbols-outlined animate-spin text-[16px]">
+                    <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[16px]">
                       progress_activity
                     </span>
                   )}
@@ -298,7 +298,7 @@ export default function ProfilePage() {
                     href="/profile/certificate"
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                   >
-                    <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">workspace_premium</span>
                     查看服務時數紀錄
                   </Link>
                 </InfoRow>

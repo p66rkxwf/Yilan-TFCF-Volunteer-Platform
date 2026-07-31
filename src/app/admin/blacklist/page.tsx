@@ -21,12 +21,17 @@ import {
   EmptyRow,
   LoadingRow,
   TabBar,
-  Field,
   RowActionMenu,
-  inputClass,
 } from "@/components/admin/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { formatDateTime, isoToTaipeiLocal, taipeiLocalToIso } from "@/lib/admin/datetime";
+import { DateTimeField } from "@/components/ui/datetime-field";
+import {
+  formatDateTime,
+  splitTaipeiLocal,
+  taipeiLocalToIso,
+  normalizeDateInput,
+  normalizeTimeInput,
+} from "@/lib/admin/datetime";
 import type { BlacklistEvent } from "@/lib/types/database";
 
 type TabKey = "active" | "history";
@@ -50,7 +55,8 @@ function BlacklistInner() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [adjustEvent, setAdjustEvent] = useState<EventRow | null>(null);
-  const [newRelease, setNewRelease] = useState("");
+  const [releaseDate, setReleaseDate] = useState("");
+  const [releaseTime, setReleaseTime] = useState("");
   // 提前解除後事件即關閉（無法恢復生效），先確認
   const [releaseTarget, setReleaseTarget] = useState<EventRow | null>(null);
   const [isActing, setIsActing] = useState(false);
@@ -90,7 +96,11 @@ function BlacklistInner() {
 
   const openAdjust = (event: EventRow) => {
     setAdjustEvent(event);
-    setNewRelease(isoToTaipeiLocal(event.expected_release_at));
+    {
+      const { date, time } = splitTaipeiLocal(event.expected_release_at);
+      setReleaseDate(date);
+      setReleaseTime(time);
+    }
   };
 
   const confirmRelease = async () => {
@@ -113,10 +123,13 @@ function BlacklistInner() {
   };
 
   const submitAdjust = async () => {
-    if (!adjustEvent || !newRelease) return;
+    if (!adjustEvent) return;
+    const d = normalizeDateInput(releaseDate);
+    const t = normalizeTimeInput(releaseTime);
+    if (!d || !t) return void toast.error("請填寫有效的日期與時間");
     setIsActing(true);
     try {
-      const iso = taipeiLocalToIso(newRelease);
+      const iso = taipeiLocalToIso(`${d}T${t}`);
       const { error } = await supabase.rpc("rpc_adjust_blacklist", {
         p_event_id: adjustEvent.id,
         p_new_release_at: iso,
@@ -264,14 +277,13 @@ function BlacklistInner() {
                 {adjustEvent.volunteer?.full_name}｜設定新的預計解除時間；若設為現在或更早，將立即解除。
               </p>
               <div className="mt-4">
-                <Field label="預計解除時間">
-                  <input
-                    type="datetime-local"
-                    className={inputClass}
-                    value={newRelease}
-                    onChange={(e) => setNewRelease(e.target.value)}
-                  />
-                </Field>
+                <DateTimeField
+                  label="預計解除時間"
+                  dateValue={releaseDate}
+                  onDateChange={setReleaseDate}
+                  timeValue={releaseTime}
+                  onTimeChange={setReleaseTime}
+                />
               </div>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">

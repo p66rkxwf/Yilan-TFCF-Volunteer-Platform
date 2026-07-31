@@ -100,7 +100,7 @@ export default function NotificationsPage() {
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
-        <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
           progress_activity
         </span>
       </div>
@@ -124,7 +124,7 @@ export default function NotificationsPage() {
           disabled={marking || unreadCount === 0}
           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span className="material-symbols-outlined text-[18px]">done_all</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">done_all</span>
           全部標為已讀
         </button>
       </div>
@@ -154,7 +154,7 @@ export default function NotificationsPage() {
 
       {filtered.length === 0 ? (
         <div className="py-16 text-center text-slate-400">
-          <span className="material-symbols-outlined mb-3 block text-5xl">
+          <span aria-hidden="true" className="material-symbols-outlined mb-3 block text-5xl">
             notifications_off
           </span>
           <p className="text-sm">
@@ -200,7 +200,7 @@ export default function NotificationsPage() {
                     </span>
                   </span>
                   {display.href && (
-                    <span className="material-symbols-outlined mt-1 shrink-0 text-[18px] text-slate-300">
+                    <span aria-hidden="true" className="material-symbols-outlined mt-1 shrink-0 text-[18px] text-slate-300">
                       arrow_forward
                     </span>
                   )}

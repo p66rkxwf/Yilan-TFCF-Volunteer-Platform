@@ -10,8 +10,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../admin-context";
-import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
+import { PageHeader, Panel, Field } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { toCsv, downloadCsv } from "@/utils/csv";
 import {
   ACTIVITY_STATUS,
@@ -355,7 +356,7 @@ export default function ReportsPage() {
         onClick={onExport}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <span className="material-symbols-outlined text-[16px]">download</span>
+        <span aria-hidden="true" className="material-symbols-outlined text-[16px]">download</span>
         {busy === key ? "匯出中…" : "匯出 CSV"}
       </button>
     </div>
@@ -370,7 +371,7 @@ export default function ReportsPage() {
           {kpiCards.map((c) => (
             <div key={c.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
-                <span className={`material-symbols-outlined text-[22px] ${c.accent}`}>{c.icon}</span>
+                <span aria-hidden="true" className={`material-symbols-outlined text-[22px] ${c.accent}`}>{c.icon}</span>
               </div>
               <p className={`mt-2 text-2xl font-bold ${c.accent}`}>{c.value}</p>
               <p className="mt-0.5 text-xs text-slate-500">{c.label}</p>
@@ -381,20 +382,10 @@ export default function ReportsPage() {
         <Panel title="篩選條件">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="起始日期">
-              <input
-                type="date"
-                className={`${inputClass} date-input`}
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
+              <DatePicker value={dateFrom} onChange={setDateFrom} />
             </Field>
             <Field label="結束日期">
-              <input
-                type="date"
-                className={`${inputClass} date-input`}
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
+              <DatePicker value={dateTo} onChange={setDateTo} />
             </Field>
             <Field label="期間（期間達標名單用）">
               <Select

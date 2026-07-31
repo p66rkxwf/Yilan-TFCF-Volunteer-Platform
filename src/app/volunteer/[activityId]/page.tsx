@@ -10,8 +10,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { registerForSession } from "@/lib/actions/registrations";
+import { Markdown } from "@/components/admin/markdown";
 import { formatSessionRange } from "@/lib/admin/datetime";
-import type { VolunteerStatus } from "@/lib/types/database";
+import type { SessionType, VolunteerStatus } from "@/lib/types/database";
 
 interface SessionRow {
   id: string;
@@ -20,6 +21,9 @@ interface SessionRow {
   capacity: number;
   registration_deadline_at: string;
   cancelled_at: string | null;
+  session_type: SessionType;
+  location: string | null;
+  note: string | null;
 }
 
 interface ActivityDetail {
@@ -78,7 +82,9 @@ export default function VolunteerActivityDetailPage() {
         .maybeSingle(),
       supabase
         .from("activity_sessions")
-        .select("id, start_at, end_at, capacity, registration_deadline_at, cancelled_at")
+        .select(
+          "id, start_at, end_at, capacity, registration_deadline_at, cancelled_at, session_type, location, note"
+        )
         .eq("activity_id", activityId)
         .order("start_at"),
       supabase.from("v_session_open_slots").select("activity_session_id, open_slots"),
@@ -187,7 +193,7 @@ export default function VolunteerActivityDetailPage() {
   if (isLoading || !activity) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
-        <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
           progress_activity
         </span>
       </div>
@@ -196,6 +202,82 @@ export default function VolunteerActivityDetailPage() {
 
   const activityOpen = activity.status === "open";
   const nowIso = new Date().toISOString();
+  const regularSessions = sessions.filter((s) => s.session_type === "regular");
+  const briefings = sessions.filter((s) => s.session_type === "briefing");
+
+  // 場次列（正式場次與行前說明會共用；說明會多顯示 note）
+  const renderSessionRow = (s: SessionRow) => {
+    const activeReg = regBySession.get(s.id);
+    const openSlots = openBySession.get(s.id) ?? s.capacity;
+    const cancelled = !!s.cancelled_at;
+    const ended = s.end_at <= nowIso;
+    const pastDeadline = s.registration_deadline_at <= nowIso;
+    const full = openSlots <= 0;
+    const canRegister =
+      accountActive && emailVerified && activityOpen && !cancelled && !ended && !pastDeadline && !full && !activeReg;
+
+    return (
+      <li key={s.id} className="py-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">
+              {formatSessionRange(s.start_at, s.end_at)}
+            </p>
+            <p className="mt-0.5 text-xs text-slate-400">
+              報名截止 {DEADLINE_FORMATTER.format(new Date(s.registration_deadline_at))}
+              {!cancelled && !ended && ` · 尚餘 ${Math.max(openSlots, 0)}／${s.capacity} 名`}
+            </p>
+            {s.location && (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+                <span className="material-symbols-outlined text-[14px] text-slate-400" aria-hidden="true">
+                  location_on
+                </span>
+                {s.location}
+              </p>
+            )}
+          </div>
+
+          {activeReg ? (
+            <span
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+                REG_STATUS[activeReg]?.className ?? "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {REG_STATUS[activeReg]?.label ?? "已報名"}
+            </span>
+          ) : cancelled ? (
+            <span className="shrink-0 rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">
+              已取消
+            </span>
+          ) : ended ? (
+            <span className="shrink-0 rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-500">
+              已結束
+            </span>
+          ) : pastDeadline ? (
+            <span className="shrink-0 rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-500">
+              已截止
+            </span>
+          ) : full ? (
+            <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
+              已額滿
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleRegister(s.id)}
+              disabled={!canRegister || actingSessionId === s.id}
+              className="shrink-0 rounded-md bg-primary px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              {actingSessionId === s.id ? "報名中…" : accountActive ? "報名" : "無法報名"}
+            </button>
+          )}
+        </div>
+        {s.note && (
+          <p className="mt-1.5 whitespace-pre-wrap text-sm text-slate-600">{s.note}</p>
+        )}
+      </li>
+    );
+  };
 
   return (
     <main className="w-full flex-1 bg-white">
@@ -204,7 +286,7 @@ export default function VolunteerActivityDetailPage() {
         href="/volunteer"
         className="mb-5 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
       >
-        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_back</span>
         返回活動列表
       </Link>
 
@@ -224,7 +306,7 @@ export default function VolunteerActivityDetailPage() {
                 isFavorite ? "text-primary hover:text-primary/80" : "text-slate-300 hover:text-primary/60"
               } ${!accountActive ? "cursor-not-allowed opacity-60" : ""}`}
             >
-              <span
+              <span aria-hidden="true"
                 className="material-symbols-outlined text-[24px]"
                 style={{ fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0" }}
               >
@@ -236,40 +318,55 @@ export default function VolunteerActivityDetailPage() {
 
         <div className="mt-4 space-y-2.5 text-base text-slate-700">
           <p className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[20px] text-slate-400">location_on</span>
+            <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-slate-400">location_on</span>
             <span>
               <span className="font-medium text-slate-500">地點：</span>
               {activity.location}
             </span>
           </p>
-          {organizers.map((org, i) => (
-            <div key={i} className="space-y-2.5">
-              <p className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[20px] text-slate-400">person</span>
-                <span>
-                  <span className="font-medium text-slate-500">主辦人：</span>
-                  {org.full_name}
+          {organizers.length > 0 && (
+            <div className="flex flex-wrap items-start gap-x-2 gap-y-1.5">
+              <span className="flex items-center gap-2 pt-1">
+                <span
+                  className="material-symbols-outlined text-[20px] text-slate-400"
+                  aria-hidden="true"
+                >
+                  person
                 </span>
-              </p>
-              {org.phone && (
-                <p className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[20px] text-slate-400">call</span>
-                  <span>
-                    <span className="font-medium text-slate-500">聯絡電話：</span>
-                    {org.phone}
-                  </span>
-                </p>
-              )}
+                <span className="font-medium text-slate-500">負責人：</span>
+              </span>
+              <ul className="flex flex-wrap gap-2">
+                {organizers.map((org, i) => (
+                  <li
+                    key={i}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm"
+                  >
+                    <span className="font-semibold text-slate-800">{org.full_name}</span>
+                    {org.phone && (
+                      <a
+                        href={`tel:${org.phone}`}
+                        className="inline-flex items-center gap-0.5 text-slate-500 hover:text-primary"
+                      >
+                        <span
+                          className="material-symbols-outlined text-[16px]"
+                          aria-hidden="true"
+                        >
+                          call
+                        </span>
+                        {org.phone}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
-          ))}
+          )}
         </div>
 
         {activity.content && (
           <div className="mt-4 border-t border-slate-100 pt-4">
             <p className="mb-1.5 text-sm font-medium text-slate-500">活動說明</p>
-            <p className="whitespace-pre-wrap text-base leading-relaxed text-slate-700">
-              {activity.content}
-            </p>
+            <Markdown content={activity.content} />
           </div>
         )}
 
@@ -280,6 +377,27 @@ export default function VolunteerActivityDetailPage() {
             : `場次開始前 ${activity.cancel_review_window_days} 天內取消需經審核。`}
         </p>
       </div>
+
+      {briefings.length > 0 && (
+        <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-5 sm:p-6">
+          <h2 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-900">
+            <span className="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">
+              campaign
+            </span>
+            行前說明會
+          </h2>
+          {!accountActive && volunteerStatus && (
+            <div className="mb-3 rounded-md bg-white/70 px-4 py-2.5 text-sm text-slate-600">
+              目前帳號狀態無法報名，僅供瀏覽。
+            </div>
+          )}
+          <div className="border-t border-primary/10">
+            <ul className="divide-y divide-primary/10">
+              {briefings.map((b) => renderSessionRow(b))}
+            </ul>
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 rounded-md border border-slate-200 bg-white p-5 sm:p-6">
         <h2 className="mb-3 border-b border-slate-200 pb-2 text-base font-bold text-slate-900">
@@ -304,72 +422,14 @@ export default function VolunteerActivityDetailPage() {
           </div>
         )}
 
-        {sessions.filter((s) => !s.cancelled_at).length === 0 ? (
+        {regularSessions.filter((s) => !s.cancelled_at).length === 0 ? (
           <div className="py-12 text-center text-sm text-slate-400">
             此活動尚未開放任何場次。
           </div>
         ) : (
           <div className="border-t border-slate-100">
             <ul className="divide-y divide-slate-100">
-              {sessions.map((s) => {
-                const activeReg = regBySession.get(s.id);
-                const openSlots = openBySession.get(s.id) ?? s.capacity;
-                const cancelled = !!s.cancelled_at;
-                const ended = s.end_at <= nowIso;
-                const pastDeadline = s.registration_deadline_at <= nowIso;
-                const full = openSlots <= 0;
-                const canRegister =
-                  accountActive && emailVerified && activityOpen && !cancelled && !ended && !pastDeadline && !full && !activeReg;
-
-                return (
-                  <li key={s.id} className="flex flex-wrap items-center gap-3 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {formatSessionRange(s.start_at, s.end_at)}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-400">
-                        報名截止 {DEADLINE_FORMATTER.format(new Date(s.registration_deadline_at))}
-                        {!cancelled && !ended && ` · 尚餘 ${Math.max(openSlots, 0)}／${s.capacity} 名`}
-                      </p>
-                    </div>
-
-                    {activeReg ? (
-                      <span
-                        className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
-                          REG_STATUS[activeReg]?.className ?? "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {REG_STATUS[activeReg]?.label ?? "已報名"}
-                      </span>
-                    ) : cancelled ? (
-                      <span className="shrink-0 rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-600">
-                        已取消
-                      </span>
-                    ) : ended ? (
-                      <span className="shrink-0 rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-500">
-                        已結束
-                      </span>
-                    ) : pastDeadline ? (
-                      <span className="shrink-0 rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-500">
-                        已截止
-                      </span>
-                    ) : full ? (
-                      <span className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">
-                        已額滿
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleRegister(s.id)}
-                        disabled={!canRegister || actingSessionId === s.id}
-                        className="shrink-0 rounded-md bg-primary px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
-                      >
-                        {actingSessionId === s.id ? "報名中…" : accountActive ? "報名" : "無法報名"}
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
+              {regularSessions.map((s) => renderSessionRow(s))}
             </ul>
           </div>
         )}

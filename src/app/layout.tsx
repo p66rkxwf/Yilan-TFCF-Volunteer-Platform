@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
 import "./globals.css";
 import { RootLayoutClient } from "@/components/layout/root-layout-client";
+import { SkipLink } from "@/components/ui/skip-link";
 
 const publicSans = Public_Sans({
   subsets: ["latin"],
@@ -39,6 +40,7 @@ export default function RootLayout({
       <body
         className={`${publicSans.className} flex min-h-screen flex-col bg-background-light text-slate-900 antialiased`}
       >
+        <SkipLink />
         <RootLayoutClient>{children}</RootLayoutClient>
       </body>
     </html>

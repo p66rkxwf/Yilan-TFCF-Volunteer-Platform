@@ -1,7 +1,7 @@
 "use client";
 
 // 活動基本資料表單（新增／編輯共用）。
-// 主辦人為多選（在職職員）；日期、名額、截止皆屬「場次」層，不在此表單。
+// 負責人為多選（在職職員）；日期、名額、截止皆屬「場次」層，不在此表單。
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -10,9 +10,9 @@ import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { Field, inputClass, Panel, SearchInput } from "@/components/admin/ui";
-import { Select } from "@/components/ui/select";
+import { MarkdownEditor } from "@/components/admin/markdown-editor";
 import { STAFF_JOB_TITLE } from "@/lib/admin/labels";
-import type { Activity, ActivityType, StaffJobTitle } from "@/lib/types/database";
+import type { Activity, StaffJobTitle } from "@/lib/types/database";
 
 interface StaffOption {
   id: string;
@@ -23,7 +23,6 @@ interface StaffOption {
 export interface ActivityFormValue {
   title: string;
   content: string;
-  activity_type: ActivityType;
   location: string;
   cancel_review_window_days: number;
   organizerIds: string[];
@@ -45,9 +44,6 @@ export function ActivityForm({
 
   const [title, setTitle] = useState(activity?.title ?? "");
   const [content, setContent] = useState(activity?.content ?? "");
-  const [activityType, setActivityType] = useState<ActivityType>(
-    activity?.activity_type ?? "general"
-  );
   const [location, setLocation] = useState(activity?.location ?? "");
   const [cancelWindow, setCancelWindow] = useState(
     String(activity?.cancel_review_window_days ?? 0)
@@ -109,7 +105,7 @@ export function ActivityForm({
       nextErrors.cancelWindow = "取消審核天數需為 0 或正整數";
     }
     if (organizerIds.size === 0) {
-      nextErrors.organizers = "請至少指定一位主辦人（負責審核與接收提醒）";
+      nextErrors.organizers = "請至少指定一位負責人（負責審核與接收提醒）";
     }
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -124,7 +120,6 @@ export function ActivityForm({
           .update({
             title: title.trim(),
             content: content.trim() || null,
-            activity_type: activityType,
             location: location.trim(),
             cancel_review_window_days: windowDays,
           })
@@ -136,7 +131,6 @@ export function ActivityForm({
           .insert({
             title: title.trim(),
             content: content.trim() || null,
-            activity_type: activityType,
             location: location.trim(),
             cancel_review_window_days: windowDays,
             created_by: currentUserId,
@@ -147,7 +141,7 @@ export function ActivityForm({
         activityId = data.id as string;
       }
 
-      // 主辦人差異同步（先刪後補；集合小，逐筆即可）
+      // 負責人差異同步（先刪後補；集合小，逐筆即可）
       const desired = organizerIds;
       const current = new Set(initialOrganizerIds ?? []);
       const toAdd = [...desired].filter((id) => !current.has(id));
@@ -192,37 +186,24 @@ export function ActivityForm({
             />
           </Field>
 
-          <Field label="活動說明" hint="支援換行；學生在前台會看到此內容。">
-            <textarea
-              className={`${inputClass} min-h-32`}
+          <Field label="活動說明">
+            <MarkdownEditor
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={setContent}
+              minHeightClass="min-h-32"
               placeholder="活動內容、注意事項、集合方式…"
             />
           </Field>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="活動類型">
-              <Select
-                value={activityType}
-                onValueChange={(v) => setActivityType(v as ActivityType)}
-                options={[
-                  { value: "general", label: "一般活動" },
-                  { value: "custom", label: "自訂活動（可覆寫時數）" },
-                ]}
-              />
-            </Field>
-
-            <Field label="活動地點" required error={errors.location}>
-              <input
-                className={inputClass}
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="例：宜蘭家扶中心 2 樓"
-                maxLength={120}
-              />
-            </Field>
-          </div>
+          <Field label="活動地點" required error={errors.location}>
+            <input
+              className={inputClass}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="例：宜蘭家扶中心 2 樓"
+              maxLength={120}
+            />
+          </Field>
 
           <Field
             label="取消審核天數門檻"
@@ -242,8 +223,8 @@ export function ActivityForm({
       </Panel>
 
       <Panel
-        title="主辦人"
-        description="主辦人負責審核報名並接收審核提醒；可多位。姓名與電話會公開給學生。"
+        title="負責人"
+        description="負責人負責審核報名並接收審核提醒；可多位。姓名與電話會公開給學生。"
       >
         <div className="space-y-3">
           <SearchInput
@@ -277,7 +258,7 @@ export function ActivityForm({
           {errors.organizers ? (
             <p className="text-xs font-semibold text-amber-700">{errors.organizers}</p>
           ) : (
-            <p className="text-xs text-slate-500">已選 {organizerIds.size} 位主辦人</p>
+            <p className="text-xs text-slate-500">已選 {organizerIds.size} 位負責人</p>
           )}
         </div>
       </Panel>

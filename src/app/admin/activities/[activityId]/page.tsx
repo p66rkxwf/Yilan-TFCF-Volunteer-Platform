@@ -1,6 +1,6 @@
 "use client";
 
-// 活動詳情：基本資料、狀態操作、主辦人、場次清單（含各場報名統計與操作）。
+// 活動詳情：基本資料、狀態操作、負責人、場次清單（含各場報名統計與操作）。
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -20,7 +20,8 @@ import {
   DescriptionItem,
   RowActionMenu,
 } from "@/components/admin/ui";
-import { ACTIVITY_STATUS, ACTIVITY_TYPE } from "@/lib/admin/labels";
+import { Markdown } from "@/components/admin/markdown";
+import { ACTIVITY_STATUS } from "@/lib/admin/labels";
 import { formatDateTime, formatSessionRange, sessionHours } from "@/lib/admin/datetime";
 import type { Activity, ActivitySession, ActivityStats } from "@/lib/types/database";
 
@@ -34,7 +35,8 @@ type ConfirmAction =
   | { kind: "close" }
   | { kind: "cancelActivity" }
   | { kind: "deleteDraft" }
-  | { kind: "cancelSession"; sessionId: string; label: string };
+  | { kind: "cancelSession"; sessionId: string; label: string }
+  | { kind: "deleteSession"; sessionId: string; label: string };
 
 export default function ActivityDetailPage() {
   const { activityId } = useParams<{ activityId: string }>();
@@ -134,6 +136,13 @@ export default function ActivityDetailPage() {
         });
         if (error) throw error;
         toast.success(`場次已取消，連動取消 ${data ?? 0} 筆報名並通知學生`);
+      } else if (confirm.kind === "deleteSession") {
+        const { error } = await supabase
+          .from("activity_sessions")
+          .delete()
+          .eq("id", confirm.sessionId);
+        if (error) throw error;
+        toast.success("場次已刪除");
       }
       setConfirm(null);
       await load();
@@ -180,6 +189,12 @@ export default function ActivityDetailPage() {
       title: "取消此場次？",
       description:
         "該場所有有效報名將連動取消並逐筆通知學生（颱風停辦等情況）。已結束的場次不可取消。此操作不可復原。",
+      danger: true,
+    },
+    deleteSession: {
+      title: "刪除此場次？",
+      description:
+        "僅能刪除沒有任何報名紀錄的場次（含已取消的報名）；若已有報名，請改用「取消場次」。此操作不可復原。",
       danger: true,
     },
   };
@@ -236,7 +251,6 @@ export default function ActivityDetailPage() {
               <DescriptionItem label="狀態">
                 <StatusPill meta={meta} />
               </DescriptionItem>
-              <DescriptionItem label="類型">{ACTIVITY_TYPE[activity.activity_type]}</DescriptionItem>
               <DescriptionItem label="地點">{activity.location}</DescriptionItem>
               <DescriptionItem label="取消審核門檻">
                 {activity.cancel_review_window_days === 0
@@ -248,7 +262,7 @@ export default function ActivityDetailPage() {
               </DescriptionItem>
               <DescriptionItem label="活動說明">
                 {activity.content ? (
-                  <span className="whitespace-pre-wrap">{activity.content}</span>
+                  <Markdown content={activity.content} />
                 ) : (
                   <span className="text-slate-400">（未填寫）</span>
                 )}
@@ -257,11 +271,11 @@ export default function ActivityDetailPage() {
           </Panel>
 
           <Panel
-            title="主辦人"
+            title="負責人"
 
           >
             {organizers.length === 0 ? (
-              <p className="text-sm text-slate-400">尚未指定主辦人（編輯活動以加入）</p>
+              <p className="text-sm text-slate-400">尚未指定負責人（編輯活動以加入）</p>
             ) : (
               <ul className="space-y-2">
                 {organizers.map((o) => (
@@ -290,7 +304,7 @@ export default function ActivityDetailPage() {
                 href={`/admin/activities/${activity.id}/sessions/new`}
                 className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
               >
-                <span className="material-symbols-outlined text-[16px]">add</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">add</span>
                 新增場次
               </Link>
             ) : undefined
@@ -317,17 +331,34 @@ export default function ActivityDetailPage() {
                   const stat = stats.get(session.id);
                   const isCancelled = Boolean(session.cancelled_at);
                   const isEnded = session.end_at <= nowIso;
+                  const isBriefing = session.session_type === "briefing";
                   return (
                     <tr key={session.id} className="transition-colors hover:bg-slate-50">
                       <Td className="whitespace-nowrap">
-                        {formatSessionRange(session.start_at, session.end_at)}
+                        <div className="flex items-center gap-2">
+                          <span>{formatSessionRange(session.start_at, session.end_at)}</span>
+                          {isBriefing && (
+                            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                              說明會
+                            </span>
+                          )}
+                        </div>
+                        {session.location && (
+                          <div className="mt-0.5 text-xs font-normal text-slate-400">
+                            ＠{session.location}
+                          </div>
+                        )}
                       </Td>
                       <Td className="whitespace-nowrap text-slate-500">
                         {formatDateTime(session.registration_deadline_at)}
                       </Td>
-                      <Td className="text-right">{sessionHours(session.start_at, session.end_at)}</Td>
                       <Td className="text-right">
-                        {stat ? `${stat.active_registrations}／${session.capacity}` : `—／${session.capacity}`}
+                        {session.counts_hours ? sessionHours(session.start_at, session.end_at) : "—"}
+                      </Td>
+                      <Td className="text-right">
+                        {stat
+                          ? `${stat.active_registrations}／${session.capacity}`
+                          : `—／${session.capacity}`}
                       </Td>
                       <Td className="text-right">{stat?.approved_count ?? 0}</Td>
                       <Td className="whitespace-nowrap text-right">
@@ -379,6 +410,17 @@ export default function ActivityDetailPage() {
                                     label: formatSessionRange(session.start_at, session.end_at),
                                   }),
                               },
+                            canManage && {
+                              label: "刪除場次",
+                              icon: "delete_forever",
+                              danger: true,
+                              onSelect: () =>
+                                setConfirm({
+                                  kind: "deleteSession",
+                                  sessionId: session.id,
+                                  label: formatSessionRange(session.start_at, session.end_at),
+                                }),
+                            },
                           ]}
                         />
                       </Td>

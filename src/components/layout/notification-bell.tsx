@@ -154,7 +154,7 @@ export function NotificationBell() {
           <div className="max-h-96 overflow-y-auto">
             {isLoading ? (
               <div className="flex justify-center py-8">
-                <span className="material-symbols-outlined animate-spin text-2xl text-primary">
+                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-2xl text-primary">
                   progress_activity
                 </span>
               </div>

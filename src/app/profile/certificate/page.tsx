@@ -52,7 +52,7 @@ export default function CertificatePage() {
   if (isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <span className="material-symbols-outlined animate-spin text-4xl text-primary">
+        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
           progress_activity
         </span>
       </div>
@@ -81,7 +81,7 @@ export default function CertificatePage() {
                 onClick={() => window.print()}
                 className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
               >
-                <span className="material-symbols-outlined text-[18px]">print</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">print</span>
                 列印 / 另存 PDF
               </button>
             ) : null}
@@ -92,7 +92,7 @@ export default function CertificatePage() {
       <div className="flex-1 overflow-y-auto p-5 md:p-8">
         {!hasHours ? (
           <div className="no-print mx-auto max-w-2xl py-16 text-center">
-            <span className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
+            <span aria-hidden="true" className="material-symbols-outlined mb-3 block text-5xl text-slate-300">
               workspace_premium
             </span>
             <p className="text-sm text-slate-500">

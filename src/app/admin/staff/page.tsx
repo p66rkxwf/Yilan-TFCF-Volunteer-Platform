@@ -293,14 +293,14 @@ export default function StaffPage() {
                 href="/admin/staff/bulk"
                 className="inline-flex items-center gap-1.5 rounded-lg border-2 border-zinc-300 px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-zinc-100"
               >
-                <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">upload_file</span>
                 批量匯入
               </Link>
               <Link prefetch={false}
                 href="/admin/staff/new"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
               >
-                <span className="material-symbols-outlined text-[18px]">person_add</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">person_add</span>
                 新增職員
               </Link>
             </>

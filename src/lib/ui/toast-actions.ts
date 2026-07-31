@@ -10,6 +10,10 @@ type ErrorLike =
 // 這裡集中轉譯常見情形，避免技術字串外洩給操作者。
 const DB_ERROR_TRANSLATIONS: { match: RegExp; message: string }[] = [
   { match: /session_no_overlap/i, message: "場次時段與同活動的其他場次重疊，請調整時間。" },
+  {
+    match: /registrations_activity_session_id_fkey/i,
+    message: "此場次已有報名紀錄（含已取消），無法刪除，請改用「取消場次」。",
+  },
 ];
 
 export function getErrorMessage(error: ErrorLike) {

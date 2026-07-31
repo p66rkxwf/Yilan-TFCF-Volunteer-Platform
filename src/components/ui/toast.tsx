@@ -113,7 +113,7 @@ function ToastItem({
         <div
           className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${style.iconBg} ${style.iconColor}`}
         >
-          <span className="material-symbols-outlined text-[20px]">
+          <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
             {style.icon}
           </span>
         </div>
@@ -131,7 +131,7 @@ function ToastItem({
           className="rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
           aria-label="關閉通知"
         >
-          <span className="material-symbols-outlined text-[18px]">close</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">close</span>
         </button>
       </div>
     </div>

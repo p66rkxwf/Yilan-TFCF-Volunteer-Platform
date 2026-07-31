@@ -9,6 +9,8 @@ import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { todayTaipeiDate } from "@/lib/admin/datetime";
 import { createVolunteer } from "@/lib/actions/admin-volunteers";
 import { GRADE_LEVEL_LABELS, YILAN_REGIONS } from "@/lib/types/database";
 import {
@@ -150,11 +152,11 @@ export default function NewVolunteerPage() {
                 />
               </Field>
               <Field label="生日" required error={errors.birthDate}>
-                <input
-                  type="date"
-                  className={`${inputClass} date-input`}
+                <DatePicker
                   value={form.birthDate}
-                  onChange={(e) => set("birthDate", e.target.value)}
+                  onChange={(v) => set("birthDate", v)}
+                  invalid={!!errors.birthDate}
+                  max={todayTaipeiDate()}
                 />
               </Field>
               <Field label="學制" required>

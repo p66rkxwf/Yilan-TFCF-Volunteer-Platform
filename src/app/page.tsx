@@ -42,12 +42,12 @@ export default async function Home() {
         {/* 獎學金專區 */}
         <section className="relative flex-1 group overflow-hidden border-b md:border-b-0 md:border-r border-slate-200">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-900 to-primary transition-all duration-700 group-hover:from-slate-700 group-hover:to-primary" />
-          <span className="material-symbols-outlined pointer-events-none absolute -right-8 -bottom-8 text-[220px] leading-none text-white/5 transition-transform duration-700 group-hover:scale-110">
+          <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute -right-8 -bottom-8 text-[220px] leading-none text-white/5 transition-transform duration-700 group-hover:scale-110">
             school
           </span>
           <div className="relative h-full flex flex-col justify-center items-center text-center p-8 md:p-16 z-10 min-h-[55vh] md:min-h-[60vh]">
             <div className="mb-6 p-4 rounded-full bg-white/10 backdrop-blur-md text-white">
-              <span className="material-symbols-outlined text-4xl">school</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-4xl">school</span>
             </div>
             <h2 className="text-white text-3xl md:text-5xl font-black mb-8 tracking-tight">
               獎學金申請專區
@@ -64,12 +64,12 @@ export default async function Home() {
         {/* 志工專區 */}
         <section className="relative flex-1 group overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary via-slate-800 to-slate-900 transition-all duration-700 group-hover:from-primary group-hover:to-slate-800" />
-          <span className="material-symbols-outlined pointer-events-none absolute -left-8 -bottom-8 text-[220px] leading-none text-white/5 transition-transform duration-700 group-hover:scale-110">
+          <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute -left-8 -bottom-8 text-[220px] leading-none text-white/5 transition-transform duration-700 group-hover:scale-110">
             volunteer_activism
           </span>
           <div className="relative h-full flex flex-col justify-center items-center text-center p-8 md:p-16 z-10 min-h-[55vh] md:min-h-[60vh]">
             <div className="mb-6 p-4 rounded-full bg-white/10 backdrop-blur-md text-white">
-              <span className="material-symbols-outlined text-4xl">volunteer_activism</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-4xl">volunteer_activism</span>
             </div>
             <h2 className="text-white text-3xl md:text-5xl font-black mb-8 tracking-tight">
               志工報名專區
@@ -107,7 +107,7 @@ export default async function Home() {
                     className="group flex items-center gap-3 py-3.5 transition-colors"
                   >
                     {item.is_pinned && (
-                      <span className="material-symbols-outlined shrink-0 text-[18px] text-amber-500">
+                      <span aria-hidden="true" className="material-symbols-outlined shrink-0 text-[18px] text-amber-500">
                         push_pin
                       </span>
                     )}

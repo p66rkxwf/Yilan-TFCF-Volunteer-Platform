@@ -63,13 +63,13 @@ export default async function AnnouncementDetailPage({
         href="/announcements"
         className="mb-5 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
       >
-        <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_back</span>
         返回最新消息
       </Link>
 
       {!announcement ? (
         <div className="py-16 text-center">
-          <span className="material-symbols-outlined mb-2 text-4xl text-slate-300">
+          <span aria-hidden="true" className="material-symbols-outlined mb-2 text-4xl text-slate-300">
             search_off
           </span>
           <p className="text-sm text-slate-500">找不到這則公告，可能已被下架或不存在。</p>
@@ -84,7 +84,7 @@ export default async function AnnouncementDetailPage({
         <article className="rounded-md border border-slate-200 bg-white p-5 sm:p-6">
           <div className="flex items-start gap-2 border-b border-slate-200 pb-4">
             {announcement.is_pinned && (
-              <span className="material-symbols-outlined mt-0.5 shrink-0 text-[19px] text-amber-500">
+              <span aria-hidden="true" className="material-symbols-outlined mt-0.5 shrink-0 text-[19px] text-amber-500">
                 push_pin
               </span>
             )}

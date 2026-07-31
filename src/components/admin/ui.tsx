@@ -27,7 +27,7 @@ export function PageHeader({
           href={backHref}
           className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
         >
-          <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_back</span>
           {backLabel ?? "返回"}
         </Link>
       )}
@@ -142,7 +142,7 @@ export function EmptyRow({ colSpan, message = "目前沒有資料" }: { colSpan:
   return (
     <tr>
       <td colSpan={colSpan} className="px-4 py-14 text-center text-sm text-slate-400">
-        <span className="material-symbols-outlined mb-2 block text-4xl">inbox</span>
+        <span aria-hidden="true" className="material-symbols-outlined mb-2 block text-4xl">inbox</span>
         {message}
       </td>
     </tr>
@@ -182,7 +182,7 @@ export function SearchInput({
 }) {
   return (
     <div className={`relative ${className}`}>
-      <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+      <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
         search
       </span>
       <input
@@ -325,17 +325,41 @@ export function Field({
   error?: string;
   children: React.ReactNode;
 }) {
+  // 無障礙：label 綁定控制項、錯誤/提示以 aria-describedby 關聯、有錯時 aria-invalid。
+  // 單一子元素才注入（絕大多數欄位為單一 input/textarea/Select/編輯器）。
+  const autoId = React.useId();
+  const child = React.isValidElement(children) ? (children as React.ReactElement<any>) : null;
+  const controlId = child?.props.id ?? autoId;
+  const hintId = `${autoId}-hint`;
+  const errorId = `${autoId}-error`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+
+  const control = child
+    ? React.cloneElement(child, {
+        id: controlId,
+        "aria-describedby":
+          [child.props["aria-describedby"], describedBy].filter(Boolean).join(" ") || undefined,
+        "aria-invalid": error ? true : child.props["aria-invalid"],
+      })
+    : children;
+
   return (
     <div>
-      <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+      <label htmlFor={controlId} className="mb-1.5 block text-sm font-semibold text-slate-700">
         {label}
         {required && <span className="ml-0.5 text-slate-400">*</span>}
       </label>
-      {children}
+      {control}
       {error ? (
-        <p className="mt-1 text-xs font-semibold text-amber-700">{error}</p>
+        <p id={errorId} className="mt-1 text-xs font-semibold text-amber-700">
+          {error}
+        </p>
       ) : (
-        hint && <p className="mt-1 text-xs text-slate-400">{hint}</p>
+        hint && (
+          <p id={hintId} className="mt-1 text-xs text-slate-500">
+            {hint}
+          </p>
+        )
       )}
     </div>
   );
@@ -448,14 +472,14 @@ export function RowActionMenu({
         {triggerLabel ? (
           <>
             {triggerLabel}
-            <span
+            <span aria-hidden="true"
               className={`material-symbols-outlined text-[18px] transition-transform ${isOpen ? "rotate-180" : ""}`}
             >
               expand_more
             </span>
           </>
         ) : (
-          <span className="material-symbols-outlined text-[20px]">more_horiz</span>
+          <span aria-hidden="true" className="material-symbols-outlined text-[20px]">more_horiz</span>
         )}
       </button>
       {isOpen && position && (
@@ -475,7 +499,7 @@ export function RowActionMenu({
                 className={itemClass(action)}
               >
                 {action.icon && (
-                  <span className="material-symbols-outlined text-[18px]">{action.icon}</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">{action.icon}</span>
                 )}
                 {action.label}
               </Link>
@@ -492,7 +516,7 @@ export function RowActionMenu({
                 className={itemClass(action)}
               >
                 {action.icon && (
-                  <span className="material-symbols-outlined text-[18px]">{action.icon}</span>
+                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">{action.icon}</span>
                 )}
                 {action.label}
               </button>

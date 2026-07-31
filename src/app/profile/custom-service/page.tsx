@@ -9,7 +9,13 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "../profile-page-header";
 import { submitCustomService } from "@/lib/actions/custom-service";
-import { taipeiLocalToIso, formatSessionRange } from "@/lib/admin/datetime";
+import { DateTimeField } from "@/components/ui/datetime-field";
+import {
+  taipeiLocalToIso,
+  formatSessionRange,
+  normalizeDateInput,
+  normalizeTimeInput,
+} from "@/lib/admin/datetime";
 import type { CustomServiceRecord, CustomServiceStatus } from "@/lib/types/database";
 
 const STATUS_META: Record<CustomServiceStatus, { label: string; badge: string }> = {
@@ -21,11 +27,11 @@ const STATUS_META: Record<CustomServiceStatus, { label: string; badge: string }>
 const inputCls =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20";
 
-function hoursBetween(startLocal: string, endLocal: string): number | null {
-  if (!startLocal || !endLocal) return null;
-  const ms = new Date(endLocal).getTime() - new Date(startLocal).getTime();
-  if (!(ms > 0)) return null;
-  return Math.round((ms / 3_600_000) * 10) / 10;
+// 日期＋時間 → ISO（兩者皆有效才回傳）
+function toIso(date: string, time: string): string | null {
+  const d = normalizeDateInput(date);
+  const t = normalizeTimeInput(time);
+  return d && t ? taipeiLocalToIso(`${d}T${t}`) : null;
 }
 
 export default function CustomServicePage() {
@@ -37,8 +43,10 @@ export default function CustomServicePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [form, setForm] = useState({
     title: "",
-    startLocal: "",
-    endLocal: "",
+    startDate: "",
+    startTime: "",
+    endDate: "",
+    endTime: "",
     leaderName: "",
     description: "",
   });
@@ -64,10 +72,13 @@ export default function CustomServicePage() {
     load();
   }, [authLoading, load]);
 
-  const previewHours = useMemo(
-    () => hoursBetween(form.startLocal, form.endLocal),
-    [form.startLocal, form.endLocal]
-  );
+  const previewHours = useMemo(() => {
+    const s = toIso(form.startDate, form.startTime);
+    const e = toIso(form.endDate, form.endTime);
+    if (!s || !e) return null;
+    const ms = new Date(e).getTime() - new Date(s).getTime();
+    return ms > 0 ? Math.round((ms / 3_600_000) * 10) / 10 : null;
+  }, [form.startDate, form.startTime, form.endDate, form.endTime]);
 
   const set = (key: keyof typeof form, value: string) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -76,11 +87,14 @@ export default function CustomServicePage() {
     e.preventDefault();
     if (!user) return void toast.error("請先登入。");
     const nextErrors: Record<string, string> = {};
+    const startIso = toIso(form.startDate, form.startTime);
+    const endIso = toIso(form.endDate, form.endTime);
     if (!form.title.trim()) nextErrors.title = "請填寫活動名稱";
-    if (!form.startLocal) nextErrors.startLocal = "請選擇開始時間";
-    if (!form.endLocal) nextErrors.endLocal = "請選擇結束時間";
-    else if (form.startLocal && form.endLocal <= form.startLocal)
-      nextErrors.endLocal = "結束時間需晚於開始時間";
+    if (!form.startDate.trim() || !form.startTime.trim()) nextErrors.start = "請填寫開始日期與時間";
+    else if (!startIso) nextErrors.start = "開始日期或時間格式不正確";
+    if (!form.endDate.trim() || !form.endTime.trim()) nextErrors.end = "請填寫結束日期與時間";
+    else if (!endIso) nextErrors.end = "結束日期或時間格式不正確";
+    else if (startIso && endIso && endIso <= startIso) nextErrors.end = "結束時間需晚於開始時間";
     if (!form.leaderName.trim()) nextErrors.leaderName = "請填寫活動負責人";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -91,13 +105,21 @@ export default function CustomServicePage() {
       title: form.title,
       leaderName: form.leaderName,
       description: form.description,
-      startIso: taipeiLocalToIso(form.startLocal),
-      endIso: taipeiLocalToIso(form.endLocal),
+      startIso: startIso!,
+      endIso: endIso!,
     });
     setIsSaving(false);
     if (result.error) return void toast.error(result.error);
     toast.success("已送出，待職員審核後計入服務時數。");
-    setForm({ title: "", startLocal: "", endLocal: "", leaderName: "", description: "" });
+    setForm({
+      title: "",
+      startDate: "",
+      startTime: "",
+      endDate: "",
+      endTime: "",
+      leaderName: "",
+      description: "",
+    });
     setErrors({});
     await load();
   };
@@ -119,10 +141,11 @@ export default function CustomServicePage() {
 
             <div className="mt-5 space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                <label htmlFor="cs-title" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   活動名稱 <span className="text-slate-400">*</span>
                 </label>
                 <input
+                  id="cs-title"
                   className={inputCls}
                   value={form.title}
                   onChange={(e) => set("title", e.target.value)}
@@ -135,34 +158,24 @@ export default function CustomServicePage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                    開始時間 <span className="text-slate-400">*</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    className={inputCls}
-                    value={form.startLocal}
-                    onChange={(e) => set("startLocal", e.target.value)}
-                  />
-                  {errors.startLocal && (
-                    <p className="mt-1 text-xs font-semibold text-amber-700">{errors.startLocal}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                    結束時間 <span className="text-slate-400">*</span>
-                  </label>
-                  <input
-                    type="datetime-local"
-                    className={inputCls}
-                    value={form.endLocal}
-                    onChange={(e) => set("endLocal", e.target.value)}
-                  />
-                  {errors.endLocal && (
-                    <p className="mt-1 text-xs font-semibold text-amber-700">{errors.endLocal}</p>
-                  )}
-                </div>
+                <DateTimeField
+                  label="開始時間"
+                  required
+                  error={errors.start}
+                  dateValue={form.startDate}
+                  onDateChange={(d) => set("startDate", d)}
+                  timeValue={form.startTime}
+                  onTimeChange={(t) => set("startTime", t)}
+                />
+                <DateTimeField
+                  label="結束時間"
+                  required
+                  error={errors.end}
+                  dateValue={form.endDate}
+                  onDateChange={(d) => set("endDate", d)}
+                  timeValue={form.endTime}
+                  onTimeChange={(t) => set("endTime", t)}
+                />
               </div>
 
               {previewHours != null && (
@@ -173,10 +186,11 @@ export default function CustomServicePage() {
               )}
 
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                <label htmlFor="cs-leader" className="mb-1.5 block text-sm font-semibold text-slate-700">
                   活動負責人 <span className="text-slate-400">*</span>
                 </label>
                 <input
+                  id="cs-leader"
                   className={inputCls}
                   value={form.leaderName}
                   onChange={(e) => set("leaderName", e.target.value)}
@@ -189,8 +203,9 @@ export default function CustomServicePage() {
               </div>
 
               <div>
-                <label className="mb-1.5 block text-sm font-semibold text-slate-700">說明</label>
+                <label htmlFor="cs-desc" className="mb-1.5 block text-sm font-semibold text-slate-700">說明</label>
                 <textarea
+                  id="cs-desc"
                   className={`${inputCls} min-h-24`}
                   value={form.description}
                   onChange={(e) => set("description", e.target.value)}
@@ -206,7 +221,7 @@ export default function CustomServicePage() {
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
               >
                 {isSaving && (
-                  <span className="material-symbols-outlined animate-spin text-[18px]">
+                  <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[18px]">
                     progress_activity
                   </span>
                 )}

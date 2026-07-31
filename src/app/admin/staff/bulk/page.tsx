@@ -176,7 +176,7 @@ export default function BulkStaffPage() {
               職稱可填「社工／其他」。地區可留空。
             </p>
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-              <span className="material-symbols-outlined text-[18px]">upload_file</span>
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">upload_file</span>
               選擇 CSV 檔
               <input type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />
             </label>

@@ -31,6 +31,16 @@ const eslintConfig = [
       "@typescript-eslint/no-explicit-any": "warn",
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/static-components": "warn",
+      // 無障礙（a11y）：在 eslint-config-next 已註冊的 jsx-a11y plugin 上補一組
+      // 高價值規則。維持專案「先 warn、逐步收斂為 error」的慣例，不阻擋 lint。
+      "jsx-a11y/label-has-associated-control": "warn",
+      "jsx-a11y/interactive-supports-focus": "warn",
+      "jsx-a11y/click-events-have-key-events": "warn",
+      "jsx-a11y/mouse-events-have-key-events": "warn",
+      "jsx-a11y/no-static-element-interactions": "warn",
+      "jsx-a11y/no-noninteractive-element-interactions": "warn",
+      "jsx-a11y/anchor-is-valid": "warn",
+      "jsx-a11y/no-autofocus": "warn",
     },
   },
 ];
