@@ -492,19 +492,34 @@ const TW_TIME = new Intl.DateTimeFormat("zh-TW", {
   hour12: false,
 });
 
-async function checkWorkerErrors(env: Env, scheduledTime: number): Promise<void> {
-  if (!env.CF_ACCOUNT_ID || !env.CF_ANALYTICS_TOKEN || !env.ALERT_EMAIL_TO) return;
-  if (!env.RESEND_API_KEY) return;
+interface ErrorCheckResult {
+  skipped?: string;
+  window?: string;
+  counts?: Record<string, number>;
+  total?: number;
+  alerted?: boolean;
+}
+
+// windowMinutes 預設 15＝排程用；手動觸發可拉長區間以驗證整條告警鏈是否暢通。
+async function checkWorkerErrors(
+  env: Env,
+  scheduledTime: number,
+  windowMinutes = 15
+): Promise<ErrorCheckResult> {
+  if (!env.CF_ACCOUNT_ID || !env.CF_ANALYTICS_TOKEN || !env.ALERT_EMAIL_TO) {
+    return { skipped: "未設定 CF_ACCOUNT_ID／CF_ANALYTICS_TOKEN／ALERT_EMAIL_TO" };
+  }
+  if (!env.RESEND_API_KEY) return { skipped: "未設定 RESEND_API_KEY" };
 
   const scriptName = env.ALERT_WORKER_NAME ?? "volunteer";
   const threshold = Math.max(1, Number(env.ALERT_MIN_ERRORS ?? "1") || 1);
 
   // Analytics 有 1～2 分鐘的延遲，故整段區間往前推 1 分鐘；相鄰兩次查詢首尾相接。
   const end = new Date(scheduledTime - 60_000);
-  const start = new Date(scheduledTime - 16 * 60_000);
+  const start = new Date(scheduledTime - (windowMinutes + 1) * 60_000);
 
   const rows = await fetchInvocationStatuses(env, scriptName, start, end);
-  if (!rows) return;
+  if (!rows) return { skipped: "查詢失敗（詳見 log）" };
 
   const counts = new Map<string, number>();
   for (const r of rows) {
@@ -513,9 +528,22 @@ async function checkWorkerErrors(env: Env, scheduledTime: number): Promise<void>
     counts.set(status, (counts.get(status) ?? 0) + (r.sum?.requests ?? 0));
   }
   const total = [...counts.values()].reduce((a, b) => a + b, 0);
-  if (total < threshold) return;
-
   const window = `${TW_TIME.format(start)} ~ ${TW_TIME.format(end)}`;
+  // 每次都留一行：沒有錯誤時這行就是「查詢管道正常」的唯一證據（token 有效、
+  // GraphQL 回得來）。token 失效或權限不足會走上面 fetchInvocationStatuses 的
+  // console.error，兩者在 `wrangler tail volunteer-orchestrator` 一眼可辨。
+  console.log(
+    `[orchestrator] 例外檢查 ${scriptName} ${window}：${total} 次`,
+    total > 0 ? JSON.stringify(Object.fromEntries(counts)) : ""
+  );
+  const summary: ErrorCheckResult = {
+    window,
+    counts: Object.fromEntries(counts),
+    total,
+    alerted: false,
+  };
+  if (total < threshold) return summary;
+
   const lines = [...counts.entries()].sort((a, b) => b[1] - a[1]);
   const subject = `[志工平台] ${scriptName} 出現 ${total} 次錯誤（${window}）`;
   const text = [
@@ -542,6 +570,7 @@ async function checkWorkerErrors(env: Env, scheduledTime: number): Promise<void>
 
   await sendEmail(env, env.ALERT_EMAIL_TO, subject, html, text);
   console.log(`[orchestrator] 已寄出錯誤告警：${subject}`);
+  return { ...summary, alerted: true };
 }
 
 // 依 scheduled 觸發時間（UTC）決定這一分鐘要跑哪些 job，最後統一消化 outbox
@@ -594,14 +623,32 @@ export default {
 
   // 手動測試入口（本機 `wrangler dev` 或臨時排錯用）；未設定 MANUAL_TRIGGER_SECRET
   // 一律拒絕，正式環境的實際觸發一律走上方 scheduled()。
-  //   無參數        → 消化 outbox
-  //   ?job=job_xxx  → 觸發指定排程函式
+  //   無參數                     → 消化 outbox
+  //   ?job=job_xxx               → 觸發指定排程函式
+  //   ?check=errors&minutes=180  → 立即查例外（可自訂區間，用來驗證告警是否暢通）
   async fetch(req: Request, env: Env): Promise<Response> {
     const secret = env.MANUAL_TRIGGER_SECRET?.trim();
     if (!secret || req.headers.get("x-trigger-secret") !== secret) {
       return new Response("forbidden", { status: 403 });
     }
-    const job = new URL(req.url).searchParams.get("job");
+    const params = new URL(req.url).searchParams;
+    if (params.get("check") === "errors") {
+      // 上限 24 小時：Analytics 查詢區間過長沒有意義，也避免誤打出巨量查詢。
+      const minutes = Math.min(
+        1440,
+        Math.max(1, Number(params.get("minutes") ?? "15") || 15)
+      );
+      try {
+        const result = await checkWorkerErrors(env, Date.now(), minutes);
+        return Response.json({ ok: true, minutes, ...result });
+      } catch (e) {
+        return Response.json(
+          { ok: false, error: e instanceof Error ? e.message : String(e) },
+          { status: 500 }
+        );
+      }
+    }
+    const job = params.get("job");
     if (job && !ALLOWED_JOBS.has(job)) {
       return Response.json(
         { ok: false, error: `未知的排程：${job}` },
