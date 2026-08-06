@@ -1,7 +1,8 @@
 "use client";
 
 // 批量匯入職員（限系統管理員）：下載 CSV 範本 → 填寫 → 上傳 → 預覽 → 建立。
-// 密碼一律＝帳號，首次登入強制改密碼（由 bulkCreateStaff 與 must_change_password 機制強制）。
+// 每個帳號由系統產生一次性臨時密碼（bulkCreateStaff），首次登入強制改密碼
+// （must_change_password 機制）。密碼只在建立結果中回傳一次，故本頁提供匯出。
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, TableShell, Th, Td, EmptyRow } from "@/components/admin/ui";
 import { STAFF_ROLE, STAFF_JOB_TITLE } from "@/lib/admin/labels";
 import { toCsv, downloadCsv } from "@/utils/csv";
+import { isValidUsername } from "@/lib/validation";
 import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
 
 const HEADERS = ["姓名", "帳號", "Email", "電話", "角色", "職稱", "地區"];
@@ -38,6 +40,8 @@ interface PreviewRow extends BulkStaffRow {
   rawJob: string;
   roleValid: boolean;
   jobValid: boolean;
+  // 與 bulkCreateStaff 的伺服器端檢查同一條規則，讓格式錯誤在送出前就看得到。
+  usernameValid: boolean;
 }
 
 // 極簡 CSV 解析：支援雙引號包裹、跳脫 ""、CRLF/LF、BOM。
@@ -121,6 +125,7 @@ export default function BulkStaffPage() {
         rawJob: jobRaw,
         roleValid: !!role,
         jobValid: !!jobRaw && !!jobTitle,
+        usernameValid: isValidUsername(username),
       };
     });
     setRows(parsed);
@@ -128,9 +133,19 @@ export default function BulkStaffPage() {
   };
 
   const invalidCount = useMemo(
-    () => rows.filter((r) => !r.roleValid || !r.jobValid || !r.fullName || !r.username).length,
+    () =>
+      rows.filter(
+        (r) => !r.roleValid || !r.jobValid || !r.fullName || !r.usernameValid
+      ).length,
     [rows]
   );
+
+  // 臨時密碼只在 bulkCreateStaff 的回應中出現一次，200 筆無法逐一抄寫，故提供匯出。
+  const downloadPasswords = () => {
+    const created = (results ?? []).filter((r) => r.ok && r.password);
+    const body = created.map((r) => [rows[r.index]?.fullName ?? "", r.username, r.password ?? ""]);
+    downloadCsv("職員帳號臨時密碼", toCsv(["姓名", "帳號", "臨時密碼"], body));
+  };
 
   const handleSubmit = async () => {
     if (rows.length === 0) return void toast.error("請先上傳 CSV");
@@ -200,6 +215,7 @@ export default function BulkStaffPage() {
                   <Th>職稱</Th>
                   <Th>地區</Th>
                   <Th>結果</Th>
+                  <Th>臨時密碼</Th>
                 </tr>
               </thead>
               <tbody>
@@ -208,7 +224,13 @@ export default function BulkStaffPage() {
                   return (
                     <tr key={i} className="hover:bg-slate-50">
                       <Td className={r.fullName ? "" : "text-amber-700"}>{r.fullName || "缺姓名"}</Td>
-                      <Td className={r.username ? "font-medium" : "text-amber-700"}>{r.username || "缺帳號"}</Td>
+                      <Td className={r.usernameValid ? "font-medium" : "text-amber-700"}>
+                        {!r.username
+                          ? "缺帳號"
+                          : r.usernameValid
+                            ? r.username
+                            : `${r.username}（格式不正確）`}
+                      </Td>
                       <Td className="text-slate-500">{r.email}</Td>
                       <Td className="text-slate-500">{r.phone}</Td>
                       <Td className={r.roleValid ? "" : "text-amber-700"}>
@@ -225,6 +247,15 @@ export default function BulkStaffPage() {
                           ) : (
                             <span className="text-xs font-semibold text-amber-700">{result.error}</span>
                           )
+                        ) : (
+                          <span className="text-xs text-slate-300">—</span>
+                        )}
+                      </Td>
+                      <Td>
+                        {result?.password ? (
+                          <code className="select-all font-mono text-xs font-semibold text-slate-900">
+                            {result.password}
+                          </code>
                         ) : (
                           <span className="text-xs text-slate-300">—</span>
                         )}
@@ -266,10 +297,23 @@ export default function BulkStaffPage() {
         )}
 
         {results && (
-          <div className="flex items-center gap-3">
-            <Button size="sm" variant="outline" onClick={() => router.push("/admin/staff")}>
-              返回職員管理
-            </Button>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-3">
+              {results.some((r) => r.ok) && (
+                <Button size="sm" onClick={downloadPasswords}>
+                  下載帳號密碼 CSV
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={() => router.push("/admin/staff")}>
+                返回職員管理
+              </Button>
+            </div>
+            {results.some((r) => r.ok) && (
+              <p className="text-xs text-amber-600">
+                臨時密碼僅在此頁顯示一次，離開後無法再查看（遺失時可到職員管理逐一重設）。
+                下載的 CSV 含明文密碼，轉交後請立即刪除。各職員首次登入時皆會被強制設定新密碼。
+              </p>
+            )}
           </div>
         )}
       </div>

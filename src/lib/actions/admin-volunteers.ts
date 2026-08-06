@@ -5,6 +5,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
+import { generateTempPassword } from "@/lib/temp-password";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GradeLevel } from "@/lib/types/database";
 
@@ -18,6 +19,12 @@ interface ActionResult {
   volunteerId?: string;
 }
 
+// 建立成功時額外回傳明文臨時密碼供建立者轉告本人；不寫入 DB、不寫入 log。
+interface CreateVolunteerResult extends ActionResult {
+  username?: string;
+  password?: string;
+}
+
 export interface CreateVolunteerInput {
   fullName: string;
   username: string;
@@ -29,7 +36,9 @@ export interface CreateVolunteerInput {
   assignedWorkerId: string;
 }
 
-export async function createVolunteer(input: CreateVolunteerInput): Promise<ActionResult> {
+export async function createVolunteer(
+  input: CreateVolunteerInput
+): Promise<CreateVolunteerResult> {
   // 手動建立學生屬管理操作；沿用 requireAdmin（在職職員即可）。
   const { error: authError } = await requireAdmin();
   if (authError) return { error: authError };
@@ -54,11 +63,13 @@ export async function createVolunteer(input: CreateVolunteerInput): Promise<Acti
   // 後台建立志工：auth 登入身分用系統產生的內部信箱（絕不寄信到此位址），
   // 使用者填的聯絡 Email 存 volunteer_profiles.email（允許重複）。與自主註冊一致，
   // 且避免「聯絡 email 重複時建不了帳號」（原以聯絡 email 當 auth 信箱的問題，資安 M4）。
-  // 初始密碼一律＝帳號，並要求首次登入強制改密碼。
+  // 初始密碼為系統產生的一次性臨時密碼（見 lib/temp-password.ts），由建立者轉告
+  // 本人，並要求首次登入強制改密碼。
   const authEmail = `${crypto.randomUUID()}@users.sekinv.com`;
+  const tempPassword = generateTempPassword();
   const { data: authData, error: createError } = await admin.auth.admin.createUser({
     email: authEmail,
-    password: username,
+    password: tempPassword,
     email_confirm: true,
     user_metadata: { full_name: input.fullName.trim(), account: username },
   });
@@ -88,7 +99,7 @@ export async function createVolunteer(input: CreateVolunteerInput): Promise<Acti
     return { error: `建立學生資料失敗：${profileError.message}` };
   }
 
-  return { success: true, volunteerId: authData.user.id };
+  return { success: true, volunteerId: authData.user.id, username, password: tempPassword };
 }
 
 // 後台編輯學生基本資料（姓名/電話/區域/生日）。姓名已鎖定學生自助修改，改由此處維護。

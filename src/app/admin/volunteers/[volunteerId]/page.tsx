@@ -22,6 +22,7 @@ import {
 } from "@/lib/actions/admin-archive";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CredentialReveal } from "@/components/admin/credential-reveal";
 import { Select } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { todayTaipeiDate } from "@/lib/admin/datetime";
@@ -106,6 +107,11 @@ export default function VolunteerDetailPage() {
   const [blacklistNote, setBlacklistNote] = useState("");
 
   const [showResetPw, setShowResetPw] = useState(false);
+  // 重設成功後的一次性臨時密碼；伺服器端不保存明文，關掉就沒了。
+  const [revealed, setRevealed] = useState<{
+    username: string;
+    password: string;
+  } | null>(null);
 
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -314,9 +320,11 @@ export default function VolunteerDetailPage() {
       toast.error(result.error);
       return;
     }
-    toast.success(
-      `已將密碼重置為帳號「${result.username}」，該學生首次登入時需自行設定新密碼。`
-    );
+    // 密碼只回傳這一次，改用需手動關閉的卡片顯示（toast 會自動消失、來不及抄）。
+    setRevealed({
+      username: result.username ?? volunteer?.username ?? "",
+      password: result.password ?? "",
+    });
     setShowResetPw(false);
   };
 
@@ -874,10 +882,10 @@ export default function VolunteerDetailPage() {
             <div className="px-6 py-5">
               <h3 className="text-lg font-bold text-slate-900">重置密碼</h3>
               <p className="mt-1 text-sm text-slate-500">
-                將把 {volunteer.full_name} 的密碼重置為其帳號「
+                系統會為 {volunteer.full_name}（帳號{" "}
                 <span className="font-semibold text-slate-700">{volunteer.username}</span>
-                」，該學生首次登入時系統會強制要求設定新密碼。請將此規則轉知學生；
-                系統不會另外寄出通知。
+                ）產生一組臨時密碼並顯示於畫面上（僅顯示一次），請轉告該學生；
+                系統不會另外寄出通知。該學生首次登入時會被強制要求設定新密碼。
               </p>
             </div>
             <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
@@ -896,6 +904,15 @@ export default function VolunteerDetailPage() {
           </div>
         </div>
       )}
+
+      <CredentialReveal
+        open={revealed !== null}
+        title="密碼已重設"
+        personName={volunteer.full_name}
+        username={revealed?.username ?? ""}
+        password={revealed?.password ?? ""}
+        onClose={() => setRevealed(null)}
+      />
     </>
   );
 }

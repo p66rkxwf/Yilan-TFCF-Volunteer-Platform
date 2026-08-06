@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 // 本平台以「帳號」登入，聯絡 Email 可重複，故不提供以 Email 自助重設密碼；
-// 密碼重設改由後台管理員協助（選 A：帳號登入＋管理員代重設）。
+// 密碼重設改由後台管理員協助（選 A：帳號登入＋管理員代重設）：後台重設會產生一次性
+// 臨時密碼並顯示給管理員轉告當事人，當事人下次登入強制改密碼。
 export default function ForgotPasswordPage() {
   return (
     <main className="flex flex-1 justify-center py-12 px-6">

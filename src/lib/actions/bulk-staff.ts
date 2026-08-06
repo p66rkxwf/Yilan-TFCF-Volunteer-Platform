@@ -1,10 +1,13 @@
 "use server";
 
-// 批量建立職員帳號（限系統管理員）。密碼一律＝帳號，並要求首次登入強制改密碼。
+// 批量建立職員帳號（限系統管理員）。每列各自產生一次性臨時密碼，並要求首次登入
+// 強制改密碼；密碼隨結果回傳供管理員轉告／匯出，不寫入 DB、不寫入 log。
 // 前端解析 CSV 後傳入結構化列；本檔逐列建立 auth 帳號＋staff_profiles，回報逐列成敗。
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
+import { generateTempPassword } from "@/lib/temp-password";
+import { isValidUsername } from "@/lib/validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
 
@@ -27,6 +30,8 @@ export interface BulkStaffResult {
   username: string;
   ok: boolean;
   error?: string;
+  // 僅成功列有值：該帳號的一次性臨時密碼，供管理員轉告或匯出。
+  password?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -61,11 +66,16 @@ export async function bulkCreateStaff(
     const fullName = (row.fullName ?? "").trim();
     const email = (row.email ?? "").trim();
     const phone = (row.phone ?? "").trim();
-    const push = (ok: boolean, error?: string) =>
-      results.push({ index: i, username, ok, error });
+    const push = (ok: boolean, error?: string, password?: string) =>
+      results.push({ index: i, username, ok, error, password });
 
     if (!fullName) { push(false, "缺少姓名"); continue; }
     if (!username) { push(false, "缺少帳號"); continue; }
+    // 帳號格式與單筆建立／自主註冊路徑對齊，避免 CSV 匯入繞過前端寫入不合法帳號
+    // （username 是登入身分，格式不合會讓日後的 rpc 改帳號流程也拒絕）。
+    if (!isValidUsername(username)) {
+      push(false, "帳號格式不正確（4～30 碼英數與 . _ -）"); continue;
+    }
     if (seen.has(username.toLowerCase())) { push(false, "CSV 內帳號重複"); continue; }
     if (!EMAIL_RE.test(email)) { push(false, "Email 格式不正確"); continue; }
     if (!phone) { push(false, "缺少電話"); continue; }
@@ -84,9 +94,10 @@ export async function bulkCreateStaff(
     ]);
     if (exStaff || exVol) { push(false, "帳號已被使用"); continue; }
 
+    const tempPassword = generateTempPassword();
     const { data: authData, error: createError } = await admin.auth.admin.createUser({
       email,
-      password: username,
+      password: tempPassword,
       email_confirm: true,
       user_metadata: { full_name: fullName, account: username },
     });
@@ -118,7 +129,7 @@ export async function bulkCreateStaff(
       push(false, `建立資料失敗：${profileError.message}`);
       continue;
     }
-    push(true);
+    push(true, undefined, tempPassword);
   }
 
   return { results };

@@ -21,6 +21,7 @@ import {
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CredentialReveal } from "@/components/admin/credential-reveal";
 import {
   PageHeader,
   Panel,
@@ -70,6 +71,12 @@ export default function StaffPage() {
   const [search, setSearch] = useState("");
   const [statusConfirm, setStatusConfirm] = useState<StaffRow | null>(null);
   const [resetPwTarget, setResetPwTarget] = useState<StaffRow | null>(null);
+  // 重設成功後的一次性臨時密碼；伺服器端不保存明文，關掉就沒了。
+  const [revealed, setRevealed] = useState<{
+    personName: string;
+    username: string;
+    password: string;
+  } | null>(null);
   const [editTarget, setEditTarget] = useState<StaffRow | null>(null);
   const [editForm, setEditForm] = useState({
     fullName: "",
@@ -200,9 +207,12 @@ export default function StaffPage() {
     const result = await resetStaffPassword(resetPwTarget.id);
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
-    toast.success(
-      `已將密碼重置為帳號「${result.username}」，該職員首次登入時需自行設定新密碼。`
-    );
+    // 密碼只回傳這一次，改用需手動關閉的卡片顯示（toast 會自動消失、來不及抄）。
+    setRevealed({
+      personName: resetPwTarget.full_name,
+      username: result.username ?? resetPwTarget.username,
+      password: result.password ?? "",
+    });
     setResetPwTarget(null);
   };
 
@@ -490,12 +500,21 @@ export default function StaffPage() {
         title={resetPwTarget ? `重置 ${resetPwTarget.full_name} 的密碼？` : ""}
         description={
           resetPwTarget
-            ? `將把密碼重置為帳號「${resetPwTarget.username}」，該職員首次登入時系統會強制要求設定新密碼。`
+            ? "系統會產生一組臨時密碼並顯示於畫面上（僅顯示一次），請轉告該職員。對方首次登入時會被強制要求設定新密碼。"
             : ""
         }
         isLoading={isActing}
         onConfirm={confirmResetPw}
         onClose={() => setResetPwTarget(null)}
+      />
+
+      <CredentialReveal
+        open={revealed !== null}
+        title="密碼已重設"
+        personName={revealed?.personName ?? ""}
+        username={revealed?.username ?? ""}
+        password={revealed?.password ?? ""}
+        onClose={() => setRevealed(null)}
       />
 
       <ConfirmDialog

@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAdminProfile } from "../../admin-context";
 import { createStaff } from "@/lib/actions/admin-users";
 import { Button } from "@/components/ui/button";
+import { CredentialReveal } from "@/components/admin/credential-reveal";
 import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { STAFF_ROLE, STAFF_JOB_TITLE } from "@/lib/admin/labels";
@@ -31,6 +32,12 @@ export default function NewStaffPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
+  // 建立成功後的一次性臨時密碼；關閉卡片才導回名冊，避免管理員還沒抄就離開此頁。
+  const [revealed, setRevealed] = useState<{
+    personName: string;
+    username: string;
+    password: string;
+  } | null>(null);
 
   // 非系統管理員不應進入此頁；導回名冊。
   useEffect(() => {
@@ -64,8 +71,11 @@ export default function NewStaffPage() {
     const result = await createStaff(form);
     setIsSaving(false);
     if (result.error) return void toast.error(result.error);
-    toast.success("職員帳號已建立");
-    router.push("/admin/staff");
+    setRevealed({
+      personName: form.fullName.trim(),
+      username: result.username ?? form.username.trim(),
+      password: result.password ?? "",
+    });
   };
 
   return (
@@ -100,7 +110,8 @@ export default function NewStaffPage() {
               </Field>
             </div>
             <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              初始密碼將自動設為「帳號」，該職員首次登入時系統會強制要求變更密碼。
+              系統會產生一組臨時密碼，於建立完成後顯示（僅顯示一次），請轉告該職員；
+              對方首次登入時系統會強制要求變更密碼。
             </p>
           </Panel>
 
@@ -155,6 +166,15 @@ export default function NewStaffPage() {
           </div>
         </form>
       </div>
+
+      <CredentialReveal
+        open={revealed !== null}
+        title="職員帳號已建立"
+        personName={revealed?.personName ?? ""}
+        username={revealed?.username ?? ""}
+        password={revealed?.password ?? ""}
+        onClose={() => router.push("/admin/staff")}
+      />
     </>
   );
 }

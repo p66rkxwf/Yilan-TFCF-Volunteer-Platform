@@ -1,6 +1,6 @@
 "use client";
 
-// 首次登入強制改密碼頁。批量建立／管理員建立／管理員重置密碼（密碼＝帳號）後，
+// 首次登入強制改密碼頁。批量建立／管理員建立／管理員重置密碼（系統代設臨時密碼）後，
 // middleware 會把使用者一律導到本頁，改完密碼（清除 must_change_password 旗標）
 // 才能使用平台其他功能。一般使用者要改密碼走「帳號設定」頁，本頁專供強制情境。
 
@@ -46,7 +46,7 @@ export default function ChangePasswordPage() {
         <div className="flex flex-col gap-2">
           <h1 className="text-slate-900 text-3xl font-black tracking-tight">請先設定新密碼</h1>
           <p className="text-slate-600 text-sm">
-            您的帳號目前使用預設的初始密碼（＝您的帳號）。為了帳號安全，請設定一組
+            您的帳號目前使用管理員代設的臨時密碼。為了帳號安全，請設定一組
             新密碼後才能繼續使用平台。
           </p>
         </div>

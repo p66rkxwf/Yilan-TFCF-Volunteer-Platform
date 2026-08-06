@@ -75,7 +75,7 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 首次登入強制改密碼：批量建立／管理員建立／管理員重置密碼（密碼＝帳號）者，
+  // 首次登入強制改密碼：批量建立／管理員建立／管理員重置密碼（系統代設臨時密碼）者，
   // must_change_password=true，登入後一律導到 /change-password，改完才放行其他頁面。
   // /change-password 本頁與登出動作不攔截，避免死鎖。
   if (user && !request.nextUrl.pathname.startsWith("/change-password")) {

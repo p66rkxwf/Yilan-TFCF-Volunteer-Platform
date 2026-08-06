@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
+import { generateTempPassword } from "@/lib/temp-password";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
 
@@ -9,6 +10,13 @@ interface ActionResult {
   error?: string;
   success?: boolean;
   staffId?: string;
+}
+
+// 系統代設密碼的回傳：明文臨時密碼只在此回應中出現一次，不寫入 DB、不寫入 log。
+// 呼叫端已過 requireAdmin()，且全程 HTTPS——這是管理員轉告當事人的唯一途徑。
+interface CredentialResult extends ActionResult {
+  username?: string;
+  password?: string;
 }
 
 function adminClient(): SupabaseClient {
@@ -25,7 +33,7 @@ export async function createStaff(input: {
   role: StaffRole;
   jobTitle: StaffJobTitle;
   region?: string;
-}): Promise<ActionResult> {
+}): Promise<CredentialResult> {
   const { supabase, userId, error: authError } = await requireAdmin();
   if (authError) return { error: authError };
 
@@ -55,10 +63,12 @@ export async function createStaff(input: {
   ]);
   if (existingStaff || existingVolunteer) return { error: "此帳號已被使用" };
 
-  // 初始密碼一律＝帳號，並要求首次登入強制改密碼（must_change_password）。
+  // 初始密碼為系統產生的一次性臨時密碼（見 lib/temp-password.ts），由建立者轉告
+  // 本人，並要求首次登入強制改密碼（must_change_password）。
+  const tempPassword = generateTempPassword();
   const { data: authData, error: createError } = await admin.auth.admin.createUser({
     email: input.email.trim(),
-    password: username,
+    password: tempPassword,
     email_confirm: true,
     user_metadata: { full_name: input.fullName.trim(), account: username },
   });
@@ -90,7 +100,7 @@ export async function createStaff(input: {
     return { error: `建立職員資料失敗：${profileError.message}` };
   }
 
-  return { success: true, staffId: authData.user.id };
+  return { success: true, staffId: authData.user.id, username, password: tempPassword };
 }
 
 // 停權 / 恢復「職員」帳號（僅系統管理員）。
@@ -261,12 +271,12 @@ export async function setVolunteerWorker(
   return { success: true };
 }
 
-// 管理員代重設「志工」密碼＝把密碼重置為該帳號的 username，並要求對方首次登入
-// 強制改密碼。志工以帳號登入、無法自助以 email 重設，故由管理員代設。
+// 管理員代重設「志工」密碼：產生一組一次性臨時密碼，並要求對方首次登入強制改密碼。
+// 志工以帳號登入、無法自助以 email 重設，故由管理員代設後轉告本人。
 // 限系統管理員／單位管理員；且僅能重設志工帳號（不可經此端點重設職員/管理員密碼）。
 export async function resetVolunteerPassword(
   targetUserId: string
-): Promise<ActionResult & { username?: string }> {
+): Promise<CredentialResult> {
   const { supabase, userId, error: authError } = await requireAdmin();
   if (authError) return { error: authError };
 
@@ -289,8 +299,9 @@ export async function resetVolunteerPassword(
   if (!target) return { error: "找不到該志工帳號。" };
 
   const username = (target as { username: string }).username;
+  const tempPassword = generateTempPassword();
   const { error } = await admin.auth.admin.updateUserById(targetUserId, {
-    password: username,
+    password: tempPassword,
   });
   if (error) return { error: `重設密碼失敗：${error.message}` };
 
@@ -299,14 +310,14 @@ export async function resetVolunteerPassword(
     .update({ must_change_password: true })
     .eq("id", targetUserId);
 
-  return { success: true, username };
+  return { success: true, username, password: tempPassword };
 }
 
-// 管理員代重設「職員」密碼＝重置為帳號＝username，並要求首次登入強制改。
+// 管理員代重設「職員」密碼：同樣產生一次性臨時密碼，並要求首次登入強制改。
 // 限系統管理員（職員帳號較敏感，且不得經此提權/改動比自己更高權限者的密碼）。
 export async function resetStaffPassword(
   targetUserId: string
-): Promise<ActionResult & { username?: string }> {
+): Promise<CredentialResult> {
   const { supabase, userId, error: authError } = await requireAdmin();
   if (authError) return { error: authError };
 
@@ -328,8 +339,9 @@ export async function resetStaffPassword(
   if (!target) return { error: "找不到該職員帳號。" };
 
   const username = (target as { username: string }).username;
+  const tempPassword = generateTempPassword();
   const { error } = await admin.auth.admin.updateUserById(targetUserId, {
-    password: username,
+    password: tempPassword,
   });
   if (error) return { error: `重設密碼失敗：${error.message}` };
 
@@ -338,5 +350,5 @@ export async function resetStaffPassword(
     .update({ must_change_password: true })
     .eq("id", targetUserId);
 
-  return { success: true, username };
+  return { success: true, username, password: tempPassword };
 }

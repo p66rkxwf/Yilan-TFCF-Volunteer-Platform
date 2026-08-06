@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { CredentialReveal } from "@/components/admin/credential-reveal";
 import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -44,6 +45,13 @@ export default function NewVolunteerPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
+  // 建立成功後的一次性臨時密碼；關閉卡片才導向詳情頁，避免管理員還沒抄就離開此頁。
+  const [revealed, setRevealed] = useState<{
+    volunteerId: string;
+    personName: string;
+    username: string;
+    password: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,8 +103,12 @@ export default function NewVolunteerPage() {
       toast.error(result.error);
       return;
     }
-    toast.success("學生帳號已建立");
-    router.push(`/admin/volunteers/${result.volunteerId}`);
+    setRevealed({
+      volunteerId: result.volunteerId ?? "",
+      personName: form.fullName.trim(),
+      username: result.username ?? form.username.trim(),
+      password: result.password ?? "",
+    });
   };
 
   return (
@@ -131,7 +143,8 @@ export default function NewVolunteerPage() {
               </Field>
             </div>
             <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
-              初始密碼將自動設為「帳號」，該學生首次登入時系統會強制要求變更密碼。
+              系統會產生一組臨時密碼，於建立完成後顯示（僅顯示一次），請轉告該學生；
+              對方首次登入時系統會強制要求變更密碼。
             </p>
           </Panel>
 
@@ -198,6 +211,15 @@ export default function NewVolunteerPage() {
           </div>
         </form>
       </div>
+
+      <CredentialReveal
+        open={revealed !== null}
+        title="學生帳號已建立"
+        personName={revealed?.personName ?? ""}
+        username={revealed?.username ?? ""}
+        password={revealed?.password ?? ""}
+        onClose={() => router.push(`/admin/volunteers/${revealed?.volunteerId ?? ""}`)}
+      />
     </>
   );
 }
