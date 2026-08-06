@@ -83,6 +83,11 @@ export async function login(
   return { session: data.session };
 }
 
+// 註冊成功時一併回傳 session：下方的 supabase.auth.signUp 走的是會寫 cookie 的 SSR
+// client，註冊完成當下瀏覽器其實已經帶著 session，但瀏覽器端的 supabase client 是模組
+// 單例、不會知道 Server Action 寫了 cookie，導覽列因此要整頁重新整理才會從「登入」變成
+// 「登出」。比照 login 的做法把 session 交給前端呼叫 setSession()，讓 onAuthStateChange
+// 立即通知 AuthProvider。
 export async function signUp(formData: {
   account: string;
   password: string;
@@ -93,7 +98,7 @@ export async function signUp(formData: {
   region?: YilanRegion | "";
   birthday: string;
   turnstileToken?: string | null;
-}): Promise<AuthResult> {
+}): Promise<AuthResult & { session?: Session }> {
   // 防濫用：公開註冊端點易被機器人灌爆，先過 Turnstile（未設金鑰時自動放行）。
   const humanVerified = await verifyTurnstile(formData.turnstileToken ?? null);
   if (!humanVerified) {
@@ -193,7 +198,9 @@ export async function signUp(formData: {
     return { error: `註冊失敗：${profileError.message}` };
   }
 
-  return { success: true };
+  // 專案未開啟 Email 驗證，signUp 會直接回 session；若日後開啟則為 null，
+  // 前端會改走「請自行登入」的路徑。
+  return { success: true, session: authData.session ?? undefined };
 }
 
 export async function signOut() {

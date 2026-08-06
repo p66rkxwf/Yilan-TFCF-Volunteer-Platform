@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
+import { createClient } from "@/lib/supabase/client";
 import { Select } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { todayTaipeiDate } from "@/lib/admin/datetime";
@@ -35,6 +36,7 @@ const GRADE_LEVELS: GradeLevel[] = [
 export default function RegisterPage() {
   const router = useRouter();
   const toast = useToast();
+  const supabase = createClient();
 
   const [formData, setFormData] = useState({
     account: "",
@@ -145,12 +147,32 @@ export default function RegisterPage() {
       return;
     }
 
+    if (!result.session) {
+      // 保險路徑：日後若 Supabase 開啟 Email 驗證，signUp 不會回 session，
+      // 此時沒有登入狀態，導回登入頁自行登入。
+      router.push("/login?registered=true");
+      return;
+    }
+
+    // signUp 已在伺服器端種下 session cookie，但瀏覽器端的 supabase client 是模組單例、
+    // 不會自己察覺；比照登入頁呼叫 setSession() 觸發 onAuthStateChange，導覽列才會立刻
+    // 由「登入」變成「登出」，不用整頁重新整理。
+    const { error: setSessionError } = await supabase.auth.setSession(result.session);
+    if (setSessionError) {
+      // 伺服器端 cookie 已經寫進去了，導向 /login 只會被 middleware 反彈回首頁；
+      // 改用整頁導向——重新載入會重建瀏覽器端 client 並讀到 cookie，狀態必定正確。
+      window.location.assign("/account-review");
+      return;
+    }
+
     setFlashToast({
       variant: "success",
       title: "註冊成功",
       description: "帳號已建立，待管理員審核通過後即可報名志工活動。",
     });
-    router.push("/login");
+    // 不可導向 /login：已登入者會被 middleware 反彈回首頁。待審核志工的去處是審核說明頁。
+    router.push("/account-review");
+    router.refresh();
   };
 
   function FieldError({ field }: { field: string }) {
