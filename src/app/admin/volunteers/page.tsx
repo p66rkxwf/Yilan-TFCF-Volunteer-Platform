@@ -141,7 +141,7 @@ export default function VolunteersPage() {
             href="/admin/volunteers/new"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">person_add</span>
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">person_add</span>
             手動新增學生
           </Link>
         }

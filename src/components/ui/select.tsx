@@ -304,10 +304,10 @@ const Select = React.forwardRef<HTMLButtonElement, SelectProps>(
           onKeyDown={handleTriggerKeyDown}
         >
           <span className="truncate">{displayLabel}</span>
-          <span
+          <span translate="no"
             aria-hidden="true"
             className={joinClasses(
-              "material-symbols-outlined text-[20px] text-slate-400 transition-transform",
+              "material-symbols-outlined notranslate text-[20px] text-slate-400 transition-transform",
               isOpen && "rotate-180"
             )}
           >

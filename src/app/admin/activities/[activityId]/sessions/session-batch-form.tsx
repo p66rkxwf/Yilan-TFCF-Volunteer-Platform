@@ -253,7 +253,7 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
                   className="flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600"
                   aria-label={`移除 ${labelForDate(date)}`}
                 >
-                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                  <span translate="no" className="material-symbols-outlined notranslate text-[16px]" aria-hidden="true">
                     close
                   </span>
                 </button>

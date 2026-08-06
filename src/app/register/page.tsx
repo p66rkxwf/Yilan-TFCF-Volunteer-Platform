@@ -176,7 +176,7 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-2">
             <label htmlFor="reg-name" className="text-slate-900 text-sm font-bold">真實姓名</label>
             <div className="relative">
-              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 person
               </span>
               <input
@@ -196,7 +196,7 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-2">
             <label htmlFor="reg-account" className="text-slate-900 text-sm font-bold">帳號</label>
             <div className="relative">
-              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 badge
               </span>
               <input
@@ -216,7 +216,7 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-2">
             <label htmlFor="reg-email" className="text-slate-900 text-sm font-bold">Email</label>
             <div className="relative">
-              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                 mail
               </span>
               <input
@@ -236,7 +236,7 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-2">
             <label htmlFor="reg-birthday" className="text-slate-900 text-sm font-bold">生日</label>
             <div className="relative">
-              <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                 cake
               </span>
               <DatePicker
@@ -260,7 +260,7 @@ export default function RegisterPage() {
             <div className="flex flex-col gap-2">
               <label htmlFor="reg-phone" className="text-slate-900 text-sm font-bold">電話</label>
               <div className="relative">
-                <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   call
                 </span>
                 <input
@@ -278,7 +278,7 @@ export default function RegisterPage() {
             <div className="flex flex-col gap-2">
               <span className="text-slate-900 text-sm font-bold">學制階段</span>
               <div className="relative">
-                <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
+                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                   school
                 </span>
                 <Select
@@ -304,7 +304,7 @@ export default function RegisterPage() {
           <div className="flex flex-col gap-2">
             <span className="text-slate-900 text-sm font-bold">區域</span>
             <div className="relative">
-              <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-400">
                 location_on
               </span>
               <Select
@@ -327,7 +327,7 @@ export default function RegisterPage() {
             <div className="flex flex-col gap-2">
               <label htmlFor="reg-password" className="text-slate-900 text-sm font-bold">密碼</label>
               <div className="relative">
-                <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   lock
                 </span>
                 <input
@@ -348,7 +348,7 @@ export default function RegisterPage() {
                 確認密碼
               </label>
               <div className="relative">
-                <span aria-hidden="true" className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                   lock_reset
                 </span>
                 <input
@@ -382,13 +382,13 @@ export default function RegisterPage() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[20px]">
+                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[20px]">
                   progress_activity
                 </span>
               ) : (
                 <>
                   <span>註冊成為志工</span>
-                  <span aria-hidden="true" className="material-symbols-outlined">arrow_forward</span>
+                  <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate">arrow_forward</span>
                 </>
               )}
             </button>

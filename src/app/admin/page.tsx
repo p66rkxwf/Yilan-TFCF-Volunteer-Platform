@@ -139,8 +139,8 @@ export default async function AdminDashboardPage() {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span aria-hidden="true"
-                  className={`material-symbols-outlined text-[22px] ${
+                <span translate="no" aria-hidden="true"
+                  className={`material-symbols-outlined notranslate text-[22px] ${
                     queue.count > 0 ? "text-amber-500" : "text-slate-300"
                   }`}
                 >

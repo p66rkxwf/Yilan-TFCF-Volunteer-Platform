@@ -304,7 +304,7 @@ export default function ActivityDetailPage() {
                 href={`/admin/activities/${activity.id}/sessions/new`}
                 className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">add</span>
+                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[16px]">add</span>
                 新增場次
               </Link>
             ) : undefined

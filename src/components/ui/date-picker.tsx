@@ -216,7 +216,7 @@ export function DatePicker({
         onClick={() => (open ? close() : openCal())}
         className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary disabled:opacity-40"
       >
-        <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
+        <span translate="no" className="material-symbols-outlined notranslate text-[20px]" aria-hidden="true">
           calendar_month
         </span>
       </button>
@@ -231,10 +231,10 @@ export function DatePicker({
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-0.5">
               <button type="button" className={navBtn} aria-label="上一年" onClick={() => shiftYear(-1)}>
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">keyboard_double_arrow_left</span>
+                <span translate="no" className="material-symbols-outlined notranslate text-[18px]" aria-hidden="true">keyboard_double_arrow_left</span>
               </button>
               <button type="button" className={navBtn} aria-label="上個月" onClick={() => shiftMonth(-1)}>
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_left</span>
+                <span translate="no" className="material-symbols-outlined notranslate text-[18px]" aria-hidden="true">chevron_left</span>
               </button>
             </div>
             <span className="text-sm font-semibold text-slate-800" aria-live="polite">
@@ -242,10 +242,10 @@ export function DatePicker({
             </span>
             <div className="flex items-center gap-0.5">
               <button type="button" className={navBtn} aria-label="下個月" onClick={() => shiftMonth(1)}>
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_right</span>
+                <span translate="no" className="material-symbols-outlined notranslate text-[18px]" aria-hidden="true">chevron_right</span>
               </button>
               <button type="button" className={navBtn} aria-label="下一年" onClick={() => shiftYear(1)}>
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">keyboard_double_arrow_right</span>
+                <span translate="no" className="material-symbols-outlined notranslate text-[18px]" aria-hidden="true">keyboard_double_arrow_right</span>
               </button>
             </div>
           </div>

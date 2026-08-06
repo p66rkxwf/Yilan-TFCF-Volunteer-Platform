@@ -37,7 +37,7 @@ export function ProfileLayoutClient({
       <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="flex items-center gap-3 p-6">
           <div className="rounded-lg bg-primary p-2 text-white">
-            <span aria-hidden="true" className="material-symbols-outlined block">account_circle</span>
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate block">account_circle</span>
           </div>
           <h2 className="text-xl font-bold tracking-tight">個人中心</h2>
         </div>
@@ -53,7 +53,7 @@ export function ProfileLayoutClient({
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[22px]">{item.icon}</span>
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[22px]">{item.icon}</span>
               <span className="flex-1">{item.label}</span>
             </Link>
           ))}
@@ -62,7 +62,7 @@ export function ProfileLayoutClient({
         <div className="border-t border-slate-200 p-4">
           <div className="flex items-center gap-3 p-2">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200">
-              <span aria-hidden="true" className="material-symbols-outlined text-slate-500">person</span>
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-slate-500">person</span>
             </div>
             <div className="overflow-hidden">
               <p className="truncate text-sm font-semibold">{profile.full_name || "使用者"}</p>
@@ -82,7 +82,7 @@ export function ProfileLayoutClient({
               isActive(item.href) ? "text-primary" : "text-slate-400"
             }`}
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">{item.icon}</span>
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[20px]">{item.icon}</span>
             {item.label}
           </Link>
         ))}

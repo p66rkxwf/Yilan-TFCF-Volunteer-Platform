@@ -116,7 +116,7 @@ export function AdminShell({
       >
         <div className="flex items-center gap-3 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white">
-            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">volunteer_activism</span>
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[20px]">volunteer_activism</span>
           </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-white">後台管理系統</p>
@@ -157,7 +157,7 @@ export function AdminShell({
                             : "text-slate-300 hover:bg-white/5 hover:text-white"
                         }`}
                       >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[19px]">{item.icon}</span>
+                        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[19px]">{item.icon}</span>
                         {item.label}
                       </Link>
                     );
@@ -173,7 +173,7 @@ export function AdminShell({
               prefetch={false}
               className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[19px]">home</span>
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[19px]">home</span>
               回到前台
             </Link>
           </div>
@@ -189,7 +189,12 @@ export function AdminShell({
               className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 transition-colors hover:bg-white/5"
               onClick={() => setMobileNavOpen(false)}
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white">
+              {/* translate="no"：頭像只放姓名首字，瀏覽器翻譯會把單字擴寫成別的詞
+                  （例如「系」→「系統」），與圖示連字同一類問題。 */}
+              <div
+                translate="no"
+                className="notranslate flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white"
+              >
                 {profile.full_name.slice(0, 1)}
               </div>
               <div className="min-w-0 flex-1">
@@ -204,7 +209,7 @@ export function AdminShell({
               className="shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-white/5 hover:text-white"
               title="登出"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">logout</span>
+              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">logout</span>
             </button>
           </div>
         </div>
@@ -217,7 +222,7 @@ export function AdminShell({
             aria-label="開啟選單"
             className="rounded-lg p-1.5 text-slate-600 transition-colors hover:bg-slate-100"
           >
-            <span aria-hidden="true" className="material-symbols-outlined">menu</span>
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate">menu</span>
           </button>
           <span className="text-sm font-bold text-slate-900">後台管理系統</span>
         </div>

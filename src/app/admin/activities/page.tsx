@@ -148,7 +148,7 @@ export default function AdminActivitiesPage() {
             href="/admin/activities/new"
             className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">add</span>
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">add</span>
             新增活動
           </Link>
         }

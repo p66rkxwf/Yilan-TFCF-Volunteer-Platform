@@ -193,7 +193,7 @@ export default function VolunteerActivityDetailPage() {
   if (isLoading || !activity) {
     return (
       <div className="flex flex-1 items-center justify-center py-20">
-        <span aria-hidden="true" className="material-symbols-outlined animate-spin text-4xl text-primary">
+        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
           progress_activity
         </span>
       </div>
@@ -229,7 +229,7 @@ export default function VolunteerActivityDetailPage() {
             </p>
             {s.location && (
               <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
-                <span className="material-symbols-outlined text-[14px] text-slate-400" aria-hidden="true">
+                <span translate="no" className="material-symbols-outlined notranslate text-[14px] text-slate-400" aria-hidden="true">
                   location_on
                 </span>
                 {s.location}
@@ -286,7 +286,7 @@ export default function VolunteerActivityDetailPage() {
         href="/volunteer"
         className="mb-5 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
       >
-        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_back</span>
+        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">arrow_back</span>
         返回活動列表
       </Link>
 
@@ -306,8 +306,8 @@ export default function VolunteerActivityDetailPage() {
                 isFavorite ? "text-primary hover:text-primary/80" : "text-slate-300 hover:text-primary/60"
               } ${!accountActive ? "cursor-not-allowed opacity-60" : ""}`}
             >
-              <span aria-hidden="true"
-                className="material-symbols-outlined text-[24px]"
+              <span translate="no" aria-hidden="true"
+                className="material-symbols-outlined notranslate text-[24px]"
                 style={{ fontVariationSettings: isFavorite ? "'FILL' 1" : "'FILL' 0" }}
               >
                 favorite
@@ -318,7 +318,7 @@ export default function VolunteerActivityDetailPage() {
 
         <div className="mt-4 space-y-2.5 text-base text-slate-700">
           <p className="flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-[20px] text-slate-400">location_on</span>
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[20px] text-slate-400">location_on</span>
             <span>
               <span className="font-medium text-slate-500">地點：</span>
               {activity.location}
@@ -327,8 +327,8 @@ export default function VolunteerActivityDetailPage() {
           {organizers.length > 0 && (
             <div className="flex flex-wrap items-start gap-x-2 gap-y-1.5">
               <span className="flex items-center gap-2 pt-1">
-                <span
-                  className="material-symbols-outlined text-[20px] text-slate-400"
+                <span translate="no"
+                  className="material-symbols-outlined notranslate text-[20px] text-slate-400"
                   aria-hidden="true"
                 >
                   person
@@ -347,8 +347,8 @@ export default function VolunteerActivityDetailPage() {
                         href={`tel:${org.phone}`}
                         className="inline-flex items-center gap-0.5 text-slate-500 hover:text-primary"
                       >
-                        <span
-                          className="material-symbols-outlined text-[16px]"
+                        <span translate="no"
+                          className="material-symbols-outlined notranslate text-[16px]"
                           aria-hidden="true"
                         >
                           call
@@ -381,7 +381,7 @@ export default function VolunteerActivityDetailPage() {
       {briefings.length > 0 && (
         <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-5 sm:p-6">
           <h2 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-900">
-            <span className="material-symbols-outlined text-[20px] text-primary" aria-hidden="true">
+            <span translate="no" className="material-symbols-outlined notranslate text-[20px] text-primary" aria-hidden="true">
               campaign
             </span>
             行前說明會

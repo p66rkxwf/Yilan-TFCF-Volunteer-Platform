@@ -128,7 +128,7 @@ export default function PrivacyPage() {
                 href={link.href}
                 className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-600 transition-colors hover:bg-primary/5 hover:text-primary"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">{link.icon}</span>
+                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">{link.icon}</span>
                 {link.label}
               </Link>
             ))}

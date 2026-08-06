@@ -177,7 +177,7 @@ export function MarkdownEditor({
                 title={tool.label}
                 className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary"
               >
-                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                <span translate="no" className="material-symbols-outlined notranslate text-[18px]" aria-hidden="true">
                   {tool.icon}
                 </span>
               </button>

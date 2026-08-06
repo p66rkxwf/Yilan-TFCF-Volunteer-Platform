@@ -221,7 +221,7 @@ export default function CustomServicePage() {
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
               >
                 {isSaving && (
-                  <span aria-hidden="true" className="material-symbols-outlined animate-spin text-[18px]">
+                  <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[18px]">
                     progress_activity
                   </span>
                 )}

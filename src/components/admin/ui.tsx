@@ -27,7 +27,7 @@ export function PageHeader({
           href={backHref}
           className="mb-2 inline-flex items-center gap-1 text-sm font-medium text-slate-500 transition-colors hover:text-primary"
         >
-          <span aria-hidden="true" className="material-symbols-outlined text-[18px]">arrow_back</span>
+          <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">arrow_back</span>
           {backLabel ?? "返回"}
         </Link>
       )}
@@ -142,7 +142,7 @@ export function EmptyRow({ colSpan, message = "目前沒有資料" }: { colSpan:
   return (
     <tr>
       <td colSpan={colSpan} className="px-4 py-14 text-center text-sm text-slate-400">
-        <span aria-hidden="true" className="material-symbols-outlined mb-2 block text-4xl">inbox</span>
+        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate mb-2 block text-4xl">inbox</span>
         {message}
       </td>
     </tr>
@@ -182,7 +182,7 @@ export function SearchInput({
 }) {
   return (
     <div className={`relative ${className}`}>
-      <span aria-hidden="true" className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+      <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
         search
       </span>
       <input
@@ -472,14 +472,14 @@ export function RowActionMenu({
         {triggerLabel ? (
           <>
             {triggerLabel}
-            <span aria-hidden="true"
-              className={`material-symbols-outlined text-[18px] transition-transform ${isOpen ? "rotate-180" : ""}`}
+            <span translate="no" aria-hidden="true"
+              className={`material-symbols-outlined notranslate text-[18px] transition-transform ${isOpen ? "rotate-180" : ""}`}
             >
               expand_more
             </span>
           </>
         ) : (
-          <span aria-hidden="true" className="material-symbols-outlined text-[20px]">more_horiz</span>
+          <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[20px]">more_horiz</span>
         )}
       </button>
       {isOpen && position && (
@@ -499,7 +499,7 @@ export function RowActionMenu({
                 className={itemClass(action)}
               >
                 {action.icon && (
-                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">{action.icon}</span>
+                  <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">{action.icon}</span>
                 )}
                 {action.label}
               </Link>
@@ -516,7 +516,7 @@ export function RowActionMenu({
                 className={itemClass(action)}
               >
                 {action.icon && (
-                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">{action.icon}</span>
+                  <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">{action.icon}</span>
                 )}
                 {action.label}
               </button>
