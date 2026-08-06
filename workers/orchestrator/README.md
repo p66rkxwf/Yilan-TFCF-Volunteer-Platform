@@ -11,7 +11,7 @@ Supabase Edge Function（`send-notifications`）＋ pg_cron/pg_net。
 | 時機（UTC） | 台灣時間 | 動作 |
 |---|---|---|
 | 每分鐘 | 每分鐘 | 消化 `notification_outbox`（pending）→ Resend 寄出 |
-| 每 15 分 | 每 15 分 | `rpc job_advance_activity_status` |
+| 每 15 分 | 每 15 分 | `rpc job_advance_activity_status`；查 app worker 例外，超標即寄告警信 |
 | 19:10 | 03:10 | `rpc job_attendance_scan` |
 | 19:20 | 03:20 | `rpc job_release_blacklists` |
 | 01:00 | 09:00 | `rpc job_send_review_reminders` |
@@ -56,6 +56,22 @@ wrangler secret put SITE_URL
 
 npm run deploy   # wrangler deploy
 ```
+
+### 例外告警（可選）
+
+Cloudflare 沒有原生的 Workers 錯誤通知，故由本 worker 每 15 分鐘查一次 GraphQL
+Analytics：統計 app worker 各 invocation status 的次數，出現非成功狀態就寄信。
+
+```bash
+wrangler secret put CF_ACCOUNT_ID        # Cloudflare 帳號 ID
+wrangler secret put CF_ANALYTICS_TOKEN   # API token，權限：Account Analytics: Read
+wrangler secret put ALERT_EMAIL_TO       # 告警信收件者
+# 可選：ALERT_MIN_ERRORS（預設 1 次即告警）、ALERT_WORKER_NAME（預設 volunteer）
+```
+
+三者任一未設定即自動停用，不會報錯。信中會列出各 status 次數與中文說明
+（`scriptThrewException` = 使用者看到的 Error 1101、`exceededCpu` = 1102）。
+查詢區間會往前推 1 分鐘以避開 Analytics 的資料延遲，相鄰兩次首尾相接不重疊。
 
 部署後：`wrangler tail` 可看排程 log；outbox 消化情形可查
 `SELECT status, count(*) FROM public.notification_outbox GROUP BY status;`。

@@ -28,6 +28,13 @@ export interface Env {
   SITE_URL?: string;
   // 可選：保護手動測試用的 fetch 入口（未設定則 fetch 一律 403）
   MANUAL_TRIGGER_SECRET?: string;
+  // 可選：app worker 例外告警（見 checkWorkerErrors）。三者皆設定才會啟用。
+  CF_ACCOUNT_ID?: string;
+  CF_ANALYTICS_TOKEN?: string;
+  ALERT_EMAIL_TO?: string;
+  // 可選：門檻與監看對象（預設 1 次、監看 "volunteer"）
+  ALERT_MIN_ERRORS?: string;
+  ALERT_WORKER_NAME?: string;
 }
 
 const BATCH_SIZE = 50;
@@ -388,6 +395,155 @@ async function runJob(env: Env, fn: string): Promise<void> {
   console.log(`[orchestrator] ${fn} ok`, data ?? "");
 }
 
+// ---- app worker 例外告警 -------------------------------------------------
+//
+// Cloudflare 沒有原生的 Workers 錯誤通知，故自建：每 15 分鐘查一次 GraphQL
+// Analytics，統計 app worker（預設 "volunteer"）各 invocation status 的次數，
+// 只要出現非成功狀態就寄信。用查詢而非 tail consumer，是因為時間區間天然彙總，
+// 一次事故最多每 15 分鐘一封信，不需要另外做節流狀態。
+//
+// 需要一把唯讀 API token（權限：Account Analytics: Read）放在 CF_ANALYTICS_TOKEN。
+// CF_ACCOUNT_ID／CF_ANALYTICS_TOKEN／ALERT_EMAIL_TO 任一未設定即整段略過（功能停用），
+// 與 RESEND_API_KEY 未設定時略過寄信的行為一致。
+
+const GRAPHQL_ENDPOINT = "https://api.cloudflare.com/client/v4/graphql";
+
+// 正常結束的狀態（含使用者中途關閉連線），不算錯誤。
+const HEALTHY_STATUSES = new Set(["success", "clientDisconnected", "canceled"]);
+
+// Cloudflare 的 status → 中文說明（對照使用者實際看到的錯誤代碼）
+const STATUS_LABEL: Record<string, string> = {
+  scriptThrewException: "程式丟出未攔截的例外（使用者看到 Error 1101）",
+  exceededCpu: "超過運算額度上限（使用者看到 Error 1102）",
+  exceededMemory: "超過記憶體上限",
+  responseStreamDisconnected: "回應串流中斷",
+  internalError: "Cloudflare 平台內部錯誤",
+  unknown: "未知狀態",
+};
+
+interface InvocationRow {
+  sum?: { requests?: number; errors?: number };
+  dimensions?: { status?: string };
+}
+
+// 查詢指定區間內各 status 的呼叫次數。查不到或查詢失敗一律回 null（呼叫端略過）。
+async function fetchInvocationStatuses(
+  env: Env,
+  scriptName: string,
+  start: Date,
+  end: Date
+): Promise<InvocationRow[] | null> {
+  // 值皆來自環境變數與本函式產生的時間，不含外部輸入，故直接內嵌字面量，
+  // 免去 Cloudflare GraphQL 各資料集之間變數型別（string / Time）不一致的問題。
+  const query = `{
+  viewer {
+    accounts(filter: { accountTag: ${JSON.stringify(env.CF_ACCOUNT_ID)} }) {
+      workersInvocationsAdaptive(
+        limit: 100
+        filter: {
+          scriptName: ${JSON.stringify(scriptName)}
+          datetime_geq: ${JSON.stringify(start.toISOString())}
+          datetime_leq: ${JSON.stringify(end.toISOString())}
+        }
+      ) {
+        sum { requests errors }
+        dimensions { status }
+      }
+    }
+  }
+}`;
+
+  const res = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.CF_ANALYTICS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) {
+    console.error(
+      `[orchestrator] analytics ${res.status}: ${(await res.text()).slice(0, 300)}`
+    );
+    return null;
+  }
+
+  const json = (await res.json()) as {
+    data?: { viewer?: { accounts?: { workersInvocationsAdaptive?: InvocationRow[] }[] } };
+    errors?: { message?: string }[];
+  };
+  if (json.errors?.length) {
+    // GraphQL 的錯誤是 HTTP 200 帶 errors，必須另外檢查（例如 token 權限不足）
+    console.error(
+      "[orchestrator] analytics graphql errors:",
+      json.errors.map((e) => e.message).join("; ")
+    );
+    return null;
+  }
+  return json.data?.viewer?.accounts?.[0]?.workersInvocationsAdaptive ?? [];
+}
+
+const TW_TIME = new Intl.DateTimeFormat("zh-TW", {
+  timeZone: "Asia/Taipei",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+async function checkWorkerErrors(env: Env, scheduledTime: number): Promise<void> {
+  if (!env.CF_ACCOUNT_ID || !env.CF_ANALYTICS_TOKEN || !env.ALERT_EMAIL_TO) return;
+  if (!env.RESEND_API_KEY) return;
+
+  const scriptName = env.ALERT_WORKER_NAME ?? "volunteer";
+  const threshold = Math.max(1, Number(env.ALERT_MIN_ERRORS ?? "1") || 1);
+
+  // Analytics 有 1～2 分鐘的延遲，故整段區間往前推 1 分鐘；相鄰兩次查詢首尾相接。
+  const end = new Date(scheduledTime - 60_000);
+  const start = new Date(scheduledTime - 16 * 60_000);
+
+  const rows = await fetchInvocationStatuses(env, scriptName, start, end);
+  if (!rows) return;
+
+  const counts = new Map<string, number>();
+  for (const r of rows) {
+    const status = r.dimensions?.status ?? "unknown";
+    if (HEALTHY_STATUSES.has(status)) continue;
+    counts.set(status, (counts.get(status) ?? 0) + (r.sum?.requests ?? 0));
+  }
+  const total = [...counts.values()].reduce((a, b) => a + b, 0);
+  if (total < threshold) return;
+
+  const window = `${TW_TIME.format(start)} ~ ${TW_TIME.format(end)}`;
+  const lines = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const subject = `[志工平台] ${scriptName} 出現 ${total} 次錯誤（${window}）`;
+  const text = [
+    `監看對象：${scriptName}`,
+    `區間（台灣時間）：${window}`,
+    "",
+    ...lines.map(([s, n]) => `${s}：${n} 次　${STATUS_LABEL[s] ?? ""}`),
+    "",
+    "查看詳細例外訊息：Cloudflare Dashboard → Compute (Workers) → " +
+      `${scriptName} → Logs（篩 outcome = exception）`,
+    `或即時觀察：npx wrangler tail ${scriptName} --status error`,
+  ].join("\n");
+  const html = [
+    `<p>監看對象：<b>${escapeHtml(scriptName)}</b><br>區間（台灣時間）：${escapeHtml(window)}</p>`,
+    "<ul>",
+    ...lines.map(
+      ([s, n]) =>
+        `<li><b>${escapeHtml(s)}</b>：${n} 次　${escapeHtml(STATUS_LABEL[s] ?? "")}</li>`
+    ),
+    "</ul>",
+    `<p>查看詳細例外訊息：Cloudflare Dashboard → Compute (Workers) → ${escapeHtml(scriptName)} → Logs（篩 outcome = exception）。<br>` +
+      `即時觀察：<code>npx wrangler tail ${escapeHtml(scriptName)} --status error</code></p>`,
+  ].join("");
+
+  await sendEmail(env, env.ALERT_EMAIL_TO, subject, html, text);
+  console.log(`[orchestrator] 已寄出錯誤告警：${subject}`);
+}
+
 // 依 scheduled 觸發時間（UTC）決定這一分鐘要跑哪些 job，最後統一消化 outbox
 // （job 可能寫入新通知，放最後清一次即可同分鐘寄出）。job_* 皆冪等，偶發
 // 重跑或延遲可容忍。
@@ -411,6 +567,19 @@ async function runScheduled(scheduledTime: number, env: Env): Promise<void> {
       // runJob 內已 log；單支失敗不影響其餘與 outbox 消化
     }
   }
+
+  // 每 15 分：檢查 app worker 的例外並在超標時寄信（未設定告警環境變數即略過）
+  if (mm % 15 === 0) {
+    try {
+      await checkWorkerErrors(env, scheduledTime);
+    } catch (e) {
+      console.error(
+        "[orchestrator] checkWorkerErrors 失敗：",
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
+
   await drainOutbox(env);
 }
 
