@@ -36,7 +36,19 @@ export async function verifyTurnstile(token: string | null): Promise<boolean> {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ secret, response: token }),
     });
-    const data = (await res.json()) as { success?: boolean };
+    const data = (await res.json()) as {
+      success?: boolean;
+      "error-codes"?: string[];
+    };
+    if (data.success !== true) {
+      // siteverify 只在失敗時回 error-codes（invalid-input-secret＝secret 不對、
+      // timeout-or-duplicate＝token 已用過或過期…）。沒有這行的話，線上只看得到
+      // 前端那句「人機驗證失敗」，無從分辨是金鑰設定錯還是 token 問題。
+      console.error(
+        "[turnstile] siteverify 未通過：",
+        data["error-codes"]?.join(", ") ?? "(未回傳 error-codes)"
+      );
+    }
     return data.success === true;
   } catch {
     // 驗證服務暫時不可用時採 fail-closed，避免被繞過
