@@ -66,10 +66,13 @@ export function ActivityForm({
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // 封存只寫 deleted_at、不動 status；已封存職員的 status 仍是 active。
+      // 前台 v_organizer_contacts 會濾掉已封存者，選了等於活動沒有負責人聯絡方式。
       const { data, error } = await supabase
         .from("staff_profiles")
         .select("id, full_name, job_title")
         .eq("status", "active")
+        .is("deleted_at", null)
         .order("full_name");
       if (!cancelled) {
         if (error) toast.error(`載入職員清單失敗：${error.message}`);

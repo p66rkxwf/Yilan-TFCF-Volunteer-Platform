@@ -108,11 +108,14 @@ function VolunteerReviewInner() {
   const load = useCallback(async () => {
     setIsLoading(true);
     accountSelection.clear();
+    // 封存只寫 deleted_at、不動 status，故已封存者的 status 仍是 active；
+    // 不另擋就會把學生指派給一個已被 ban、永遠不會登入的社工（見 36）。
     const workersRes = await supabase
       .from("staff_profiles")
       .select("id, full_name")
       .eq("status", "active")
       .eq("job_title", "social_worker")
+      .is("deleted_at", null)
       .order("full_name");
     setWorkers((workersRes.data ?? []) as WorkerOption[]);
 
