@@ -224,7 +224,9 @@ export default async function AdminDashboardPage() {
                             key={s.activity_session_id}
                             className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50"
                           >
-                            <span className="w-[6.5rem] shrink-0 whitespace-nowrap text-sm text-slate-500">
+                            {/* min-w 而非固定 w：同日場次一律對齊 6.5rem，
+                                跨日字串較長時該列自行撐開，不會壓到活動名稱 */}
+                            <span className="min-w-[6.5rem] shrink-0 whitespace-nowrap text-sm text-slate-500">
                               {formatTimeRange(s.start_at, s.end_at)}
                             </span>
                             <Link

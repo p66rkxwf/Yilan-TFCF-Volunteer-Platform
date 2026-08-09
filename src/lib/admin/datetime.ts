@@ -54,15 +54,17 @@ export function formatSessionRange(startIso: string, endIso: string): string {
     : `${startText} ～ ${DATE_FORMATTER.format(end)}（${WEEKDAY_FORMATTER.format(end)}）${TIME_FORMATTER.format(end)}`;
 }
 
-// 場次時段（不含日期）：同日「09:00–12:00」，跨日附上結束日期。
-// 供「已用日期分組、每列不需重複日期」的清單使用。
+// 場次時段（不含開始日期）：同日「09:00–12:00」，跨日「08:00–8/14 10:00」。
+// 供「已用開始日期分組、每列不需重複日期」的清單使用；跨日的結束端省略年份
+// （欄位很窄，補零年份會撐爆版面；清單本身只涵蓋近幾天，年份無歧義）。
 export function formatTimeRange(startIso: string, endIso: string): string {
   const start = new Date(startIso);
   const end = new Date(endIso);
-  const sameDay = DATE_FORMATTER.format(start) === DATE_FORMATTER.format(end);
-  return sameDay
-    ? `${TIME_FORMATTER.format(start)}–${TIME_FORMATTER.format(end)}`
-    : `${TIME_FORMATTER.format(start)}–${DATE_FORMATTER.format(end)} ${TIME_FORMATTER.format(end)}`;
+  if (DATE_FORMATTER.format(start) === DATE_FORMATTER.format(end)) {
+    return `${TIME_FORMATTER.format(start)}–${TIME_FORMATTER.format(end)}`;
+  }
+  const [, month, day] = taipeiDateKey(endIso).split("-");
+  return `${TIME_FORMATTER.format(start)}–${Number(month)}/${Number(day)} ${TIME_FORMATTER.format(end)}`;
 }
 
 // 分組鍵：一律取台灣本地日期（'YYYY-MM-DD'）。務必用這個而非 Date#getDate()，
