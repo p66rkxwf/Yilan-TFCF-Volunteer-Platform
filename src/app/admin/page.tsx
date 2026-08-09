@@ -3,9 +3,24 @@
 
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader, Panel, StatusPill, TableShell, Th, Td, EmptyRow } from "@/components/admin/ui";
+import {
+  PageHeader,
+  Panel,
+  StatusPill,
+  TableShell,
+  Th,
+  Td,
+  EmptyRow,
+  EmptyState,
+} from "@/components/admin/ui";
 import { REGISTRATION_STATUS } from "@/lib/admin/labels";
-import { formatDateTime, formatSessionRange } from "@/lib/admin/datetime";
+import {
+  formatDateTime,
+  formatSessionRange,
+  formatTimeRange,
+  formatDayHeading,
+  taipeiDateKey,
+} from "@/lib/admin/datetime";
 import type { ActivityStats, RegistrationStatus } from "@/lib/types/database";
 
 export const dynamic = "force-dynamic";
@@ -121,6 +136,16 @@ export default async function AdminDashboardPage() {
 
   const sessions = (upcomingSessions ?? []) as ActivityStats[];
 
+  // 依台灣本地日期分組：日期只在小節標題出現一次，每列就只剩時段，
+  // 活動名稱因而能單行放下。資料已按 start_at 遞增，用累加即可保序。
+  const sessionDays: { dateKey: string; label: string; rows: ActivityStats[] }[] = [];
+  for (const s of sessions) {
+    const dateKey = taipeiDateKey(s.start_at);
+    const last = sessionDays[sessionDays.length - 1];
+    if (last && last.dateKey === dateKey) last.rows.push(s);
+    else sessionDays.push({ dateKey, label: formatDayHeading(dateKey), rows: [s] });
+  }
+
   return (
     <>
       <PageHeader
@@ -176,47 +201,70 @@ export default async function AdminDashboardPage() {
               </Link>
             }
           >
-            <TableShell>
-              <thead>
-                <tr>
-                  <Th>時間</Th>
-                  <Th>活動</Th>
-                  <Th className="text-right">已核准</Th>
-                  <Th className="text-right">佔額／名額</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.length === 0 ? (
-                  <EmptyRow colSpan={4} message="未來 7 天沒有場次" />
-                ) : (
-                  sessions.map((s) => (
-                    <tr key={s.activity_session_id} className="transition-colors hover:bg-slate-50">
-                      <Td className="whitespace-nowrap">{formatSessionRange(s.start_at, s.end_at)}</Td>
-                      <Td>
-                        <Link prefetch={false}
-                          href={`/admin/activities/${s.activity_id}`}
-                          className="font-semibold text-slate-900 hover:text-primary"
-                        >
-                          {s.title}
-                        </Link>
-                      </Td>
-                      <Td className="text-right">{s.approved_count}</Td>
-                      <Td className="whitespace-nowrap text-right">
-                        <span
-                          className={
-                            s.active_registrations >= s.capacity
-                              ? "font-semibold text-amber-700"
-                              : ""
-                          }
-                        >
-                          {s.active_registrations}／{s.capacity}
-                        </span>
-                      </Td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </TableShell>
+            {/* 捲動容器與 TableShell 相同，只是內容不是表格 */}
+            <div className="min-h-0 flex-1 overflow-auto">
+              {sessionDays.length === 0 ? (
+                <EmptyState message="未來 7 天沒有場次" />
+              ) : (
+                sessionDays.map((day) => (
+                  <section key={day.dateKey} aria-label={`${day.label}的場次`}>
+                    <h3 className="sticky top-0 z-10 flex items-baseline gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold text-slate-500">
+                      {day.label}
+                      <span className="font-medium text-slate-400">{day.rows.length} 場</span>
+                    </h3>
+                    <ul className="divide-y divide-slate-100">
+                      {day.rows.map((s) => {
+                        const pending = Math.max(
+                          0,
+                          s.active_registrations - s.approved_count
+                        );
+                        const isFull = s.active_registrations >= s.capacity;
+                        return (
+                          <li
+                            key={s.activity_session_id}
+                            className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-slate-50"
+                          >
+                            <span className="w-[6.5rem] shrink-0 whitespace-nowrap text-sm text-slate-500">
+                              {formatTimeRange(s.start_at, s.end_at)}
+                            </span>
+                            <Link
+                              prefetch={false}
+                              href={`/admin/activities/${s.activity_id}`}
+                              title={s.title}
+                              className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 hover:text-primary"
+                            >
+                              {s.title}
+                            </Link>
+                            <span className="flex shrink-0 items-center gap-1.5">
+                              {pending > 0 && (
+                                <Link
+                                  prefetch={false}
+                                  href="/admin/registrations"
+                                  aria-label={`${s.title}：${pending} 筆報名待審核，前往審核`}
+                                  className="inline-flex items-center whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700 transition-colors hover:bg-amber-200"
+                                >
+                                  待審 {pending}
+                                </Link>
+                              )}
+                              <span
+                                aria-label={`佔額 ${s.active_registrations} 人，名額 ${s.capacity} 人`}
+                                className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                  isFull
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-slate-100 text-slate-500"
+                                }`}
+                              >
+                                {s.active_registrations}／{s.capacity}
+                              </span>
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))
+              )}
+            </div>
           </Panel>
 
           <Panel

@@ -54,6 +54,38 @@ export function formatSessionRange(startIso: string, endIso: string): string {
     : `${startText} ～ ${DATE_FORMATTER.format(end)}（${WEEKDAY_FORMATTER.format(end)}）${TIME_FORMATTER.format(end)}`;
 }
 
+// 場次時段（不含日期）：同日「09:00–12:00」，跨日附上結束日期。
+// 供「已用日期分組、每列不需重複日期」的清單使用。
+export function formatTimeRange(startIso: string, endIso: string): string {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const sameDay = DATE_FORMATTER.format(start) === DATE_FORMATTER.format(end);
+  return sameDay
+    ? `${TIME_FORMATTER.format(start)}–${TIME_FORMATTER.format(end)}`
+    : `${TIME_FORMATTER.format(start)}–${DATE_FORMATTER.format(end)} ${TIME_FORMATTER.format(end)}`;
+}
+
+// 分組鍵：一律取台灣本地日期（'YYYY-MM-DD'）。務必用這個而非 Date#getDate()，
+// 否則在 UTC 執行環境（Cloudflare Worker）會於台灣時間 08:00 切錯天。
+export function taipeiDateKey(iso: string | null | undefined): string {
+  return splitTaipeiLocal(iso).date;
+}
+
+// 日期分組的小節標題：今天／明天／7/13（日）。
+// 此處刻意不補零（標題求短），與本檔「日期 YYYY/MM/DD 補零」的欄位格式規範分開。
+export function formatDayHeading(dateKey: string): string {
+  if (!dateKey) return "";
+  if (dateKey === todayTaipeiDate()) return "今天";
+  // 台灣無日光節約，固定 +24h 再投影回台灣本地日期即為「明天」
+  if (dateKey === taipeiDateKey(new Date(Date.now() + 86_400_000).toISOString())) {
+    return "明天";
+  }
+  const [, month, day] = dateKey.split("-");
+  // 純日曆運算（不牽涉時區）：以 UTC 午夜取星期，索引空間與 WEEKDAY_LABELS 一致
+  const weekday = WEEKDAY_LABELS[new Date(`${dateKey}T00:00:00Z`).getUTCDay()];
+  return `${Number(month)}/${Number(day)}（${weekday}）`;
+}
+
 // datetime-local（視為台灣時間）→ ISO（UTC）
 export function taipeiLocalToIso(local: string): string {
   return new Date(`${local}:00+08:00`).toISOString();
