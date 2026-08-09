@@ -11,9 +11,13 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-provider";
-import type { DeactivationRequest } from "@/lib/types/database";
+import { NOTIFICATION_META, emailTogglableTypes } from "@/lib/notifications";
+import type { DeactivationRequest, NotificationType } from "@/lib/types/database";
 import { ProfilePageHeader } from "../profile-page-header";
 import { InfoRow } from "@/components/site/section";
+
+// 志工可自行關閉的信件（提醒類）；審核結果、活動取消等重要通知不可關閉。
+const VOLUNTEER_EMAIL_TYPES = emailTogglableTypes("user", "volunteer");
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   year: "numeric",
@@ -77,6 +81,10 @@ export default function SettingsPage() {
   // 目前登入帳號（僅志工帳號有 volunteer_profiles；職員為 null）
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
 
+  // 信件通知偏好（本人那一列；null＝尚未載入）
+  const [emailPrefs, setEmailPrefs] = useState<NotificationType[] | null>(null);
+  const [emailPrefsLoading, setEmailPrefsLoading] = useState(false);
+
   const [pendingRequest, setPendingRequest] = useState<DeactivationRequest | null>(null);
   const [isLoadingRequest, setIsLoadingRequest] = useState(true);
   const [deactivateReason, setDeactivateReason] = useState("");
@@ -114,6 +122,16 @@ export default function SettingsPage() {
         setContactEmail((data?.email as string) ?? null);
         setEmailVerified(data ? !!data.email_verified_at : null);
         setCurrentUsername((data?.username as string) ?? null);
+      });
+
+    supabase
+      .from("notification_email_prefs")
+      .select("disabled_types")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!active) return;
+        setEmailPrefs((data?.disabled_types ?? []) as NotificationType[]);
       });
 
     return () => {
@@ -205,6 +223,32 @@ export default function SettingsPage() {
       toast.error("連線發生問題，請檢查網路後再試一次。");
     } finally {
       setEmailLoading(false);
+    }
+  };
+
+  // 勾選＝寄信；DB 存的是「關閉清單」，故此處先轉成負向再寫入。
+  const handleEmailPrefToggle = async (type: NotificationType, enabled: boolean) => {
+    if (!user || !emailPrefs) return;
+    const next = enabled
+      ? emailPrefs.filter((t) => t !== type)
+      : emailPrefs.includes(type)
+        ? emailPrefs
+        : [...emailPrefs, type];
+    const previous = emailPrefs;
+    setEmailPrefs(next); // 樂觀更新；失敗時還原
+    setEmailPrefsLoading(true);
+    try {
+      // 本人可能還沒有列，故用 upsert（RLS 限 user_id = auth.uid()）
+      const { error } = await supabase
+        .from("notification_email_prefs")
+        .upsert({ user_id: user.id, disabled_types: next });
+      if (error) throw error;
+      toast.success(enabled ? "已開啟此類信件通知。" : "已關閉此類信件通知。");
+    } catch {
+      setEmailPrefs(previous);
+      toast.error("連線發生問題，設定未儲存，請再試一次。");
+    } finally {
+      setEmailPrefsLoading(false);
     }
   };
 
@@ -414,6 +458,49 @@ export default function SettingsPage() {
                 </button>
               </div>
             </form>
+          </SettingsSection>
+
+          {/* Email notification preferences */}
+          <SettingsSection
+            icon="mark_email_read"
+            title="信件通知偏好"
+            description="關閉後仍會在站內「通知中心」收到，只是不再寄信。審核結果、活動／場次取消等重要通知一律寄送，無法關閉。"
+          >
+            {emailPrefs === null ? (
+              <p className="text-sm text-slate-400">載入中…</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {VOLUNTEER_EMAIL_TYPES.map((type) => {
+                  const enabled = !emailPrefs.includes(type);
+                  return (
+                    <label
+                      key={type}
+                      htmlFor={`email-pref-${type}`}
+                      className="flex cursor-pointer items-start justify-between gap-3 py-3"
+                    >
+                      <span className="block min-w-0 text-sm font-semibold text-slate-800">
+                        {NOTIFICATION_META[type].title}
+                        <span
+                          id={`email-pref-${type}-hint`}
+                          className="mt-0.5 block text-xs font-normal text-slate-500"
+                        >
+                          {NOTIFICATION_META[type].lead}
+                        </span>
+                      </span>
+                      <input
+                        id={`email-pref-${type}`}
+                        type="checkbox"
+                        checked={enabled}
+                        disabled={emailPrefsLoading}
+                        aria-describedby={`email-pref-${type}-hint`}
+                        onChange={(e) => handleEmailPrefToggle(type, e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-primary focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed"
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </SettingsSection>
 
           {/* Deactivation request */}

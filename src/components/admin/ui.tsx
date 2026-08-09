@@ -138,12 +138,22 @@ export function Td({
   );
 }
 
+// 空狀態內容。表格用 EmptyRow 包一層 <tr>；非表格清單直接用這個。
+export function EmptyState({ message = "目前沒有資料" }: { message?: string }) {
+  return (
+    <div className="px-4 py-14 text-center text-sm text-slate-400">
+      <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate mb-2 block text-4xl">inbox</span>
+      {message}
+    </div>
+  );
+}
+
 export function EmptyRow({ colSpan, message = "目前沒有資料" }: { colSpan: number; message?: string }) {
+  // padding 在 EmptyState 內，故 <td> 需 p-0，維持與既有呼叫點相同的間距。
   return (
     <tr>
-      <td colSpan={colSpan} className="px-4 py-14 text-center text-sm text-slate-400">
-        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate mb-2 block text-4xl">inbox</span>
-        {message}
+      <td colSpan={colSpan} className="p-0">
+        <EmptyState message={message} />
       </td>
     </tr>
   );
@@ -367,6 +377,57 @@ export function Field({
 
 export const inputClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400";
+
+// 一列一個布林開關（標題＋說明在左、checkbox 在右）。整列可點，
+// 說明文字以 aria-describedby 關聯，供設定頁的清單式開關使用。
+export function ToggleRow({
+  label,
+  hint,
+  note,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  hint?: string;
+  /** 額外註記（例如「已由系統設定全站關閉」），以強調色顯示 */
+  note?: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  const id = React.useId();
+  const hintId = `${id}-hint`;
+  return (
+    <label
+      htmlFor={id}
+      className={`flex items-start justify-between gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+        disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:bg-slate-50"
+      }`}
+    >
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-slate-800">{label}</span>
+        {hint && (
+          <span id={hintId} className="mt-0.5 block text-xs text-slate-500">
+            {hint}
+          </span>
+        )}
+        {note && (
+          <span className="mt-0.5 block text-xs font-semibold text-amber-700">{note}</span>
+        )}
+      </span>
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        aria-describedby={hint ? hintId : undefined}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-primary accent-primary focus:outline-none focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed"
+      />
+    </label>
+  );
+}
 
 // ===== 列內操作選單（「⋯」按鈕，所有列表操作統一收合於此） =====
 

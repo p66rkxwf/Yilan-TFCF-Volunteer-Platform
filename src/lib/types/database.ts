@@ -191,7 +191,9 @@ export interface SupportRequest {
   updated_at: string;
 }
 
-export type NotificationStatus = "pending" | "sent" | "failed";
+// skipped＝因寄信設定而未寄（非失敗）；站內通知仍照常可見。
+// 見 33_notification_email_settings.sql。
+export type NotificationStatus = "pending" | "sent" | "failed" | "skipped";
 
 export type NotificationType =
   | "account_review_result"
@@ -311,6 +313,16 @@ export interface SystemSettings {
   purge_notification_retention_days: number;
   purge_audit_retention_days: number;
   purge_registration_retention_days: number;
+  /** 全站停寄的通知型別（空陣列＝全部照寄）；見 33_notification_email_settings.sql */
+  email_disabled_types: NotificationType[];
+  updated_at: string;
+}
+
+// 收件人自己的寄信偏好（志工與職員共用；RLS 限本人列）。
+// 與 system_settings.email_disabled_types 為「任一命中即不寄」的兩層關係。
+export interface NotificationEmailPrefs {
+  user_id: string;
+  disabled_types: NotificationType[];
   updated_at: string;
 }
 
@@ -548,6 +560,12 @@ export interface Database {
         Row: NotificationOutboxRow;
         Insert: never; // 僅 fn_notify / trigger / worker 寫入
         Update: never; // 已讀一律走 rpc_mark_notifications_read
+        Relationships: [];
+      };
+      notification_email_prefs: {
+        Row: NotificationEmailPrefs;
+        Insert: Omit<NotificationEmailPrefs, "updated_at">; // RLS 限本人列
+        Update: Partial<Omit<NotificationEmailPrefs, "user_id" | "updated_at">>;
         Relationships: [];
       };
     };

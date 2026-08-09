@@ -72,16 +72,58 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function formatTW(value: unknown): string {
-  if (typeof value !== "string") return "";
+// 日期時間格式與 src/lib/admin/datetime.ts 的全站規範一致
+//（日期 YYYY/MM/DD 補零、時間 24 小時制 HH:mm、一律 Asia/Taipei）。
+// worker 為獨立 package，故複製一份而非共用模組。
+const MAIL_DATE = new Intl.DateTimeFormat("zh-TW", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "Asia/Taipei",
+});
+const MAIL_TIME = new Intl.DateTimeFormat("zh-TW", {
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Asia/Taipei",
+  hourCycle: "h23",
+});
+const MAIL_WEEKDAY = new Intl.DateTimeFormat("zh-TW", {
+  weekday: "short", // zh-TW → 「週五」，與站內 formatSessionRange 一致
+  timeZone: "Asia/Taipei",
+});
+
+function toDate(value: unknown): Date | null {
+  if (typeof value !== "string") return null;
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("zh-TW", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Taipei",
-    hourCycle: "h23",
-  }).format(d);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** 單一時刻「2026/07/13 09:00」；對齊站內 formatDateTime。 */
+function formatTW(value: unknown): string {
+  const d = toDate(value);
+  if (!d) return "";
+  return `${MAIL_DATE.format(d)} ${MAIL_TIME.format(d)}`;
+}
+
+/** 含星期的時刻「2026/07/13（週一）09:00」；formatRangeTW 的兩端共用。 */
+function formatDayTimeTW(d: Date): string {
+  return `${MAIL_DATE.format(d)}（${MAIL_WEEKDAY.format(d)}）${MAIL_TIME.format(d)}`;
+}
+
+/**
+ * 場次起訖：同日「2026/07/13（週一）09:00–12:00」，跨日附完整兩端。
+ * 對齊站內 formatSessionRange（src/lib/admin/datetime.ts）。
+ * 結束時間缺漏或非法時只顯示開始時刻。
+ */
+function formatRangeTW(start: unknown, end: unknown): string {
+  const startDate = toDate(start);
+  if (!startDate) return "";
+  const startText = formatDayTimeTW(startDate);
+  const endDate = toDate(end);
+  if (!endDate) return startText;
+  return MAIL_DATE.format(startDate) === MAIL_DATE.format(endDate)
+    ? `${startText}–${MAIL_TIME.format(endDate)}`
+    : `${startText} ～ ${formatDayTimeTW(endDate)}`;
 }
 
 const SUBJECTS: Record<string, string> = {
@@ -152,6 +194,82 @@ function lead(type: string): string {
   }
 }
 
+const TEXT_FOOTER = "— 宜蘭家扶中心志工平台（此為系統自動通知，請勿直接回覆）";
+
+// 所有信件共用的外框（字體／顏色／頁尾）；各分支只組中間的段落。
+function htmlShell(body: string): string {
+  return `<div style="font-family:system-ui,-apple-system,'Noto Sans TC',sans-serif;font-size:15px;color:#0f172a;line-height:1.7">
+${body}
+  <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
+  <p style="color:#94a3b8;font-size:12px">宜蘭家扶中心志工平台 · 此為系統自動通知，請勿直接回覆</p>
+</div>`;
+}
+
+function str(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+// 32_* 之後 payload 一律帶 activity_title；registration_submitted 的舊 payload
+// 只有 title，故單獨列入白名單。custom_service_* 的 title 是「服務紀錄」名稱
+// 而非活動名稱，所以不能用無條件 fallback。
+const LEGACY_TITLE_TYPES = new Set<string>(["registration_submitted"]);
+
+function activityTitleOf(type: string, payload: Record<string, unknown>): string {
+  const title = str(payload["activity_title"]);
+  if (title) return title;
+  return LEGACY_TITLE_TYPES.has(type) ? str(payload["title"]) : "";
+}
+
+interface DetailLine {
+  label: string;
+  value: string;
+}
+
+// 信件中可安全揭露的補充欄位。需與 src/lib/notifications.ts 的
+// getNotificationDisplay() 對齊（兩邊呈現同一組欄位與標籤）。
+function detailLines(type: string, payload: Record<string, unknown>): DetailLine[] {
+  const lines: DetailLine[] = [];
+
+  const title = activityTitleOf(type, payload);
+  if (title) lines.push({ label: "活動名稱", value: title });
+
+  // session_time_changed 的舊 payload 只有 new_start_at/new_end_at
+  const when = formatRangeTW(
+    payload["start_at"] ?? payload["new_start_at"],
+    payload["end_at"] ?? payload["new_end_at"]
+  );
+  if (when) lines.push({ label: "場次時間", value: when });
+
+  if (type === "registration_submitted") {
+    const who = str(payload["volunteer"]);
+    if (who) lines.push({ label: "報名學生", value: who });
+  }
+  if (type === "review_reminder") {
+    const n = payload["pending_count"];
+    if (typeof n === "number" && n > 0) {
+      lines.push({ label: "待審報名", value: `${n} 筆` });
+    }
+  }
+
+  const release = formatTW(payload["expected_release_at"]);
+  if (release) lines.push({ label: "預計解除", value: release });
+
+  return lines;
+}
+
+function detailsText(lines: DetailLine[]): string[] {
+  return lines.map((d) => `${d.label}：${d.value}`);
+}
+
+function detailsHtml(lines: DetailLine[]): string {
+  return lines
+    .map(
+      (d) =>
+        `  <p style="color:#475569">${escapeHtml(d.label)}：${escapeHtml(d.value)}</p>`
+    )
+    .join("\n");
+}
+
 function renderTemplate(
   type: string,
   payload: Record<string, unknown>,
@@ -160,8 +278,6 @@ function renderTemplate(
 ): { subject: string; html: string; text: string } {
   const subject = SUBJECTS[type] ?? "志工平台通知";
   const greeting = name ? `${name} 您好：` : "您好：";
-  const when = formatTW(payload?.["start_at"]);
-  const whenLine = when ? `活動時間：${when}` : "";
   const cta = siteUrl || "";
 
   // Email 驗證碼：內文以驗證碼為主，不引導點連結（避免釣魚觀感）。
@@ -177,16 +293,12 @@ function renderTemplate(
       `驗證碼：${code}`,
       "此驗證碼 15 分鐘內有效，請勿轉發他人。",
       "",
-      "— 宜蘭家扶中心志工平台（此為系統自動通知，請勿直接回覆）",
+      TEXT_FOOTER,
     ].join("\n");
-    const html = `<div style="font-family:system-ui,-apple-system,'Noto Sans TC',sans-serif;font-size:15px;color:#0f172a;line-height:1.7">
-  <p>${escapeHtml(greeting)}</p>
+    const html = htmlShell(`  <p>${escapeHtml(greeting)}</p>
   <p>${escapeHtml(lead(type))}</p>
   <p style="font-size:28px;font-weight:800;letter-spacing:6px;color:#0f172a;margin:16px 0">${escapeHtml(code)}</p>
-  <p style="color:#475569">此驗證碼 15 分鐘內有效，請勿轉發他人。</p>
-  <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
-  <p style="color:#94a3b8;font-size:12px">宜蘭家扶中心志工平台 · 此為系統自動通知，請勿直接回覆</p>
-</div>`;
+  <p style="color:#475569">此驗證碼 15 分鐘內有效，請勿轉發他人。</p>`);
     return { subject, html, text };
   }
 
@@ -198,41 +310,91 @@ function renderTemplate(
       ? "審核結果：已通過，服務時數已計入您的累計時數。"
       : "審核結果：未通過。如有疑問請洽負責社工。";
     const titleLine = title ? `服務紀錄：${title}` : "";
-    const text = [greeting, "", lead(type), titleLine, resultLine, "", cta ? `可登入平台查看：${cta}` : "請登入平台查看。", "", "— 宜蘭家扶中心志工平台（此為系統自動通知，請勿直接回覆）"]
+    const text = [greeting, "", lead(type), titleLine, resultLine, "", cta ? `可登入平台查看：${cta}` : "請登入平台查看。", "", TEXT_FOOTER]
       .filter((l) => l !== "")
       .join("\n");
-    const html = `<div style="font-family:system-ui,-apple-system,'Noto Sans TC',sans-serif;font-size:15px;color:#0f172a;line-height:1.7">
-  <p>${escapeHtml(greeting)}</p>
+    const html = htmlShell(`  <p>${escapeHtml(greeting)}</p>
   <p>${escapeHtml(lead(type))}</p>
   ${title ? `<p style="color:#475569">服務紀錄：${escapeHtml(title)}</p>` : ""}
   <p style="font-weight:700;color:${approved ? "#047857" : "#b45309"}">${escapeHtml(resultLine)}</p>
-  ${cta ? `<p>可<a href="${escapeHtml(cta)}" style="color:#2563eb">登入平台</a>查看。</p>` : "<p>請登入平台查看。</p>"}
-  <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
-  <p style="color:#94a3b8;font-size:12px">宜蘭家扶中心志工平台 · 此為系統自動通知，請勿直接回覆</p>
-</div>`;
+  ${cta ? `<p>可<a href="${escapeHtml(cta)}" style="color:#2563eb">登入平台</a>查看。</p>` : "<p>請登入平台查看。</p>"}`);
     return { subject, html, text };
   }
 
-  const textParts = [
+  const details = detailLines(type, payload ?? {});
+
+  // 報名／取消審核結果：除了活動名稱與場次時間，直接寫明通過或未通過，
+  // 免得志工還要登入才知道結果。
+  if (type === "registration_review_result" || type === "cancel_review_result") {
+    const approved = payload?.["approved"] === true;
+    const assigned =
+      type === "registration_review_result" && payload?.["assigned"] === true;
+
+    // 後台直接指派：志工從未報名，寫「審核已有結果」會不知所云。
+    const leadLine = assigned
+      ? "職員已直接為您安排一場活動場次，資訊如下。"
+      : lead(type);
+
+    let resultLine: string;
+    let resultColor: string;
+    if (type === "cancel_review_result") {
+      // 此型別的 approved＝「同意取消」，語意易誤解，故加括號說明；
+      // 兩種結果都用中性色（綠色配「已取消」讀起來會怪）。
+      resultLine = approved
+        ? "審核結果：已通過（同意取消）。您的這筆報名已取消，名額已釋出。"
+        : "審核結果：未通過（不同意取消）。您的報名維持有效，請準時出席；如有困難請盡快聯繫負責社工。";
+      resultColor = "#0f172a";
+    } else if (assigned) {
+      resultLine =
+        "安排結果：已為您安排此場次。此為職員直接指派，您無需另行報名，請準時出席。";
+      resultColor = "#047857";
+    } else if (approved) {
+      resultLine = "審核結果：已通過。您的報名已核准，請準時出席。";
+      resultColor = "#047857";
+    } else {
+      resultLine = "審核結果：未通過。本次報名未獲核准，如有疑問請洽負責社工。";
+      resultColor = "#b45309";
+    }
+
+    const text = [
+      greeting,
+      "",
+      leadLine,
+      ...detailsText(details),
+      resultLine,
+      "",
+      cta ? `可登入平台查看：${cta}` : "請登入平台查看。",
+      "",
+      TEXT_FOOTER,
+    ]
+      .filter((l) => l !== "")
+      .join("\n");
+
+    const html = htmlShell(`  <p>${escapeHtml(greeting)}</p>
+  <p>${escapeHtml(leadLine)}</p>
+${detailsHtml(details)}
+  <p style="font-weight:700;color:${resultColor}">${escapeHtml(resultLine)}</p>
+  ${cta ? `<p>可<a href="${escapeHtml(cta)}" style="color:#2563eb">登入平台</a>查看。</p>` : "<p>請登入平台查看。</p>"}`);
+    return { subject, html, text };
+  }
+
+  const text = [
     greeting,
     "",
     lead(type),
-    whenLine,
+    ...detailsText(details),
     "",
     cta ? `請登入平台查看詳情：${cta}` : "請登入平台查看詳情。",
     "",
-    "— 宜蘭家扶中心志工平台（此為系統自動通知，請勿直接回覆）",
-  ].filter((l) => l !== "");
-  const text = textParts.join("\n");
+    TEXT_FOOTER,
+  ]
+    .filter((l) => l !== "")
+    .join("\n");
 
-  const html = `<div style="font-family:system-ui,-apple-system,'Noto Sans TC',sans-serif;font-size:15px;color:#0f172a;line-height:1.7">
-  <p>${escapeHtml(greeting)}</p>
+  const html = htmlShell(`  <p>${escapeHtml(greeting)}</p>
   <p>${escapeHtml(lead(type))}</p>
-  ${when ? `<p style="color:#475569">活動時間：${escapeHtml(when)}</p>` : ""}
-  <p>${cta ? `請<a href="${escapeHtml(cta)}" style="color:#2563eb">登入平台</a>查看詳情。` : "請登入平台查看詳情。"}</p>
-  <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
-  <p style="color:#94a3b8;font-size:12px">宜蘭家扶中心志工平台 · 此為系統自動通知，請勿直接回覆</p>
-</div>`;
+${detailsHtml(details)}
+  <p>${cta ? `請<a href="${escapeHtml(cta)}" style="color:#2563eb">登入平台</a>查看詳情。` : "請登入平台查看詳情。"}</p>`);
 
   return { subject, html, text };
 }
@@ -313,13 +475,49 @@ async function sendEmail(
   }
 }
 
+// 兩層寄信開關（33_notification_email_settings.sql）：任一層命中即不寄信。
+// 回傳 [全站停寄集合, 各收件人停寄集合]；任一查詢失敗都當作「全部照寄」，
+// 寧可多寄也不要因設定讀不到而靜默漏信（也讓 worker 先於 33 部署時仍能運作）。
+async function loadEmailToggles(
+  admin: SupabaseClient,
+  recipientIds: string[]
+): Promise<{ global: Set<string>; perUser: Map<string, Set<string>> }> {
+  const [settingsRes, prefsRes] = await Promise.all([
+    admin.from("system_settings").select("email_disabled_types").maybeSingle(),
+    admin
+      .from("notification_email_prefs")
+      .select("user_id, disabled_types")
+      .in("user_id", recipientIds),
+  ]);
+
+  if (settingsRes.error) {
+    console.warn(
+      `[orchestrator] 讀取全站寄信設定失敗，本輪一律照寄：${settingsRes.error.message}`
+    );
+  }
+  if (prefsRes.error) {
+    console.warn(
+      `[orchestrator] 讀取個人寄信偏好失敗，本輪一律照寄：${prefsRes.error.message}`
+    );
+  }
+
+  const global = new Set<string>(
+    (settingsRes.data?.email_disabled_types as string[] | null) ?? []
+  );
+  const perUser = new Map<string, Set<string>>();
+  for (const row of prefsRes.data ?? []) {
+    perUser.set(row.user_id, new Set<string>(row.disabled_types ?? []));
+  }
+  return { global, perUser };
+}
+
 // 消化 notification_outbox：讀 pending → 解析收件者 → 組信 → Resend 寄出 → 更新狀態
 export async function drainOutbox(
   env: Env
-): Promise<{ processed: number; sent: number; failed: number }> {
+): Promise<{ processed: number; sent: number; failed: number; skipped: number }> {
   if (!env.RESEND_API_KEY) {
     console.warn("[orchestrator] RESEND_API_KEY 未設定，略過 outbox 消化");
-    return { processed: 0, sent: 0, failed: 0 };
+    return { processed: 0, sent: 0, failed: 0, skipped: 0 };
   }
 
   const admin = adminClient(env);
@@ -333,18 +531,39 @@ export async function drainOutbox(
     .limit(BATCH_SIZE);
 
   if (error) throw new Error(`讀取 outbox 失敗：${error.message}`);
-  if (!pending || pending.length === 0) return { processed: 0, sent: 0, failed: 0 };
+  if (!pending || pending.length === 0)
+    return { processed: 0, sent: 0, failed: 0, skipped: 0 };
 
   const rows = pending as OutboxRow[];
-  const recipients = await resolveRecipients(
-    admin,
-    [...new Set(rows.map((r) => r.recipient_user_id))]
-  );
+  const recipientIds = [...new Set(rows.map((r) => r.recipient_user_id))];
+  const [recipients, toggles] = await Promise.all([
+    resolveRecipients(admin, recipientIds),
+    loadEmailToggles(admin, recipientIds),
+  ]);
 
   let sent = 0;
   let failed = 0;
   let retried = 0;
+  let skipped = 0;
   for (const row of rows) {
+    // 因設定而不寄：必須標成 pending 以外的終端狀態，否則每分鐘重掃一次，
+    // 且 23 的清理只刪 status <> 'pending'，這些列會永遠留著。
+    // 站內通知不受影響（read_at 與 status 正交，見 15_notification_center.sql）。
+    if (
+      // 三重防護之一：Email OTP 永不受設定影響，關掉會讓註冊／自行簽到壞掉。
+      row.notification_type !== "email_verification" &&
+      (toggles.global.has(row.notification_type) ||
+        toggles.perUser.get(row.recipient_user_id)?.has(row.notification_type))
+    ) {
+      await admin
+        .from("notification_outbox")
+        .update({ status: "skipped", error: null })
+        .eq("id", row.id)
+        .eq("status", "pending");
+      skipped++;
+      continue;
+    }
+
     try {
       const rec = recipients.get(row.recipient_user_id);
       if (!rec?.email) throw new SendError("找不到收件者 email", false);
@@ -379,9 +598,9 @@ export async function drainOutbox(
   }
 
   console.log(
-    `[orchestrator] outbox processed=${rows.length} sent=${sent} failed=${failed} retried=${retried}`
+    `[orchestrator] outbox processed=${rows.length} sent=${sent} failed=${failed} retried=${retried} skipped=${skipped}`
   );
-  return { processed: rows.length, sent, failed };
+  return { processed: rows.length, sent, failed, skipped };
 }
 
 // 以 service_role 觸發 Postgres 端的排程函式（job_*）
@@ -656,9 +875,13 @@ export default {
       );
     }
     try {
-      if (job) await runJob(env, job);
-      else await drainOutbox(env);
-      return Response.json({ ok: true, ran: job ?? "drainOutbox" });
+      if (job) {
+        await runJob(env, job);
+        return Response.json({ ok: true, ran: job });
+      }
+      // 手動排乾時附上統計（含因寄信設定而跳過的筆數），方便驗證設定是否生效
+      const result = await drainOutbox(env);
+      return Response.json({ ok: true, ran: "drainOutbox", ...result });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       return Response.json({ ok: false, error: message }, { status: 500 });
