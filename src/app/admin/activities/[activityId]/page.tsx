@@ -2,7 +2,6 @@
 
 // 活動詳情：基本資料、狀態操作、負責人、場次清單（含各場報名統計與操作）。
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -12,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Modal } from "@/components/ui/modal";
 import { SessionForm } from "./sessions/session-form";
+import { SessionBatchForm } from "./sessions/session-batch-form";
 import {
   PageHeader,
   Panel,
@@ -55,6 +55,7 @@ export default function ActivityDetailPage() {
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [isActing, setIsActing] = useState(false);
   const [showNewSession, setShowNewSession] = useState(false);
+  const [showBatchSession, setShowBatchSession] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -262,18 +263,11 @@ export default function ActivityDetailPage() {
 
       {/* 草稿進度：toast 會消失，需要一條常駐的「還差什麼才能發布」 */}
       {isDraft && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 sm:px-6">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-amber-900">
-            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[20px]">
-              {hasPublishableSession ? "check_circle" : "pending"}
-            </span>
-            <span className="font-semibold">草稿：學生還看不到這個活動。</span>
-            {hasPublishableSession ? (
-              <span>已有 {sessions.filter((s) => !s.cancelled_at).length} 個場次，可按右上角「發布活動」開放報名。</span>
-            ) : (
-              <span>請先新增至少一個場次，才能發布。</span>
-            )}
-          </div>
+        <div className="flex items-center gap-1.5 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 sm:px-6">
+          <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">
+            {hasPublishableSession ? "check_circle" : "pending"}
+          </span>
+          {hasPublishableSession ? "草稿 · 學生還看不到，可按右上角發布" : "草稿 · 需至少一個場次才能發布"}
         </div>
       )}
 
@@ -343,14 +337,14 @@ export default function ActivityDetailPage() {
                   <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[16px]">add</span>
                   新增場次
                 </button>
-                <Link
-                  prefetch={false}
-                  href={`/admin/activities/${activity.id}/sessions/new?mode=batch`}
+                <button
+                  type="button"
+                  onClick={() => setShowBatchSession(true)}
                   className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
                 >
                   <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[16px]">date_range</span>
                   一次加多場
-                </Link>
+                </button>
               </div>
             ) : undefined
           }
@@ -488,6 +482,20 @@ export default function ActivityDetailPage() {
           activityId={activity.id}
           onSaved={load}
           onCancel={() => setShowNewSession(false)}
+        />
+      </Modal>
+
+      <Modal
+        open={showBatchSession}
+        title="一次加多場"
+        description={activity.title}
+        maxWidthClass="max-w-3xl"
+        onClose={() => setShowBatchSession(false)}
+      >
+        <SessionBatchForm
+          activityId={activity.id}
+          onSaved={load}
+          onCancel={() => setShowBatchSession(false)}
         />
       </Modal>
 

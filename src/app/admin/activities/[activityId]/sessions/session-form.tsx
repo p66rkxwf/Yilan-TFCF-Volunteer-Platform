@@ -322,9 +322,7 @@ export function SessionForm({
           {isDialog ? "關閉" : "取消"}
         </Button>
         {isDialog && !isEdit && (
-          <span className="text-xs text-slate-400">
-            新增後會留在此處，時段與名額保留，改個日期即可再加一場。
-          </span>
+          <span className="text-xs text-slate-400">新增後可接著加下一場</span>
         )}
       </div>
     </form>

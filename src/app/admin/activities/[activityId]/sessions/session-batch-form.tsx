@@ -31,10 +31,21 @@ function labelForDate(date: string): string {
   return DATE_LABEL.format(new Date(`${date}T12:00:00+08:00`));
 }
 
-export function SessionBatchForm({ activityId }: { activityId: string }) {
+export function SessionBatchForm({
+  activityId,
+  onSaved,
+  onCancel,
+}: {
+  activityId: string;
+  /** 對話框模式：不跳頁，改呼叫此回呼讓外層重載清單 */
+  onSaved?: () => void;
+  /** 對話框模式的「取消」；未給則沿用 router.back() */
+  onCancel?: () => void;
+}) {
   const supabase = createClient();
   const toast = useToast();
   const router = useRouter();
+  const isDialog = Boolean(onSaved);
 
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("12:00");
@@ -141,6 +152,12 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
 
     if (failedDates.length === 0) {
       toast.success(`已建立 ${ok} 個場次`);
+      if (isDialog) {
+        // 對話框模式：留在原地，清掉已建立的日期清單，時段／名額／地點保留
+        setDates([]);
+        onSaved?.();
+        return;
+      }
       router.push(`/admin/activities/${activityId}`);
       router.refresh();
     } else {
@@ -152,7 +169,8 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
   };
 
   return (
-    <div className="max-w-2xl space-y-5">
+    // 對話框已限制寬度，這裡就不再套 max-w
+    <div className={`space-y-5 ${isDialog ? "" : "max-w-2xl"}`}>
       <Panel title="共用時段、名額與地點" description="以下設定會套用到所有選定的日期。">
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -278,8 +296,13 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
         >
           建立 {dates.length} 個場次
         </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => router.back()}>
-          取消
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={onCancel ?? (() => router.back())}
+        >
+          {isDialog ? "關閉" : "取消"}
         </Button>
       </div>
     </div>
