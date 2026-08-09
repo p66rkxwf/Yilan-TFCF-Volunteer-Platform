@@ -101,7 +101,7 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     if (!user) {
-      toast.error("尚未登入。");
+      toast.error("請先登入。");
       return;
     }
     const nextErrors: { phone?: string } = {};

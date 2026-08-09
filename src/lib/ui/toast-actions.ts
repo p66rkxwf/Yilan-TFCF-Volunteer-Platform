@@ -1,3 +1,5 @@
+import type { ActionResult } from "@/lib/types/action";
+
 type ErrorLike =
   | { message?: string | null }
   | Error
@@ -19,11 +21,8 @@ const DB_ERROR_TRANSLATIONS: { match: RegExp; message: string }[] = [
 // 網路層失敗的統一文案（沿用 /login 既有措辭，不另造新字串）。
 export const NETWORK_ERROR_MESSAGE = "連線發生問題，請檢查網路後再試一次。";
 
-/** Server Action 的通用回傳形狀。 */
-export interface ActionResultLike {
-  error?: string;
-  success?: boolean;
-}
+/** Server Action 的通用回傳形狀（定義在 lib/types/action.ts，此處僅取用）。 */
+export type ActionResultLike = ActionResult;
 
 /**
  * 呼叫 Server Action，並把「網路層失敗」轉成與業務錯誤同型的結果。

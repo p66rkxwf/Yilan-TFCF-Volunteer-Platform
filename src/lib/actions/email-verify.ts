@@ -4,18 +4,12 @@
 // 守衛（在職志工、頻率限制、限時限次、驗證後標記 email_verified_at）皆在
 // rpc_request_email_otp / rpc_verify_email_otp 內強制（見 21_email_verification.sql）。
 
-import { createClient } from "@/lib/supabase/server";
-import { getCachedUser } from "@/lib/supabase/cached-auth";
-
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-}
+import { requireUser } from "@/lib/supabase/cached-auth";
+import type { ActionResult } from "@/lib/types/action";
 
 export async function requestEmailOtp(): Promise<ActionResult> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.rpc("rpc_request_email_otp");
   if (error) return { error: error.message };
@@ -26,9 +20,8 @@ export async function verifyEmailOtp(code: string): Promise<ActionResult> {
   const trimmed = code.trim();
   if (!/^\d{6}$/.test(trimmed)) return { error: "請輸入 6 位數字驗證碼。" };
 
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.rpc("rpc_verify_email_otp", { p_code: trimmed });
   if (error) return { error: error.message };

@@ -1,21 +1,16 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { getCachedUser } from "@/lib/supabase/cached-auth";
+import { getCachedUser, requireUser } from "@/lib/supabase/cached-auth";
+import type { ActionResult } from "@/lib/types/action";
 import type { RegistrationStatus } from "@/lib/types/database";
-
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-}
 
 // V2 報名一律走 RPC（registrations 無直寫 policy）；RPC 內含 advisory lock、
 // 名額鎖內即時計數、時間衝突檢查、帳號狀態檢查，前端不再重複這些邏輯。
 // RPC 用 RAISE EXCEPTION 拋出的中文訊息會透過 error.message 原樣帶回。
 export async function registerForSession(sessionId: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.rpc("rpc_register_for_session", {
     p_session_id: sessionId,
@@ -28,9 +23,8 @@ export async function registerForSession(sessionId: string): Promise<ActionResul
 export async function cancelRegistration(
   registrationId: string
 ): Promise<ActionResult & { status?: RegistrationStatus }> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { data, error } = await supabase.rpc("rpc_request_cancel", {
     p_registration_id: registrationId,
@@ -44,9 +38,8 @@ export async function cancelRegistration(
 // 帳號狀態、報名狀態等守衛全在 RPC 內強制（rpc_self_check_in，見 11_harden…）；
 // 前端只負責呼叫並原樣顯示中文錯誤訊息。
 export async function selfCheckIn(registrationId: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.rpc("rpc_self_check_in", {
     p_registration_id: registrationId,

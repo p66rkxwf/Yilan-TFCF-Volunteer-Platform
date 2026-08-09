@@ -46,7 +46,7 @@ export async function bulkCreateStaff(
   const { data: actor } = await supabase
     .from("staff_profiles")
     .select("role")
-    .eq("id", userId as string)
+    .eq("id", userId)
     .maybeSingle();
   if (actor?.role !== "system_admin") {
     return { error: "僅系統管理員可批量建立職員帳號。" };

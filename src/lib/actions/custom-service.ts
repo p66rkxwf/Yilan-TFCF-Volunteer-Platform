@@ -4,14 +4,8 @@
 // 權限、時數換算、通知（該生負責社工）皆在 rpc_submit_custom_service /
 // rpc_review_custom_service 內強制（見 27_custom_service_and_notifications.sql）。
 
-import { createClient } from "@/lib/supabase/server";
-import { getCachedUser } from "@/lib/supabase/cached-auth";
-
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-  id?: string;
-}
+import { requireUser } from "@/lib/supabase/cached-auth";
+import type { ActionResult } from "@/lib/types/action";
 
 export async function submitCustomService(input: {
   volunteerId: string;
@@ -20,10 +14,9 @@ export async function submitCustomService(input: {
   description: string;
   startIso: string;
   endIso: string;
-}): Promise<ActionResult> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+}): Promise<ActionResult & { id?: string }> {
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { data, error } = await supabase.rpc("rpc_submit_custom_service", {
     p_volunteer_id: input.volunteerId,
@@ -42,9 +35,8 @@ export async function reviewCustomService(
   approve: boolean,
   note?: string
 ): Promise<ActionResult> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.rpc("rpc_review_custom_service", {
     p_id: id,

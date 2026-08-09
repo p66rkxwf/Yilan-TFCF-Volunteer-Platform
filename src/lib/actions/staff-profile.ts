@@ -4,12 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
 import { isValidEmail, isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ActionResult } from "@/lib/types/action";
 import type { StaffJobTitle } from "@/lib/types/database";
-
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-}
 
 function adminClient(): SupabaseClient {
   return createAdminClient() as unknown as SupabaseClient;
@@ -118,7 +114,7 @@ export async function updateStaffProfile(input: {
   const { data: actor } = await supabase
     .from("staff_profiles")
     .select("role")
-    .eq("id", userId as string)
+    .eq("id", userId)
     .maybeSingle();
   if (actor?.role !== "system_admin") {
     return { error: "僅系統管理員可編輯職員資料。" };
@@ -201,19 +197,19 @@ export async function updateOwnStaffProfile(input: {
   const { data: target } = await admin
     .from("staff_profiles")
     .select("id, full_name, email, username, deleted_at")
-    .eq("id", userId as string)
+    .eq("id", userId)
     .maybeSingle();
   if (!target || target.deleted_at) return { error: "找不到職員資料" };
 
   const uniqueError = await checkUniqueness({
-    targetId: userId as string,
+    targetId: userId,
     email: email !== target.email ? email : undefined,
     username: username !== target.username ? username : undefined,
   });
   if (uniqueError) return { error: uniqueError };
 
   const sync = await syncStaffAuthIdentity({
-    staffId: userId as string,
+    staffId: userId,
     oldEmail: target.email as string,
     newEmail: email,
     fullName: target.full_name as string,

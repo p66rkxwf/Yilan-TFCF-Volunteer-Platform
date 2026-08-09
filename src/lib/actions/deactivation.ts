@@ -1,19 +1,13 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getCachedUser, requireAdmin } from "@/lib/supabase/cached-auth";
-
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-}
+import { requireUser, requireAdmin } from "@/lib/supabase/cached-auth";
+import type { ActionResult } from "@/lib/types/action";
 
 // 志工提出停用申請（原因選填）
 export async function requestDeactivation(reason?: string): Promise<ActionResult> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.rpc("rpc_request_deactivation", {
     p_reason: reason || null,
@@ -25,9 +19,8 @@ export async function requestDeactivation(reason?: string): Promise<ActionResult
 
 // 志工撤回自己待處理中的停用申請
 export async function withdrawDeactivationRequest(): Promise<ActionResult> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.rpc("rpc_withdraw_deactivation_request");
 

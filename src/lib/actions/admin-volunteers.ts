@@ -8,20 +8,16 @@ import { requireAdmin } from "@/lib/supabase/cached-auth";
 import { generateTempPassword } from "@/lib/temp-password";
 import { isValidEmail } from "@/lib/validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ActionResult } from "@/lib/types/action";
 import type { GradeLevel } from "@/lib/types/database";
 
 function adminClient(): SupabaseClient {
   return createAdminClient() as unknown as SupabaseClient;
 }
 
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-  volunteerId?: string;
-}
-
 // 建立成功時額外回傳明文臨時密碼供建立者轉告本人；不寫入 DB、不寫入 log。
 interface CreateVolunteerResult extends ActionResult {
+  volunteerId?: string;
   username?: string;
   password?: string;
 }

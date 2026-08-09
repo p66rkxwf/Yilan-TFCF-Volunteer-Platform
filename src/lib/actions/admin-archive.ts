@@ -12,11 +12,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
-
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-}
+import type { ActionResult } from "@/lib/types/action";
 
 export type ArchivableTable =
   | "volunteer_profiles"

@@ -6,6 +6,7 @@ import {
   getBirthdayValidationError,
   normalizeBirthdayForSubmit,
 } from "@/lib/birthday";
+import { requireUser } from "@/lib/supabase/cached-auth";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isValidEmail, isValidUsername } from "@/lib/validation";
 import { redirect } from "next/navigation";
@@ -210,24 +211,13 @@ export async function signOut() {
   redirect("/login");
 }
 
-export async function getUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user;
-}
-
 export async function updatePassword(newPassword: string): Promise<AuthResult> {
   if (newPassword.length < 8) {
     return { error: "密碼至少需要 8 個字元。" };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "尚未登入。" };
+  const { supabase, userId, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) return { error: `密碼更新失敗：${error.message}` };
@@ -240,12 +230,12 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
   await admin
     .from("volunteer_profiles")
     .update({ must_change_password: false })
-    .eq("id", user.id)
+    .eq("id", userId)
     .eq("must_change_password", true);
   await admin
     .from("staff_profiles")
     .update({ must_change_password: false })
-    .eq("id", user.id)
+    .eq("id", userId)
     .eq("must_change_password", true);
 
   return { success: true };
@@ -261,18 +251,15 @@ export async function updateEmail(newEmail: string): Promise<AuthResult> {
     return { error: "請輸入有效的 Email 地址。" };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "尚未登入。" };
+  const { userId, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   // 變更聯絡 Email 後需重新驗證：一併清空 email_verified_at（未驗證前不能報名/簽到）。
   const admin = adminClient();
   const { error } = await admin
     .from("volunteer_profiles")
     .update({ email, email_verified_at: null })
-    .eq("id", user.id);
+    .eq("id", userId);
 
   if (error) return { error: `Email 更新失敗：${error.message}` };
   return { success: true };
@@ -288,11 +275,8 @@ export async function updateOwnVolunteerUsername(newUsername: string): Promise<A
     return { error: "帳號格式不正確（4～30 碼英數與 . _ -）" };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "尚未登入。" };
+  const { supabase, userId, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const admin = adminClient();
   const [{ data: existingStaff }, { data: existingVolunteer }] = await Promise.all([
@@ -301,7 +285,7 @@ export async function updateOwnVolunteerUsername(newUsername: string): Promise<A
       .from("volunteer_profiles")
       .select("id")
       .eq("username", username)
-      .neq("id", user.id)
+      .neq("id", userId)
       .maybeSingle(),
   ]);
   if (existingStaff || existingVolunteer) return { error: "此帳號已被使用" };

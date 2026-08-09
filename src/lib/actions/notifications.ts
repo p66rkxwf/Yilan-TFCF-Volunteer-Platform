@@ -1,19 +1,13 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
-import { getCachedUser } from "@/lib/supabase/cached-auth";
-
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-}
+import { requireUser } from "@/lib/supabase/cached-auth";
+import type { ActionResult } from "@/lib/types/action";
 
 // 標記站內通知為已讀。ids 省略＝全部標為已讀；RPC 內僅會更新本人的未讀列
 // （見 supabase/v2/15_notification_center.sql）。
 export async function markNotificationsRead(ids?: string[]): Promise<ActionResult> {
-  const supabase = await createClient();
-  const user = await getCachedUser();
-  if (!user) return { error: "請先登入。" };
+  const { supabase, error: authError } = await requireUser();
+  if (authError) return { error: authError };
 
   const { error } = await supabase.rpc("rpc_mark_notifications_read", {
     p_ids: ids && ids.length > 0 ? ids : null,

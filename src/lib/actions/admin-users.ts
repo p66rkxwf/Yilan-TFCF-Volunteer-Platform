@@ -5,17 +5,13 @@ import { requireAdmin } from "@/lib/supabase/cached-auth";
 import { generateTempPassword } from "@/lib/temp-password";
 import { isValidEmail } from "@/lib/validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { ActionResult } from "@/lib/types/action";
 import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
-
-interface ActionResult {
-  error?: string;
-  success?: boolean;
-  staffId?: string;
-}
 
 // 系統代設密碼的回傳：明文臨時密碼只在此回應中出現一次，不寫入 DB、不寫入 log。
 // 呼叫端已過 requireAdmin()，且全程 HTTPS——這是管理員轉告當事人的唯一途徑。
 interface CredentialResult extends ActionResult {
+  staffId?: string;
   username?: string;
   password?: string;
 }
@@ -42,7 +38,7 @@ export async function createStaff(input: {
   const { data: actor } = await supabase
     .from("staff_profiles")
     .select("role")
-    .eq("id", userId as string)
+    .eq("id", userId)
     .maybeSingle();
   if (actor?.role !== "system_admin") {
     return { error: "僅系統管理員可建立職員帳號。" };
@@ -125,7 +121,7 @@ export async function setStaffStatus(
   const { data: actor } = await supabase
     .from("staff_profiles")
     .select("role")
-    .eq("id", userId as string)
+    .eq("id", userId)
     .maybeSingle();
   if (actor?.role !== "system_admin") {
     return { error: "僅系統管理員可停權或恢復職員帳號。" };
@@ -176,7 +172,7 @@ export async function setStaffRole(
   const { data: actorProfile } = await supabase
     .from("staff_profiles")
     .select("role")
-    .eq("id", userId as string)
+    .eq("id", userId)
     .maybeSingle();
   if (actorProfile?.role !== "system_admin") {
     return { error: "僅系統管理員可變更職員角色。" };
@@ -284,7 +280,7 @@ export async function resetVolunteerPassword(
   const { data: actor } = await supabase
     .from("staff_profiles")
     .select("role")
-    .eq("id", userId as string)
+    .eq("id", userId)
     .maybeSingle();
   if (actor?.role !== "system_admin" && actor?.role !== "unit_admin") {
     return { error: "僅管理員可重設密碼。" };
@@ -325,7 +321,7 @@ export async function resetStaffPassword(
   const { data: actor } = await supabase
     .from("staff_profiles")
     .select("role")
-    .eq("id", userId as string)
+    .eq("id", userId)
     .maybeSingle();
   if (actor?.role !== "system_admin") {
     return { error: "僅系統管理員可重設職員密碼。" };
