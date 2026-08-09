@@ -2,8 +2,7 @@
 
 // 期間與系統參數（寫入限系統管理員，RLS 亦強制）：
 //  - 系統參數（單列 system_settings）
-//  - 通知寄信設定（全站；限系統管理員）
-//  - 我的信件偏好（每位職員自己的，不受 canEdit 限制）
+//  - 通知寄信設定（全站；個人層的信件偏好在 /admin/account）
 //  - 期間管理（半年一期、不得重疊）
 //  - 最低服務時數門檻（依學制）
 //  - 畢業參考年齡（依學制，可留空＝全數列入年審）
@@ -42,13 +41,13 @@ import type {
   NotificationType,
 } from "@/lib/types/database";
 
-// 寄信開關的清單（維持 NOTIFICATION_META 的宣告順序）。
+// 全站寄信開關的清單（維持 NOTIFICATION_META 的宣告順序）。
 // audience 為 both 者（如時段衝突提醒）只列在學生端一次，避免同一個開關出現兩欄。
+// 個人層的「我的信件偏好」屬個人設定，放在 /admin/account，不在本頁。
 const ADMIN_VOLUNTEER_TYPES = emailTogglableTypes("admin", "volunteer");
 const ADMIN_STAFF_TYPES = emailTogglableTypes("admin", "staff").filter(
   (type) => !ADMIN_VOLUNTEER_TYPES.includes(type)
 );
-const MY_EMAIL_TYPES = emailTogglableTypes("user", "staff");
 
 export default function SettingsPage() {
   const supabase = createClient();
@@ -57,8 +56,6 @@ export default function SettingsPage() {
   const canEdit = profile.role === "system_admin";
 
   const [settings, setSettings] = useState<SystemSettings | null>(null);
-  // 個人寄信偏好（本人那一列；可能尚未建立，故以陣列狀態表示「已載入」）
-  const [myDisabled, setMyDisabled] = useState<NotificationType[] | null>(null);
   const [periods, setPeriods] = useState<Period[]>([]);
   const [thresholds, setThresholds] = useState<Record<GradeLevel, string>>({} as any);
   const [refAges, setRefAges] = useState<Record<GradeLevel, string>>({} as any);
@@ -77,20 +74,14 @@ export default function SettingsPage() {
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
 
   const load = useCallback(async () => {
-    const [settingsRes, periodsRes, thrRes, refRes, prefsRes] = await Promise.all([
+    const [settingsRes, periodsRes, thrRes, refRes] = await Promise.all([
       supabase.from("system_settings").select("*").maybeSingle(),
       supabase.from("periods").select("*").order("start_date", { ascending: false }),
       supabase.from("grade_hour_thresholds").select("*"),
       supabase.from("grade_reference_ages").select("*"),
-      supabase
-        .from("notification_email_prefs")
-        .select("disabled_types")
-        .eq("user_id", profile.id)
-        .maybeSingle(),
     ]);
     setSettings(settingsRes.data as SystemSettings);
     setPeriods((periodsRes.data ?? []) as Period[]);
-    setMyDisabled((prefsRes.data?.disabled_types ?? []) as NotificationType[]);
 
     const thrMap = {} as Record<GradeLevel, string>;
     const refMap = {} as Record<GradeLevel, string>;
@@ -152,34 +143,6 @@ export default function SettingsPage() {
           ? current
           : [...current, type],
     });
-  };
-
-  const saveMyEmailPrefs = async () => {
-    if (!myDisabled) return;
-    setSavingKey("emailPrefs");
-    try {
-      // 本人可能還沒有列，故用 upsert（RLS 限 user_id = auth.uid()）
-      const { error } = await supabase
-        .from("notification_email_prefs")
-        .upsert({ user_id: profile.id, disabled_types: myDisabled });
-      if (error) throw error;
-      toast.success("信件偏好已更新");
-    } catch (error) {
-      toast.error(getErrorMessage(error as Error));
-    } finally {
-      setSavingKey(null);
-    }
-  };
-
-  const toggleMyEmail = (type: NotificationType, enabled: boolean) => {
-    if (!myDisabled) return;
-    setMyDisabled(
-      enabled
-        ? myDisabled.filter((t) => t !== type)
-        : myDisabled.includes(type)
-          ? myDisabled
-          : [...myDisabled, type]
-    );
   };
 
   const addPeriod = async () => {
@@ -396,39 +359,6 @@ export default function SettingsPage() {
                 </Button>
               </div>
             )}
-          </Panel>
-        )}
-
-        {myDisabled && (
-          <Panel
-            title="我的信件偏好"
-            description="只影響您自己收到的信；關閉後仍會在站內通知中心看到。"
-          >
-            <div className="grid grid-cols-1 gap-x-6 gap-y-1 lg:grid-cols-2">
-              {MY_EMAIL_TYPES.map((type) => {
-                const offGlobally = (settings?.email_disabled_types ?? []).includes(type);
-                return (
-                  <ToggleRow
-                    key={type}
-                    label={NOTIFICATION_META[type].title}
-                    hint={NOTIFICATION_META[type].lead}
-                    note={offGlobally ? "已由系統設定全站關閉" : undefined}
-                    checked={!offGlobally && !myDisabled.includes(type)}
-                    disabled={offGlobally}
-                    onChange={(enabled) => toggleMyEmail(type, enabled)}
-                  />
-                );
-              })}
-            </div>
-            <div className="mt-4">
-              <Button
-                size="sm"
-                isLoading={savingKey === "emailPrefs"}
-                onClick={saveMyEmailPrefs}
-              >
-                儲存信件偏好
-              </Button>
-            </div>
           </Panel>
         )}
 
