@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
 import { generateTempPassword } from "@/lib/temp-password";
+import { isValidEmail } from "@/lib/validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
 
@@ -50,7 +51,7 @@ export async function createStaff(input: {
   const username = input.username.trim();
   if (!input.fullName.trim()) return { error: "請輸入姓名" };
   if (!username) return { error: "請輸入帳號" };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return { error: "請輸入有效的 Email" };
+  if (!isValidEmail(input.email)) return { error: "請輸入有效的 Email" };
   if (!input.phone.trim()) return { error: "電話為必填（負責人電話會公開於前台）" };
 
   const admin = adminClient();

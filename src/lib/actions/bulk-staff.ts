@@ -7,7 +7,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
 import { generateTempPassword } from "@/lib/temp-password";
-import { isValidUsername } from "@/lib/validation";
+import { isValidEmail, isValidUsername } from "@/lib/validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { StaffRole, StaffJobTitle } from "@/lib/types/database";
 
@@ -34,7 +34,6 @@ export interface BulkStaffResult {
   password?: string;
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_ROWS = 200;
 
 export async function bulkCreateStaff(
@@ -77,7 +76,7 @@ export async function bulkCreateStaff(
       push(false, "帳號格式不正確（4～30 碼英數與 . _ -）"); continue;
     }
     if (seen.has(username.toLowerCase())) { push(false, "CSV 內帳號重複"); continue; }
-    if (!EMAIL_RE.test(email)) { push(false, "Email 格式不正確"); continue; }
+    if (!isValidEmail(email)) { push(false, "Email 格式不正確"); continue; }
     if (!phone) { push(false, "缺少電話"); continue; }
     if (row.role !== "system_admin" && row.role !== "unit_admin" && row.role !== "staff") {
       push(false, "角色無效"); continue;

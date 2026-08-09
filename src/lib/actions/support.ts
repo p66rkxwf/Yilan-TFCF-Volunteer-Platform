@@ -2,13 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { isValidEmail } from "@/lib/validation";
 
 export interface SupportActionResult {
   error?: string;
   success?: boolean;
 }
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // /support 頁未登入亦可送出，故走 rpc_submit_support_request（anon 可呼叫）
 // 而非需要 service-role 的 admin client；欄位驗證與前端重複一份屬刻意設計，
@@ -28,7 +27,7 @@ export async function submitSupportRequest(input: {
   if (!name || !email || !message) {
     return { error: "請先完整填寫姓名、Email 與問題描述。" };
   }
-  if (!EMAIL_REGEX.test(email)) {
+  if (!isValidEmail(email)) {
     return { error: "請輸入有效的 Email 格式。" };
   }
 

@@ -6,6 +6,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
 import { generateTempPassword } from "@/lib/temp-password";
+import { isValidEmail } from "@/lib/validation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GradeLevel } from "@/lib/types/database";
 
@@ -46,7 +47,7 @@ export async function createVolunteer(
   const username = input.username.trim();
   if (!input.fullName.trim()) return { error: "請輸入姓名" };
   if (!username) return { error: "請輸入帳號" };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) return { error: "請輸入有效的 Email" };
+  if (!isValidEmail(input.email)) return { error: "請輸入有效的 Email" };
   if (!input.phone.trim()) return { error: "請輸入電話" };
   if (!input.birthDate) return { error: "請選擇生日" };
   if (!input.assignedWorkerId) return { error: "請指定負責社工" };

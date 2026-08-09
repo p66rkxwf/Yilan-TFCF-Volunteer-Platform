@@ -7,6 +7,7 @@ import {
   normalizeBirthdayForSubmit,
 } from "@/lib/birthday";
 import { verifyTurnstile } from "@/lib/turnstile";
+import { isValidEmail, isValidUsername } from "@/lib/validation";
 import { redirect } from "next/navigation";
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
@@ -131,7 +132,7 @@ export async function signUp(formData: {
 
   // 聯絡 Email 伺服器端格式驗證（與 updateEmail / createStaff 等其他入口一致；
   // 前端亦有驗證，此處防繞過前端直呼 action 寫入不合法格式）。
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+  if (!isValidEmail(formData.email)) {
     return { error: "請輸入有效的 Email 地址。" };
   }
 
@@ -256,7 +257,7 @@ export async function updatePassword(newPassword: string): Promise<AuthResult> {
 // 更新，並限定為目前登入者自己的那一列。
 export async function updateEmail(newEmail: string): Promise<AuthResult> {
   const email = newEmail.trim();
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!isValidEmail(email)) {
     return { error: "請輸入有效的 Email 地址。" };
   }
 
@@ -283,7 +284,7 @@ export async function updateEmail(newEmail: string): Promise<AuthResult> {
 // 提早回中文錯誤（race 由 RPC 內檢查與 UNIQUE 約束兜底）。
 export async function updateOwnVolunteerUsername(newUsername: string): Promise<AuthResult> {
   const username = newUsername.trim();
-  if (!/^[A-Za-z0-9._-]{4,30}$/.test(username)) {
+  if (!isValidUsername(username)) {
     return { error: "帳號格式不正確（4～30 碼英數與 . _ -）" };
   }
 

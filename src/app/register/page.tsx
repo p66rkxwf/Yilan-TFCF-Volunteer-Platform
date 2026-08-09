@@ -15,7 +15,7 @@ import {
   normalizeBirthdayInput,
 } from "@/lib/birthday";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
-import { isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
+import { isValidEmail, isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 import {
@@ -81,10 +81,9 @@ export default function RegisterPage() {
     if (!formData.grade) newErrors.grade = "請選擇學制階段";
     if (!formData.region) newErrors.region = "請選擇區域";
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
       newErrors.email = "Email 為必填欄位";
-    } else if (!emailRegex.test(formData.email)) {
+    } else if (!isValidEmail(formData.email)) {
       newErrors.email = "請輸入有效的 Email 格式";
     }
 

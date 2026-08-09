@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-provider";
 import { NOTIFICATION_META, emailTogglableTypes } from "@/lib/notifications";
+import { isValidUsername } from "@/lib/validation";
 import type { DeactivationRequest, NotificationType } from "@/lib/types/database";
 import { ProfilePageHeader } from "../profile-page-header";
 import { InfoRow } from "@/components/site/section";
@@ -179,7 +180,7 @@ export default function SettingsPage() {
       toast.error("請輸入新帳號。");
       return;
     }
-    if (!/^[A-Za-z0-9._-]{4,30}$/.test(username)) {
+    if (!isValidUsername(username)) {
       toast.error("帳號格式不正確（4～30 碼英數與 . _ -）。");
       return;
     }
