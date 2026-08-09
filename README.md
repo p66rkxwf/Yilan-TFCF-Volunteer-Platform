@@ -7,7 +7,7 @@
 與系統設定。首頁保留了獎學金入口，但開放時間尚未公告。
 
 > [!NOTE]
-> `supabase/v2/` 內已收錄可從零建置的完整 V2 SQL（01～10，依編號為部署順序）。
+> `supabase/v2/` 內已收錄可從零建置的完整 V2 SQL（01～37，依編號為部署順序）。
 > 依 [supabase/README.md](supabase/README.md) 的順序執行即可建立 `staff_profiles`、`volunteer_profiles`、
 > `activities`／`activity_sessions`、`registrations`、`favorites`、`support_requests` 等全部資料表與
 > RLS／RPC；文件內也說明了部署後需在 Supabase Dashboard 補的手動步驟（種子系統管理員、授權排程函式給
@@ -20,10 +20,13 @@
 
 - 帳號註冊（送出後為待審核狀態；審核中／未通過會導向專屬提示頁，不會看到平台資料）
 - 登入；忘記密碼採人工重設（平台以「帳號」登入、不寄送自動重設信）：`/forgot-password` 導向支援頁，由管理團隊核對身分後於後台重設，系統產生一次性臨時密碼並於後台顯示一次（明文不落 DB，由管理員轉告當事人），使用者下次登入被強制改密碼
+- 聯絡 Email 驗證（自建 6 碼 OTP 寄至聯絡信箱；僅「建立新報名」與「自行簽到」兩項要求先完成驗證）
+- 首次登入強制改密碼（管理員代設臨時密碼者，改完才放行其他頁面）
 - 瀏覽與搜尋志工活動、查看場次剩餘名額，收藏活動
-- 針對場次送出報名、查看與取消個人報名紀錄
+- 針對場次送出報名（含開放報名的「行前說明會」場次）、查看與取消個人報名紀錄
 - 活動當天自行簽到（開放時間為活動開始前特定分鐘數，由後台參數控制）
-- 查看個人服務時數紀錄
+- 查看個人服務時數紀錄；可另行登錄「自訂服務」（私下完成的服務，送審通過後計入時數）
+- 站內通知中心，並可自行關閉提醒類信件的寄送（站內通知不受影響）
 - 提出／撤回帳號停用申請
 - 編輯個人資料
 - 首頁與「最新消息」瀏覽公告（已發布公告未登入亦可瀏覽）
@@ -33,7 +36,8 @@
 ### 管理端
 
 - 工作台儀表板總覽
-- 活動管理：建立／編輯／取消活動與場次（支援批次建立場次）、指派主辦人
+- 活動管理：建立／編輯／取消活動與場次（支援批次建立場次、行前說明會場次與逐場次計時數設定、
+  場次覆寫地點、活動說明支援 Markdown）、指派負責人
 - 報名審核：核准／拒絕報名（支援批次操作）、審核取消申請、逾期未審人工待辦清單
 - 出席簽到：活動當天簽到、代登／補登出席與服務時數
 - 學生名冊：搜尋、篩選志工，查看個別資料與報名紀錄
@@ -44,7 +48,9 @@
 - 公告管理：草稿／發布／下架
 - 支援需求收件匣：查看與標記處理 `/support` 頁送出的需求
 - 報表與統計：服務時數、活動成效等報表
-- 期間與參數：學期期間、各年級時數門檻、系統參數設定
+- 自訂服務審核：審核志工送出的私下服務紀錄，亦可代任一志工登錄
+- 期間與參數：學期期間、各年級時數門檻、系統參數設定、通知寄信開關（全站層＋個人層）
+- 資料生命週期：封存／還原（軟刪，限系統管理員）、單筆永久刪除、依保留期自動清除
 - 操作紀錄：稽核軌跡（僅系統管理員可見）
 
 ## 技術棧
@@ -72,8 +78,11 @@
 - `support_requests`：`/support` 頁送出的支援需求與處理狀態
 - `periods` / `grade_hour_thresholds` / `grade_reference_ages` / `system_settings`：報表期間、時數門檻、
   年度審查基準與系統參數
+- `custom_service_records`：自訂服務登錄（私下完成的服務，經審核後計入時數）
+- `email_verifications`：志工聯絡信箱的 OTP 驗證狀態（僅 RPC 可存取）
 - `audit_logs`：管理操作稽核紀錄
 - `notification_outbox`：通知外送佇列（Transactional Outbox；由 Cloudflare Cron Worker 每分鐘消化並經 Resend 寄出）
+- `notification_email_prefs`：收件人自己的寄信偏好（與 `system_settings.email_disabled_types` 為「任一命中即不寄」的兩層關係）
 
 角色列舉（`staff_role`）：
 
@@ -163,7 +172,7 @@ npm run dev
 ├─ public/                # 靜態資源
 ├─ supabase/
 │  ├─ README.md           # V2 部署順序與部署後手動步驟
-│  └─ v2/                 # 01~10 SQL（01~06 定案版，07~10 增量 patch）
+│  └─ v2/                 # 01~37 SQL（01~06 定案版，07 之後為增量 patch）
 ├─ src/
 │  ├─ app/                # App Router 頁面與 layout
 │  │  ├─ admin/           # 後台：activities/registrations/attendance/volunteers/
@@ -206,5 +215,5 @@ npm run dev
 - 通知採 Transactional Outbox 模式：業務交易只寫入 `notification_outbox`，由 Cloudflare Cron Worker
   （`workers/orchestrator/`）每分鐘消化並經 Resend 寄出；同一 worker 也以 service_role RPC 觸發 5 支
   背景排程函式（`job_*`），故本專案不使用 pg_cron。
-- 核心資料表與 RLS／RPC 已收錄於 `supabase/v2/`，可從零建置；`07`～`10` 為之後新增的增量 patch，
-  執行細節（含 `07` 需分兩步驟）見 `supabase/README.md`。
+- 核心資料表與 RLS／RPC 已收錄於 `supabase/v2/`，可從零建置；`07` 之後為陸續新增的增量 patch，
+  執行細節（含 `07`／`21`／`27` 需分兩步驟、`30`／`37` 須先於前端部署）見 `supabase/README.md`。

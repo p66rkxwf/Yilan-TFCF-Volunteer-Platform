@@ -68,6 +68,13 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
     驗證狀態）；職員可於後台「帳號設定」自改 4 欄；學生可於前台自改登入帳號。共 4 支 RPC，
     全程記 audit。並移除 `rpc_admin_update_volunteer_profile` 舊簽名（擴充參數）。
     **未執行本檔前，職員／學生的「編輯」、後台「帳號設定」與前台「修改帳號」會回錯（RPC 不存在）**。
+22. `29_fix_public_announcements_rls.sql` ～ `37_security_hardening.sql` — 依編號順序執行；
+    各檔開頭皆有完整需求、根因與前置說明（含 `30`／`31` 場次強化與行前說明會可報名、
+    `32` 通知帶活動資訊、`33` 兩層寄信開關、`34`／`36` 封存者仍可被指派的修補、
+    `35` 審核未通過帳號的保留期清除、`37` 資安加固）。其中 `30` 與 `37`
+    **必須先於前端部署**（`30` 因前端已查詢 `session_type`／`location`／`note` 欄位；
+    `37` 會撤銷 `v_organizer_contacts` 對 `authenticated` 的 SELECT，前端改呼叫
+    `rpc_organizer_contacts`），`33` 會 `ALTER TYPE` 新增 `skipped` 寄送狀態。
 
 ### 部署後手動步驟
 
