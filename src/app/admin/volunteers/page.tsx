@@ -3,6 +3,7 @@
 // 學生名冊：查詢、篩選（狀態／學制／黑名單／地區）。點入學生詳情。
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
@@ -19,6 +20,7 @@ import {
   SearchInput,
   Pagination,
   RowActionMenu,
+  rowOpen,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -48,6 +50,7 @@ interface VolunteerRow {
 export default function VolunteersPage() {
   const supabase = createClient();
   const toast = useToast();
+  const router = useRouter();
   const profile = useAdminProfile();
   const isSysAdmin = profile.role === "system_admin";
 
@@ -238,7 +241,7 @@ export default function VolunteersPage() {
                 <EmptyRow colSpan={isSysAdmin ? 7 : 6} message="沒有符合條件的學生" />
               ) : (
                 paged.map((row) => (
-                  <tr key={row.id} className="transition-colors hover:bg-slate-50">
+                  <tr key={row.id} {...rowOpen(() => router.push(`/admin/volunteers/${row.id}`))} className="transition-colors hover:bg-slate-50">
                     <Td>
                       <Link prefetch={false}
                         href={`/admin/volunteers/${row.id}`}

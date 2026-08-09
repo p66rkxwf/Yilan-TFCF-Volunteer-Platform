@@ -5,6 +5,7 @@
 // 不做系統自動遞增（延畢等特例需人工判斷）。
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
@@ -20,6 +21,7 @@ import {
   EmptyRow,
   LoadingRow,
   RowActionMenu,
+  rowOpen,
 } from "@/components/admin/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
@@ -30,6 +32,7 @@ import type { AnnualGradeReviewRow, GradeLevel } from "@/lib/types/database";
 export default function AnnualReviewPage() {
   const supabase = createClient();
   const toast = useToast();
+  const router = useRouter();
   const profile = useAdminProfile();
   const isAdmin = profile.role === "system_admin" || profile.role === "unit_admin";
 
@@ -121,7 +124,7 @@ export default function AnnualReviewPage() {
                 <EmptyRow colSpan={7} message="目前沒有需審查的學生" />
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="transition-colors hover:bg-slate-50">
+                  <tr key={row.id} {...rowOpen(() => router.push(`/admin/volunteers/${row.id}`))} className="transition-colors hover:bg-slate-50">
                     <Td>
                       <Link prefetch={false}
                         href={`/admin/volunteers/${row.id}`}

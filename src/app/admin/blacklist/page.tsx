@@ -22,6 +22,7 @@ import {
   LoadingRow,
   TabBar,
   RowActionMenu,
+  rowOpen,
 } from "@/components/admin/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DateTimeField } from "@/components/ui/datetime-field";
@@ -199,7 +200,13 @@ function BlacklistInner() {
                 />
               ) : (
                 rows.map((event) => (
-                  <tr key={event.id} className="transition-colors hover:bg-slate-50">
+                  <tr
+                    key={event.id}
+                    {...rowOpen(() => {
+                      if (event.volunteer) router.push(`/admin/volunteers/${event.volunteer.id}`);
+                    })}
+                    className="transition-colors hover:bg-slate-50"
+                  >
                     <Td>
                       {event.volunteer ? (
                         <Link prefetch={false}

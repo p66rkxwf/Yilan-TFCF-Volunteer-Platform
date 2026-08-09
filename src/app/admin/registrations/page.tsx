@@ -24,6 +24,7 @@ import {
   TabBar,
   BatchBar,
   RowActionMenu,
+  rowOpen,
 } from "@/components/admin/ui";
 import { useSelection } from "@/components/admin/use-selection";
 import { formatDateTime, formatSessionRange } from "@/lib/admin/datetime";
@@ -260,7 +261,13 @@ function RegistrationsInner() {
                 <EmptyRow colSpan={colCount + 1} message="目前沒有待處理的項目" />
               ) : (
                 rows.map((row) => (
-                  <tr key={row.id} className="transition-colors hover:bg-slate-50">
+                  <tr
+                    key={row.id}
+                    {...rowOpen(() => {
+                      if (row.volunteer) router.push(`/admin/volunteers/${row.volunteer.id}`);
+                    })}
+                    className="transition-colors hover:bg-slate-50"
+                  >
                     {supportsBatch && (
                       <Td>
                         <input

@@ -4,6 +4,7 @@
 // 預設顯示「近 30 天內～未來」的未取消場次，方便找到剛結束需補登的場次。
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
@@ -18,6 +19,7 @@ import {
   LoadingRow,
   Toolbar,
   SearchInput,
+  rowOpen,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { formatSessionRange } from "@/lib/admin/datetime";
@@ -28,6 +30,7 @@ type RangeKey = "recent" | "past" | "upcoming" | "all";
 export default function AttendanceListPage() {
   const supabase = createClient();
   const toast = useToast();
+  const router = useRouter();
 
   const [rows, setRows] = useState<ActivityStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,7 +126,7 @@ export default function AttendanceListPage() {
                   const unmarked = s.approved_count - s.attended_count - s.absent_count;
                   const isEnded = s.end_at <= nowIso;
                   return (
-                    <tr key={s.activity_session_id} className="transition-colors hover:bg-slate-50">
+                    <tr key={s.activity_session_id} {...rowOpen(() => router.push(`/admin/attendance/${s.activity_session_id}`))} className="transition-colors hover:bg-slate-50">
                       <Td className="whitespace-nowrap">
                         {formatSessionRange(s.start_at, s.end_at)}
                       </Td>

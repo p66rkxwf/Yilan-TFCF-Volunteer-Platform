@@ -26,6 +26,7 @@ import {
   TabBar,
   BatchBar,
   RowActionMenu,
+  rowOpen,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { useSelection } from "@/components/admin/use-selection";
@@ -352,7 +353,13 @@ function VolunteerReviewInner() {
                   <EmptyRow colSpan={4} message="沒有待處理的停用申請" />
                 ) : (
                   deactivations.map((row) => (
-                    <tr key={row.id} className="transition-colors hover:bg-slate-50">
+                    <tr
+                      key={row.id}
+                      {...rowOpen(() => {
+                        if (row.volunteer) router.push(`/admin/volunteers/${row.volunteer.id}`);
+                      })}
+                      className="transition-colors hover:bg-slate-50"
+                    >
                       <Td>
                         {row.volunteer ? (
                           <Link prefetch={false}

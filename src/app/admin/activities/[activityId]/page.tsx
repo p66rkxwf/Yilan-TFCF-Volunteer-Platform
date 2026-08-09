@@ -22,6 +22,7 @@ import {
   EmptyRow,
   DescriptionItem,
   RowActionMenu,
+  rowOpen,
 } from "@/components/admin/ui";
 import { Markdown } from "@/components/admin/markdown";
 import { ACTIVITY_STATUS } from "@/lib/admin/labels";
@@ -372,7 +373,11 @@ export default function ActivityDetailPage() {
                   const isEnded = session.end_at <= nowIso;
                   const isBriefing = session.session_type === "briefing";
                   return (
-                    <tr key={session.id} className="transition-colors hover:bg-slate-50">
+                    <tr
+                      key={session.id}
+                      {...rowOpen(() => router.push(`/admin/attendance/${session.id}`))}
+                      className="transition-colors hover:bg-slate-50"
+                    >
                       <Td className="whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <span>{formatSessionRange(session.start_at, session.end_at)}</span>

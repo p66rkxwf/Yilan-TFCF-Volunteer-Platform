@@ -148,6 +148,32 @@ export function EmptyState({ message = "目前沒有資料" }: { message?: strin
   );
 }
 
+/**
+ * 列上點兩下＝開啟該列的管理頁（檔案總管式操作）。用法：
+ *   <tr {...rowOpen(() => router.push(href))}>
+ *
+ * 刻意只做「增強」：列內原本的連結不動，鍵盤與螢幕閱讀器仍走那條路
+ * （點兩下無法用鍵盤觸發，不能當唯一入口）。在連結／按鈕／表單元件上
+ * 點兩下不觸發，免得和列內選單、核取方塊打架。
+ */
+export function rowOpen(open: () => void) {
+  return {
+    title: "點兩下開啟",
+    onDoubleClick: (event: React.MouseEvent<HTMLElement>) => {
+      if (
+        (event.target as HTMLElement).closest(
+          "a,button,input,select,textarea,label,[role='menu']"
+        )
+      ) {
+        return;
+      }
+      // 點兩下會順帶選取文字，開頁前先清掉，避免留下反白
+      window.getSelection()?.removeAllRanges();
+      open();
+    },
+  };
+}
+
 export function EmptyRow({ colSpan, message = "目前沒有資料" }: { colSpan: number; message?: string }) {
   // padding 在 EmptyState 內，故 <td> 需 p-0，維持與既有呼叫點相同的間距。
   return (

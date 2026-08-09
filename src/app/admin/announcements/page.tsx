@@ -3,6 +3,7 @@
 // 公告管理（所有職員可完整 CRUD）：發布／下架／置頂／刪除。
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
@@ -20,6 +21,7 @@ import {
   Toolbar,
   SearchInput,
   RowActionMenu,
+  rowOpen,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { useAdminProfile } from "../admin-context";
@@ -39,6 +41,7 @@ interface AnnRow extends Announcement {
 export default function AnnouncementsPage() {
   const supabase = createClient();
   const toast = useToast();
+  const router = useRouter();
   const profile = useAdminProfile();
   const isSysAdmin = profile.role === "system_admin";
 
@@ -218,7 +221,7 @@ export default function AnnouncementsPage() {
                 <EmptyRow colSpan={5} message="沒有符合的公告" />
               ) : (
                 filtered.map((row) => (
-                  <tr key={row.id} className="transition-colors hover:bg-slate-50">
+                  <tr key={row.id} {...rowOpen(() => router.push(`/admin/announcements/${row.id}/edit`))} className="transition-colors hover:bg-slate-50">
                     <Td>
                       <span className="flex items-center gap-1.5">
                         {row.is_pinned && (

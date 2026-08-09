@@ -3,6 +3,7 @@
 // 活動管理：列表＋篩選。所有編輯／場次／審核操作都在活動詳情頁進行。
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
@@ -20,6 +21,7 @@ import {
   SearchInput,
   Pagination,
   RowActionMenu,
+  rowOpen,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -48,6 +50,7 @@ interface ActivityRow extends Activity {
 export default function AdminActivitiesPage() {
   const supabase = createClient();
   const toast = useToast();
+  const router = useRouter();
   const profile = useAdminProfile();
   const isSysAdmin = profile.role === "system_admin";
 
@@ -232,7 +235,7 @@ export default function AdminActivitiesPage() {
                 paged.map((row) => {
                   const activeSessions = row.activity_sessions.filter((s) => !s.cancelled_at);
                   return (
-                    <tr key={row.id} className="transition-colors hover:bg-slate-50">
+                    <tr key={row.id} {...rowOpen(() => router.push(`/admin/activities/${row.id}`))} className="transition-colors hover:bg-slate-50">
                       <Td>
                         <Link prefetch={false}
                           href={`/admin/activities/${row.id}`}
