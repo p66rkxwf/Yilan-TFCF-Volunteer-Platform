@@ -3,6 +3,12 @@
 // 封存（軟刪，可復原）／還原／立即清除。限系統管理員（RPC 內強制）。
 // 帳號類（志工/職員）封存時一併停用 Auth 登入（ban）；還原時解除。
 // 資料表白名單與權限由 rpc_archive_record / rpc_restore_record / rpc_purge_now 強制（見 23）。
+//
+// 回傳慣例：ban／解除 ban 失敗時回 `{ success: true, error }`——資料列確實已封存，
+// 但登入狀態沒同步，必須讓操作者看到。呼叫端沿用既有的 `if (result.error)` 分支即可
+// （會顯示警告而不顯示成功訊息）；此時重按一次是安全的：rpc_archive_record 的
+// UPDATE 帶 `deleted_at IS NULL`，重複封存為 no-op，等於只重試 ban 那一步。
+// 比照 deleteRecordPermanently 既有的做法。
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/supabase/cached-auth";
@@ -30,10 +36,20 @@ export async function archiveRecord(
   const { error } = await supabase.rpc("rpc_archive_record", { p_table: table, p_id: id });
   if (error) return { error: error.message };
 
-  // 帳號類：封存＝停用登入（既有 token 也失效）。
+  // 帳號類：封存＝停用登入（既有 token 也失效）。ban 失敗必須讓操作者知道——
+  // 資料列雖已標記封存，但該帳號還登得進來，靜默吞掉會誤以為人已經被擋住。
+  // 比照下方 deleteRecordPermanently 的處理方式。
   if (ACCOUNT_TABLES.includes(table)) {
     const admin = createAdminClient();
-    await admin.auth.admin.updateUserById(id, { ban_duration: "876000h" });
+    const { error: banError } = await admin.auth.admin.updateUserById(id, {
+      ban_duration: "876000h",
+    });
+    if (banError) {
+      return {
+        success: true,
+        error: `已封存，但停用登入失敗，該帳號目前仍可登入：${banError.message}`,
+      };
+    }
   }
   return { success: true };
 }
@@ -48,9 +64,18 @@ export async function restoreRecord(
   const { error } = await supabase.rpc("rpc_restore_record", { p_table: table, p_id: id });
   if (error) return { error: error.message };
 
+  // 還原失敗同理：資料看得到了但人還登不進來，需明確告知而非靜默。
   if (ACCOUNT_TABLES.includes(table)) {
     const admin = createAdminClient();
-    await admin.auth.admin.updateUserById(id, { ban_duration: "none" });
+    const { error: banError } = await admin.auth.admin.updateUserById(id, {
+      ban_duration: "none",
+    });
+    if (banError) {
+      return {
+        success: true,
+        error: `已還原，但解除登入停用失敗，該帳號仍無法登入：${banError.message}`,
+      };
+    }
   }
   return { success: true };
 }
