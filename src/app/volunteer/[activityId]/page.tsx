@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { registerForSession } from "@/lib/actions/registrations";
+import { callAction } from "@/lib/ui/toast-actions";
 import { Markdown } from "@/components/admin/markdown";
 import { formatSessionRange } from "@/lib/admin/datetime";
 import type { SessionType, VolunteerStatus } from "@/lib/types/database";
@@ -88,10 +89,9 @@ export default function VolunteerActivityDetailPage() {
         .eq("activity_id", activityId)
         .order("start_at"),
       supabase.from("v_session_open_slots").select("activity_session_id, open_slots"),
-      supabase
-        .from("v_organizer_contacts")
-        .select("full_name, phone")
-        .eq("activity_id", activityId),
+      // 逐活動取負責人聯絡方式。同名視圖自 37 起已對 authenticated 撤銷 SELECT：
+      // 原本任何登入者都能一次撈出全部活動的職員姓名＋電話（資安加固 S4）。
+      supabase.rpc("rpc_organizer_contacts", { p_activity_id: activityId }),
     ]);
 
     if (activityRes.error || !activityRes.data) {
@@ -151,7 +151,7 @@ export default function VolunteerActivityDetailPage() {
 
   const handleRegister = async (sessionId: string) => {
     setActingSessionId(sessionId);
-    const { error } = await registerForSession(sessionId);
+    const { error } = await callAction(() => registerForSession(sessionId));
     if (error) {
       toast.error(error);
     } else {
