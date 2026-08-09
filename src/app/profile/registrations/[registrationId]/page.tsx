@@ -14,22 +14,17 @@ import { selfCheckIn } from "@/lib/actions/registrations";
 import { callAction } from "@/lib/ui/toast-actions";
 import { Markdown } from "@/components/admin/markdown";
 import { formatSessionRange } from "@/lib/admin/datetime";
+import { ATTENDANCE_STATUS_PUBLIC, REGISTRATION_STATUS_PUBLIC } from "@/lib/admin/labels";
 import { PageSpinner } from "@/components/ui/spinner";
 
-const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  pending: { label: "待審核", color: "bg-amber-100 text-amber-700" },
-  approved: { label: "已通過", color: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "未通過", color: "bg-amber-100 text-amber-700" },
-  cancel_pending: { label: "取消審核中", color: "bg-amber-100 text-amber-700" },
-  cancelled: { label: "已取消", color: "bg-slate-200 text-slate-600" },
-  expired: { label: "已過期", color: "bg-slate-200 text-slate-600" },
-};
-
-const ATTENDANCE_MAP: Record<string, { label: string; color: string }> = {
-  attended: { label: "已出席", color: "bg-emerald-100 text-emerald-700" },
-  absent: { label: "缺席", color: "bg-amber-100 text-amber-700" },
-  makeup_attended: { label: "已出席（補登）", color: "bg-emerald-100 text-emerald-700" },
-};
+const STATUS_MAP = REGISTRATION_STATUS_PUBLIC as Record<
+  string,
+  { label: string; color: string }
+>;
+const ATTENDANCE_MAP = ATTENDANCE_STATUS_PUBLIC as Record<
+  string,
+  { label: string; color: string }
+>;
 
 const DATETIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   year: "numeric",

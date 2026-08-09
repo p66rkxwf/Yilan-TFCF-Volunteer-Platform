@@ -11,6 +11,7 @@ import { cancelRegistration } from "@/lib/actions/registrations";
 import { callAction } from "@/lib/ui/toast-actions";
 import { ProfilePageHeader } from "../profile-page-header";
 import { formatSessionRange } from "@/lib/admin/datetime";
+import { ATTENDANCE_STATUS_PUBLIC, REGISTRATION_STATUS_PUBLIC } from "@/lib/admin/labels";
 import { PageSpinner } from "@/components/ui/spinner";
 
 interface RegistrationRow {
@@ -25,28 +26,21 @@ interface RegistrationRow {
   service_hours: number | null;
 }
 
-const ATTENDANCE_MAP: Record<string, { label: string; color: string }> = {
-  attended: { label: "已出席", color: "bg-emerald-100 text-emerald-700" },
-  absent: { label: "缺席", color: "bg-amber-100 text-amber-700" },
-  makeup_attended: { label: "已出席（補登）", color: "bg-emerald-100 text-emerald-700" },
-};
+const ATTENDANCE_MAP = ATTENDANCE_STATUS_PUBLIC as Record<
+  string,
+  { label: string; color: string }
+>;
+const STATUS_MAP = REGISTRATION_STATUS_PUBLIC as Record<
+  string,
+  { label: string; color: string; dot: string }
+>;
 
-const STATUS_MAP: Record<string, { label: string; color: string; dot: string }> = {
-  pending: { label: "待審核", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
-  approved: { label: "已通過", color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  rejected: { label: "未通過", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
-  cancel_pending: { label: "取消審核中", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
-  cancelled: { label: "已取消", color: "bg-slate-200 text-slate-600", dot: "bg-slate-400" },
-  expired: { label: "已過期", color: "bg-slate-200 text-slate-600", dot: "bg-slate-400" },
-};
-
+// 頁籤標籤直接取自狀態表，避免同一組字在兩處各寫一次。
 const FILTER_TABS = [
   { key: "all", label: "全部" },
-  { key: "pending", label: "待審核" },
-  { key: "approved", label: "已通過" },
-  { key: "rejected", label: "未通過" },
-  { key: "cancel_pending", label: "取消審核中" },
-  { key: "cancelled", label: "已取消" },
+  ...(["pending", "approved", "rejected", "cancel_pending", "cancelled"] as const).map(
+    (key) => ({ key, label: REGISTRATION_STATUS_PUBLIC[key].label })
+  ),
 ];
 
 export default function RegistrationsPage() {

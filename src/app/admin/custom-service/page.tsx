@@ -34,7 +34,8 @@ import {
   normalizeDateInput,
   normalizeTimeInput,
 } from "@/lib/admin/datetime";
-import type { CustomServiceRecord, CustomServiceStatus } from "@/lib/types/database";
+import { CUSTOM_SERVICE_STATUS } from "@/lib/admin/labels";
+import type { CustomServiceRecord } from "@/lib/types/database";
 
 type TabKey = "pending" | "reviewed";
 
@@ -42,11 +43,7 @@ interface Row extends CustomServiceRecord {
   volunteer: { full_name: string } | null;
 }
 
-const STATUS_META: Record<CustomServiceStatus, { label: string; badge: string }> = {
-  pending: { label: "待審核", badge: "bg-amber-100 text-amber-800" },
-  approved: { label: "已核可", badge: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "已退回", badge: "bg-slate-200 text-slate-600" },
-};
+const STATUS_META = CUSTOM_SERVICE_STATUS;
 
 // 日期＋時間 → ISO（兩者皆有效才回傳）
 function toIso(date: string, time: string): string | null {

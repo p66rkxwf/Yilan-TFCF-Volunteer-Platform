@@ -1,10 +1,13 @@
-// 後台共用：各 ENUM 的中文標籤與徽章樣式（唯一事實來源，各頁面不得自行定義）
+// 各 ENUM 的中文標籤與徽章樣式（唯一事實來源，各頁面不得自行定義）。
+// 檔案路徑掛在 admin/ 是沿革，內容同時服務前後台——檔尾另有一段前台專用的
+// 標籤，文案與後台刻意不同（見該處說明）。lib/admin/datetime.ts 同樣是全站共用。
 
 import type {
   ActivityStatus,
   AnnouncementStatus,
   AttendanceStatus,
   CancelReason,
+  CustomServiceStatus,
   GradeLevel,
   RegistrationStatus,
   StaffJobTitle,
@@ -87,6 +90,12 @@ export const SUPPORT_REQUEST_STATUS: Record<SupportRequestStatus, StatusMeta> = 
   resolved: { label: "已處理", badge: "bg-emerald-100 text-emerald-700" },
 };
 
+export const CUSTOM_SERVICE_STATUS: Record<CustomServiceStatus, StatusMeta> = {
+  pending: { label: "待審核", badge: "bg-amber-100 text-amber-800" },
+  approved: { label: "已核可", badge: "bg-emerald-100 text-emerald-700" },
+  rejected: { label: "已退回", badge: "bg-slate-200 text-slate-600" },
+};
+
 export const GRADE_LEVELS: GradeLevel[] = [
   "junior_high",
   "senior_high",
@@ -160,4 +169,40 @@ export const AUDIT_ACTOR_KIND_LABELS: Record<string, string> = {
   staff: "職員",
   volunteer: "志工",
   system: "系統自動",
+};
+
+// ---------------------------------------------------------------------------
+// 前台（志工視角）專用標籤
+//
+// 文案刻意與上方的後台版本不同：後台是審核者的視角（「已核准」「已拒絕」），
+// 前台是被審核者的視角（「已通過」「未通過」），對當事人溫和一些。這是一個
+// 決定，不是忘了同步——原本兩份定義散在 /profile/registrations 的清單頁與詳情
+// 頁，看起來就像後台那份漏改。並列在此讓差異有跡可循。
+//
+// 徽章欄位名為 color 而非 badge，同樣沿用前台原本的寫法。
+// ---------------------------------------------------------------------------
+
+export interface PublicStatusMeta {
+  label: string;
+  // Tailwind class：徽章底色＋文字色
+  color: string;
+}
+
+// dot 是清單頁狀態圓點的底色；詳情頁只用到 label 與 color。
+export const REGISTRATION_STATUS_PUBLIC: Record<
+  RegistrationStatus,
+  PublicStatusMeta & { dot: string }
+> = {
+  pending: { label: "待審核", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
+  approved: { label: "已通過", color: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+  rejected: { label: "未通過", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
+  cancel_pending: { label: "取消審核中", color: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
+  cancelled: { label: "已取消", color: "bg-slate-200 text-slate-600", dot: "bg-slate-400" },
+  expired: { label: "已過期", color: "bg-slate-200 text-slate-600", dot: "bg-slate-400" },
+};
+
+export const ATTENDANCE_STATUS_PUBLIC: Record<AttendanceStatus, PublicStatusMeta> = {
+  attended: { label: "已出席", color: "bg-emerald-100 text-emerald-700" },
+  absent: { label: "缺席", color: "bg-amber-100 text-amber-700" },
+  makeup_attended: { label: "已出席（補登）", color: "bg-emerald-100 text-emerald-700" },
 };

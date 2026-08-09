@@ -21,6 +21,7 @@ import {
   VOLUNTEER_STATUS,
   STAFF_ROLE,
   STAFF_JOB_TITLE,
+  STAFF_STATUS,
   ANNOUNCEMENT_STATUS,
   AUDIT_ACTION_LABELS,
   AUDIT_ACTOR_KIND_LABELS,
@@ -326,7 +327,7 @@ export default function ReportsPage() {
           s.region ?? "",
           STAFF_ROLE[s.role as keyof typeof STAFF_ROLE] ?? s.role,
           STAFF_JOB_TITLE[s.job_title as keyof typeof STAFF_JOB_TITLE] ?? s.job_title,
-          s.status === "active" ? "在職" : "停權",
+          STAFF_STATUS[s.status as keyof typeof STAFF_STATUS]?.label ?? s.status,
         ]),
       };
     });
