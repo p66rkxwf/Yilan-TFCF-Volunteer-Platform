@@ -7,6 +7,7 @@ import { login } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 import { safeInternalPath } from "@/lib/url";
 import { setFlashToast, useToast } from "@/components/ui/toast";
+import { callAction } from "@/lib/ui/toast-actions";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function LoginPage() {
@@ -61,37 +62,36 @@ function LoginForm() {
 
     setIsLoading(true);
 
-    try {
-      // 密碼驗證在伺服器端完成（login），前端不再取得任何帳號的 email。
-      const { session, error } = await login(formData.account, formData.password);
+    // 密碼驗證在伺服器端完成（login），前端不再取得任何帳號的 email。
+    // 斷線時 callAction 會回與業務錯誤同型的結果，走下面同一條 error 路徑。
+    const { session, error } = await callAction(() =>
+      login(formData.account, formData.password)
+    );
 
-      if (error || !session) {
-        toast.error(error ?? "帳號或密碼錯誤，請重新輸入。");
-        setIsLoading(false);
-        return;
-      }
-
-      // 用瀏覽器端 client 設定 session，讓 Header 等元件的 onAuthStateChange
-      // 立即收到登入事件，不用整頁重新整理。
-      const { error: setError } = await supabase.auth.setSession(session);
-
-      if (setError) {
-        toast.error("登入失敗，請稍後再試。");
-        setIsLoading(false);
-        return;
-      }
-
-      setFlashToast({
-        variant: "success",
-        title: "登入成功",
-        description: "歡迎回來。",
-      });
-      router.push(redirectTo);
-      router.refresh();
-    } catch {
-      toast.error("連線發生問題，請檢查網路後再試一次。");
+    if (error || !session) {
+      toast.error(error ?? "帳號或密碼錯誤，請重新輸入。");
       setIsLoading(false);
+      return;
     }
+
+    // 用瀏覽器端 client 設定 session，讓 Header 等元件的 onAuthStateChange
+    // 立即收到登入事件，不用整頁重新整理。
+    // （supabase-js 失敗是回在 error 欄位而非 throw，故不需要 callAction。）
+    const { error: setError } = await supabase.auth.setSession(session);
+
+    if (setError) {
+      toast.error("登入失敗，請稍後再試。");
+      setIsLoading(false);
+      return;
+    }
+
+    setFlashToast({
+      variant: "success",
+      title: "登入成功",
+      description: "歡迎回來。",
+    });
+    router.push(redirectTo);
+    router.refresh();
   };
 
   return (
