@@ -41,6 +41,7 @@ export default function AssignVolunteerPage() {
   const [activityTitle, setActivityTitle] = useState("");
   const [volunteers, setVolunteers] = useState<VolunteerRow[]>([]);
   const [assignedIds, setAssignedIds] = useState<Set<string>>(new Set());
+  const [taken, setTaken] = useState(0);
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -56,7 +57,10 @@ export default function AssignVolunteerPage() {
       supabase
         .from("volunteer_profiles")
         .select("id, full_name, phone, region, is_blacklisted")
+        // 封存只寫 deleted_at、不動 status，故已封存者的 status 仍是 active，
+        // 必須另外排除，否則會出現在可指派名單（見 34_fix_archived_volunteer_guards.sql）。
         .eq("status", "active")
+        .is("deleted_at", null)
         .order("full_name"),
       supabase
         .from("registrations")
@@ -73,6 +77,8 @@ export default function AssignVolunteerPage() {
     setSession(sessionRes.data as any);
     setActivityTitle((sessionRes.data as any).activities?.title ?? "");
     setVolunteers((volunteersRes.data ?? []) as VolunteerRow[]);
+    // 佔額＝pending/approved/cancel_pending，與 RPC 的名額判斷同一組狀態
+    setTaken((regsRes.data ?? []).length);
     setAssignedIds(
       new Set(((regsRes.data ?? []) as { volunteer_id: string }[]).map((r) => r.volunteer_id))
     );
@@ -83,6 +89,8 @@ export default function AssignVolunteerPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const isFull = session ? taken >= session.capacity : false;
 
   const filtered = useMemo(() => {
     const q = search.trim();
@@ -102,6 +110,7 @@ export default function AssignVolunteerPage() {
       if (error) throw error;
       toast.success("已指派並直接核准，系統將通知學生");
       setAssignedIds((prev) => new Set(prev).add(volunteerId));
+      setTaken((prev) => prev + 1); // 同步佔額，滿額後其餘「指派」即刻停用
     } catch (error) {
       toast.error(getErrorMessage(error as Error));
     } finally {
@@ -121,6 +130,25 @@ export default function AssignVolunteerPage() {
       />
 
       <div className="flex-1 p-4 sm:p-6">
+        {/* 名額寫在最上面：滿額時「指派」一律停用，不必按下去才被 RPC 擋 */}
+        {session && (
+          <div
+            className={`mb-4 flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3 text-sm ${
+              isFull
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-slate-200 bg-white text-slate-600"
+            }`}
+          >
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[20px]">
+              {isFull ? "person_off" : "group"}
+            </span>
+            <span>
+              目前佔額 <strong className="font-bold">{taken}</strong>／{session.capacity}
+              {isFull ? "，已滿額，無法再指派。" : `，尚可指派 ${session.capacity - taken} 位。`}
+            </span>
+          </div>
+        )}
+
         <Panel padded={false}>
           <div className="border-b border-slate-100 px-4 py-3 sm:px-5">
             <SearchInput
@@ -168,7 +196,8 @@ export default function AssignVolunteerPage() {
                             size="sm"
                             variant="outline"
                             isLoading={actingId === v.id}
-                            disabled={v.is_blacklisted}
+                            disabled={v.is_blacklisted || isFull}
+                            title={isFull ? "此場次名額已滿" : undefined}
                             onClick={() => handleAssign(v.id)}
                           >
                             指派
