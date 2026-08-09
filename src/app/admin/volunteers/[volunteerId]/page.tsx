@@ -1,8 +1,9 @@
 "use client";
 
 // 學生詳情：基本資料、狀態操作、時數與門檻、報名紀錄、黑名單事件。
+// 唯讀區塊在 panels.tsx，四個表單對話框在 dialogs.tsx；本檔只留資料載入、
+// 操作流程與各區塊的組合。
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -20,66 +21,43 @@ import {
   restoreRecord,
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
-import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CredentialReveal } from "@/components/admin/credential-reveal";
-import { Select } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-picker";
-import { todayTaipeiDate } from "@/lib/admin/datetime";
+import { PageHeader, RowActionMenu } from "@/components/admin/ui";
 import {
-  PageHeader,
-  Panel,
-  StatusPill,
-  TableShell,
-  Th,
-  Td,
-  EmptyRow,
-  DescriptionItem,
-  Field,
-  RowActionMenu,
-  inputClass,
-} from "@/components/admin/ui";
+  ProfilePanel,
+  HoursPanel,
+  RegistrationsPanel,
+  BlacklistPanel,
+  type VolunteerDetail,
+  type RegRow,
+  type BlacklistRow,
+} from "./panels";
 import {
-  isValidTaiwanPhone,
-  isValidBirthDate,
-  isValidEmail,
-  isValidUsername,
-} from "@/lib/validation";
-import {
-  VOLUNTEER_STATUS,
-  REGISTRATION_STATUS,
-  ATTENDANCE_STATUS,
-  CANCEL_REASON,
-} from "@/lib/admin/labels";
-import { GRADE_LEVEL_LABELS, YILAN_REGIONS } from "@/lib/types/database";
-import { formatDate, formatDateTime, formatSessionRange } from "@/lib/admin/datetime";
-import type {
-  VolunteerProfile,
-  RegistrationStatus,
-  AttendanceStatus,
-  CancelReason,
-  BlacklistEvent,
-} from "@/lib/types/database";
+  BlacklistDialog,
+  EditProfileDialog,
+  ReassignDialog,
+  ResetPasswordDialog,
+  type EditProfileInput,
+} from "./dialogs";
 
-interface RegRow {
-  id: string;
-  status: RegistrationStatus;
-  attendance: AttendanceStatus | null;
-  service_hours: number | null;
-  cancel_reason: CancelReason | null;
-  session: {
-    start_at: string;
-    end_at: string;
-    activity: { id: string; title: string } | null;
-  } | null;
-}
+type StatusChange = {
+  status: "active" | "suspended" | "graduated";
+  label: string;
+  danger: boolean;
+};
 
-interface BlacklistRow extends BlacklistEvent {
-  releaser: { full_name: string } | null;
-}
-
-type StatusConfirm =
-  | { kind: "status"; status: "active" | "suspended" | "graduated"; label: string; danger: boolean };
+// 同時間只會開一個對話框，故用單一狀態而非六個布林旗標——旗標各自獨立時，
+// 「開 A 前要不要關 B」得靠呼叫端自律，這裡結構上就不可能同時開兩個。
+type OpenDialog =
+  | { kind: "status"; change: StatusChange }
+  | { kind: "blacklist" }
+  | { kind: "editProfile" }
+  | { kind: "reassign" }
+  | { kind: "resetPassword" }
+  | { kind: "archive" }
+  | { kind: "delete" }
+  | null;
 
 export default function VolunteerDetailPage() {
   const { volunteerId } = useParams<{ volunteerId: string }>();
@@ -90,52 +68,19 @@ export default function VolunteerDetailPage() {
   const isAdmin = profile.role === "system_admin" || profile.role === "unit_admin";
   const isSysAdmin = profile.role === "system_admin";
 
-  const [volunteer, setVolunteer] = useState<
-    (VolunteerProfile & { worker: { full_name: string } | null }) | null
-  >(null);
+  const [volunteer, setVolunteer] = useState<VolunteerDetail | null>(null);
   const [hours, setHours] = useState<{ total_hours: number; attended_sessions: number } | null>(null);
   const [threshold, setThreshold] = useState<number | null>(null);
   const [registrations, setRegistrations] = useState<RegRow[]>([]);
   const [blacklist, setBlacklist] = useState<BlacklistRow[]>([]);
+  const [workers, setWorkers] = useState<{ id: string; full_name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [statusConfirm, setStatusConfirm] = useState<StatusConfirm | null>(null);
+  const [dialog, setDialog] = useState<OpenDialog>(null);
   const [isActing, setIsActing] = useState(false);
 
-  const [showBlacklistModal, setShowBlacklistModal] = useState(false);
-  const [blacklistDays, setBlacklistDays] = useState("");
-  const [blacklistNote, setBlacklistNote] = useState("");
-
-  const [showResetPw, setShowResetPw] = useState(false);
   // 重設成功後的一次性臨時密碼；伺服器端不保存明文，關掉就沒了。
-  const [revealed, setRevealed] = useState<{
-    username: string;
-    password: string;
-  } | null>(null);
-
-  const [showEditProfile, setShowEditProfile] = useState(false);
-  const [editForm, setEditForm] = useState({
-    fullName: "",
-    phone: "",
-    region: "",
-    birthDate: "",
-    email: "",
-    username: "",
-  });
-  const [editErrors, setEditErrors] = useState<{
-    fullName?: string;
-    phone?: string;
-    birthDate?: string;
-    email?: string;
-    username?: string;
-  }>({});
-
-  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
-  const [workers, setWorkers] = useState<{ id: string; full_name: string }[]>([]);
-  const [showReassign, setShowReassign] = useState(false);
-  const [reassignTo, setReassignTo] = useState("");
+  const [revealed, setRevealed] = useState<{ username: string; password: string } | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -198,38 +143,38 @@ export default function VolunteerDetailPage() {
     load();
   }, [load]);
 
-  const handleStatusConfirm = async () => {
-    if (!statusConfirm) return;
-    setIsActing(true);
-    const result = await callAction(() => setVolunteerStatus(volunteerId, statusConfirm.status));
-    setIsActing(false);
-    if (result.error && !result.success) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success("學生狀態已更新");
-    setStatusConfirm(null);
+  // 送出成功的共同收尾：關對話框、跳成功訊息、重新載入。
+  const finish = async (message: string) => {
+    toast.success(message);
+    setDialog(null);
     await load();
   };
 
-  const handleAddBlacklist = async () => {
+  const statusChange = dialog?.kind === "status" ? dialog.change : null;
+
+  const handleStatusConfirm = async () => {
+    if (!statusChange) return;
+    setIsActing(true);
+    const result = await callAction(() => setVolunteerStatus(volunteerId, statusChange.status));
+    setIsActing(false);
+    if (result.error && !result.success) return void toast.error(result.error);
+    await finish("學生狀態已更新");
+  };
+
+  const handleAddBlacklist = async ({ days, note }: { days: string; note: string }) => {
     setIsActing(true);
     try {
-      const days = blacklistDays.trim() ? Number(blacklistDays) : null;
-      if (days != null && (!Number.isInteger(days) || days <= 0)) {
+      const parsedDays = days.trim() ? Number(days) : null;
+      if (parsedDays != null && (!Number.isInteger(parsedDays) || parsedDays <= 0)) {
         throw new Error("天數需為正整數，或留空使用系統預設");
       }
       const { error } = await supabase.rpc("rpc_manual_blacklist", {
         p_volunteer_id: volunteerId,
-        p_days: days,
-        p_note: blacklistNote.trim() || null,
+        p_days: parsedDays,
+        p_note: note.trim() || null,
       });
       if (error) throw error;
-      toast.success("已手動列入黑名單並連動取消未來報名");
-      setShowBlacklistModal(false);
-      setBlacklistDays("");
-      setBlacklistNote("");
-      await load();
+      await finish("已手動列入黑名單並連動取消未來報名");
     } catch (error) {
       toast.error(getErrorMessage(error as Error));
     } finally {
@@ -237,129 +182,67 @@ export default function VolunteerDetailPage() {
     }
   };
 
-  const openReassign = () => {
-    setReassignTo(volunteer?.assigned_worker_id ?? "");
-    setShowReassign(true);
-  };
-
-  const handleReassign = async () => {
-    if (!reassignTo) return;
+  const handleReassign = async (workerId: string) => {
     setIsActing(true);
-    const result = await callAction(() => setVolunteerWorker(volunteerId, reassignTo));
+    const result = await callAction(() => setVolunteerWorker(volunteerId, workerId));
     setIsActing(false);
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
-    toast.success("已更新負責社工");
-    setShowReassign(false);
-    await load();
+    if (result.error) return void toast.error(result.error);
+    await finish("已更新負責社工");
   };
 
-  const openEditProfile = () => {
+  const handleEditProfile = async (form: EditProfileInput) => {
     if (!volunteer) return;
-    setEditForm({
-      fullName: volunteer.full_name,
-      phone: volunteer.phone,
-      region: volunteer.region ?? "",
-      birthDate: volunteer.birth_date,
-      email: volunteer.email,
-      username: volunteer.username,
-    });
-    setEditErrors({});
-    setShowEditProfile(true);
-  };
-
-  const handleEditProfile = async () => {
-    const errors: typeof editErrors = {};
-    if (!editForm.fullName.trim()) errors.fullName = "請輸入姓名";
-    if (!editForm.phone.trim()) errors.phone = "請輸入電話";
-    else if (!isValidTaiwanPhone(editForm.phone)) errors.phone = "電話格式不正確（例：0912345678）";
-    if (!editForm.birthDate) errors.birthDate = "請選擇生日";
-    else if (!isValidBirthDate(editForm.birthDate)) errors.birthDate = "生日不可為未來日期";
-    if (isSysAdmin) {
-      if (!isValidEmail(editForm.email)) errors.email = "Email 格式不正確";
-      if (!isValidUsername(editForm.username))
-        errors.username = "帳號格式不正確（4～30 碼英數與 . _ -）";
-    }
-    setEditErrors(errors);
-    if (Object.keys(errors).length > 0) return;
     setIsActing(true);
     // 聯絡 Email/帳號 僅系統管理員可代改（RPC 亦強制）；一般職員不帶這兩個參數。
     const result = await callAction(() => updateVolunteerProfile({
       volunteerId,
-      fullName: editForm.fullName,
-      phone: editForm.phone,
-      region: editForm.region,
-      birthDate: editForm.birthDate,
+      fullName: form.fullName,
+      phone: form.phone,
+      region: form.region,
+      birthDate: form.birthDate,
       ...(isSysAdmin
-        ? { email: editForm.email.trim(), username: editForm.username.trim() }
+        ? { email: form.email.trim(), username: form.username.trim() }
         : {}),
     }));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
-    const emailChanged = isSysAdmin && volunteer && editForm.email.trim() !== volunteer.email;
-    const usernameChanged =
-      isSysAdmin && volunteer && editForm.username.trim() !== volunteer.username;
-    toast.success("已更新學生基本資料");
+
+    const emailChanged = isSysAdmin && form.email.trim() !== volunteer.email;
+    const usernameChanged = isSysAdmin && form.username.trim() !== volunteer.username;
+    await finish("已更新學生基本資料");
     if (emailChanged) {
       toast.info("聯絡 Email 已變更並重置驗證狀態，該學生需重新完成 Email 驗證才能報名／簽到。");
     }
     if (usernameChanged) {
-      toast.info(`該學生下次登入請改用新帳號「${editForm.username.trim()}」。`);
+      toast.info(`該學生下次登入請改用新帳號「${form.username.trim()}」。`);
     }
-    setShowEditProfile(false);
-    await load();
   };
 
   const handleResetPassword = async () => {
     setIsActing(true);
     const result = await callAction(() => resetVolunteerPassword(volunteerId));
     setIsActing(false);
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
+    if (result.error) return void toast.error(result.error);
     // 密碼只回傳這一次，改用需手動關閉的卡片顯示（toast 會自動消失、來不及抄）。
     setRevealed({
       username: result.username ?? volunteer?.username ?? "",
       password: result.password ?? "",
     });
-    setShowResetPw(false);
+    setDialog(null);
   };
-
-  const statusActions = useMemo(() => {
-    if (!volunteer || !isAdmin) return [];
-    const actions: StatusConfirm[] = [];
-    if (volunteer.status === "active") {
-      actions.push({ kind: "status", status: "suspended", label: "停權", danger: true });
-      actions.push({ kind: "status", status: "graduated", label: "標記畢業結案", danger: false });
-    } else if (volunteer.status === "suspended") {
-      actions.push({ kind: "status", status: "active", label: "復職", danger: false });
-      actions.push({ kind: "status", status: "graduated", label: "標記畢業結案", danger: false });
-    } else if (volunteer.status === "graduated") {
-      actions.push({ kind: "status", status: "active", label: "復職", danger: false });
-    }
-    return actions;
-  }, [volunteer, isAdmin]);
-
-  const isArchived = Boolean((volunteer as { deleted_at?: string | null } | null)?.deleted_at);
 
   const handleArchive = async () => {
     setIsActing(true);
     const result = await callAction(() => archiveRecord("volunteer_profiles", volunteerId));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
-    toast.success("已封存並停用該學生帳號登入");
-    setShowArchiveConfirm(false);
-    await load();
+    await finish("已封存並停用該學生帳號登入");
   };
 
   const handleRestore = async () => {
     const result = await callAction(() => restoreRecord("volunteer_profiles", volunteerId));
     if (result.error) return void toast.error(result.error);
-    toast.success("已還原並恢復登入");
-    await load();
+    await finish("已還原並恢復登入");
   };
 
   const handleDelete = async () => {
@@ -372,6 +255,21 @@ export default function VolunteerDetailPage() {
     router.push("/admin/volunteers");
   };
 
+  const statusActions = useMemo(() => {
+    if (!volunteer || !isAdmin) return [];
+    const actions: StatusChange[] = [];
+    if (volunteer.status === "active") {
+      actions.push({ status: "suspended", label: "停權", danger: true });
+      actions.push({ status: "graduated", label: "標記畢業結案", danger: false });
+    } else if (volunteer.status === "suspended") {
+      actions.push({ status: "active", label: "復職", danger: false });
+      actions.push({ status: "graduated", label: "標記畢業結案", danger: false });
+    } else if (volunteer.status === "graduated") {
+      actions.push({ status: "active", label: "復職", danger: false });
+    }
+    return actions;
+  }, [volunteer, isAdmin]);
+
   if (isLoading || !volunteer) {
     return (
       <>
@@ -381,9 +279,7 @@ export default function VolunteerDetailPage() {
     );
   }
 
-  // 無出席紀錄者在 v_volunteer_hours 沒有資料列（hours 為 null），時數視為 0——
-  // 否則 0 小時反而會被判定「已達標」。
-  const belowThreshold = threshold != null && (hours?.total_hours ?? 0) < threshold;
+  const isArchived = Boolean((volunteer as { deleted_at?: string | null }).deleted_at);
 
   return (
     <>
@@ -405,18 +301,18 @@ export default function VolunteerDetailPage() {
                       : a.status === "graduated"
                         ? "school"
                         : "person_check",
-                  onSelect: () => setStatusConfirm(a),
+                  onSelect: () => setDialog({ kind: "status", change: a }),
                 })),
                 !volunteer.is_blacklisted &&
                   volunteer.status === "active" && {
                     label: "加入黑名單",
                     icon: "block",
-                    onSelect: () => setShowBlacklistModal(true),
+                    onSelect: () => setDialog({ kind: "blacklist" }),
                   },
                 {
                   label: "重設密碼",
                   icon: "lock_reset",
-                  onSelect: () => setShowResetPw(true),
+                  onSelect: () => setDialog({ kind: "resetPassword" }),
                 },
                 isSysAdmin &&
                   (isArchived
@@ -424,13 +320,13 @@ export default function VolunteerDetailPage() {
                     : {
                         label: "封存",
                         icon: "archive",
-                        onSelect: () => setShowArchiveConfirm(true),
+                        onSelect: () => setDialog({ kind: "archive" }),
                       }),
                 isSysAdmin && {
                   label: "永久刪除",
                   icon: "delete_forever",
                   danger: true,
-                  onSelect: () => setShowDeleteConfirm(true),
+                  onSelect: () => setDialog({ kind: "delete" }),
                 },
               ]}
             />
@@ -440,230 +336,53 @@ export default function VolunteerDetailPage() {
 
       <div className="flex-1 space-y-5 p-4 sm:p-6">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <Panel
-            title="基本資料"
-            action={
-              <button
-                type="button"
-                onClick={openEditProfile}
-                className="text-xs font-semibold text-primary hover:text-primary/80"
-              >
-                編輯
-              </button>
-            }
-          >
-            <dl className="space-y-3">
-              <DescriptionItem label="狀態">
-                <span className="inline-flex items-center gap-2">
-                  <StatusPill meta={VOLUNTEER_STATUS[volunteer.status]} />
-                  {volunteer.is_blacklisted && (
-                    <StatusPill meta={{ label: "黑名單中", badge: "bg-amber-100 text-amber-800" }} />
-                  )}
-                </span>
-              </DescriptionItem>
-              <DescriptionItem label="帳號">{volunteer.username}</DescriptionItem>
-              <DescriptionItem label="Email">{volunteer.email}</DescriptionItem>
-              <DescriptionItem label="電話">{volunteer.phone}</DescriptionItem>
-              <DescriptionItem label="地區">{volunteer.region ?? "—"}</DescriptionItem>
-              <DescriptionItem label="學制">{GRADE_LEVEL_LABELS[volunteer.grade]}</DescriptionItem>
-              <DescriptionItem label="生日">{formatDate(volunteer.birth_date)}</DescriptionItem>
-              <DescriptionItem label="負責社工">
-                <span className="inline-flex items-center gap-2">
-                  {volunteer.worker?.full_name ?? "—"}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={openReassign}
-                      className="rounded-lg px-2 py-0.5 text-xs font-semibold text-primary hover:bg-primary/10"
-                    >
-                      變更
-                    </button>
-                  )}
-                </span>
-              </DescriptionItem>
-              <DescriptionItem label="上次階段審查">
-                {volunteer.last_grade_reviewed_at
-                  ? formatDate(volunteer.last_grade_reviewed_at)
-                  : "尚未審查"}
-              </DescriptionItem>
-            </dl>
-          </Panel>
-
+          <ProfilePanel
+            volunteer={volunteer}
+            isAdmin={isAdmin}
+            onEdit={() => setDialog({ kind: "editProfile" })}
+            onReassign={() => setDialog({ kind: "reassign" })}
+          />
           <div className="space-y-5">
-            <Panel title="服務時數">
-              <div className="text-center">
-                <p className="text-3xl font-bold text-slate-900">
-                  {hours?.total_hours ?? 0}
-                  <span className="ml-1 text-base font-normal text-slate-400">小時</span>
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  已確認出席 {hours?.attended_sessions ?? 0} 場
-                </p>
-                {threshold != null && (
-                  <div
-                    className={`mt-3 rounded-lg px-3 py-2 text-sm ${
-                      belowThreshold
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-emerald-50 text-emerald-700"
-                    }`}
-                  >
-                    最低門檻 {threshold} 小時 ·{" "}
-                    {belowThreshold
-                      ? `尚差 ${Math.round((threshold - (hours?.total_hours ?? 0)) * 10) / 10} 小時`
-                      : "已達標"}
-                  </div>
-                )}
-              </div>
-            </Panel>
+            <HoursPanel hours={hours} threshold={threshold} />
           </div>
         </div>
 
-        <Panel title="報名紀錄" description={`共 ${registrations.length} 筆`} padded={false}>
-          <TableShell>
-            <thead>
-              <tr>
-                <Th>活動場次</Th>
-                <Th>報名狀態</Th>
-                <Th>出席</Th>
-                <Th className="text-right">時數</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrations.length === 0 ? (
-                <EmptyRow colSpan={4} message="尚無報名紀錄" />
-              ) : (
-                registrations.map((reg) => (
-                  <tr key={reg.id} className="transition-colors hover:bg-slate-50">
-                    <Td>
-                      {reg.session?.activity ? (
-                        <Link prefetch={false}
-                          href={`/admin/activities/${reg.session.activity.id}`}
-                          className="font-medium text-slate-900 hover:text-primary"
-                        >
-                          {reg.session.activity.title}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                      <p className="text-xs text-slate-400">
-                        {reg.session
-                          ? formatSessionRange(reg.session.start_at, reg.session.end_at)
-                          : ""}
-                      </p>
-                    </Td>
-                    <Td>
-                      <StatusPill meta={REGISTRATION_STATUS[reg.status]} />
-                      {reg.cancel_reason && (
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          {CANCEL_REASON[reg.cancel_reason]}
-                        </p>
-                      )}
-                    </Td>
-                    <Td>
-                      {reg.attendance ? (
-                        <StatusPill meta={ATTENDANCE_STATUS[reg.attendance]} />
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
-                    </Td>
-                    <Td className="text-right">{reg.service_hours ?? "—"}</Td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </TableShell>
-        </Panel>
+        <RegistrationsPanel registrations={registrations} />
 
-        <Panel
-          title="黑名單事件"
-          padded={false}
-          action={
-            isAdmin && volunteer.is_blacklisted ? (
-              <Link prefetch={false}
-                href="/admin/blacklist"
-                className="text-xs font-semibold text-primary hover:text-primary/80"
-              >
-                前往黑名單管理 →
-              </Link>
-            ) : undefined
-          }
-        >
-          <TableShell>
-            <thead>
-              <tr>
-                <Th>列入時間</Th>
-                <Th>預計解除</Th>
-                <Th>實際解除</Th>
-                <Th>類型</Th>
-                <Th>備註</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {blacklist.length === 0 ? (
-                <EmptyRow colSpan={5} message="無黑名單紀錄" />
-              ) : (
-                blacklist.map((event) => (
-                  <tr key={event.id} className="transition-colors hover:bg-slate-50">
-                    <Td className="whitespace-nowrap">{formatDateTime(event.triggered_at)}</Td>
-                    <Td className="whitespace-nowrap text-slate-500">
-                      {formatDateTime(event.expected_release_at)}
-                    </Td>
-                    <Td className="whitespace-nowrap">
-                      {event.released_at ? (
-                        <span className="text-emerald-600">
-                          {formatDateTime(event.released_at)}
-                          <span className="ml-1 text-xs text-slate-400">
-                            （{event.releaser?.full_name ?? "系統自動"}）
-                          </span>
-                        </span>
-                      ) : (
-                        <span className="font-semibold text-amber-700">生效中</span>
-                      )}
-                    </Td>
-                    <Td>
-                      {event.is_manual ? (
-                        <span className="text-slate-600">手動</span>
-                      ) : (
-                        <span className="text-slate-600">自動（缺席）</span>
-                      )}
-                    </Td>
-                    <Td className="text-slate-500">{event.note ?? "—"}</Td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </TableShell>
-        </Panel>
+        <BlacklistPanel
+          blacklist={blacklist}
+          showManageLink={isAdmin && volunteer.is_blacklisted}
+        />
       </div>
 
       <ConfirmDialog
-        open={statusConfirm !== null}
-        title={statusConfirm ? `確定要${statusConfirm.label}？` : ""}
+        open={statusChange !== null}
+        title={statusChange ? `確定要${statusChange.label}？` : ""}
         description={
-          statusConfirm?.status === "suspended"
+          statusChange?.status === "suspended"
             ? "停權後將自動取消該學生名下所有「尚未開始」的有效報名並通知學生，帳號將無法登入與報名。"
-            : statusConfirm?.status === "graduated"
+            : statusChange?.status === "graduated"
             ? "畢業結案將保留資料與登入，僅停止報名，並自動取消尚未開始的有效報名（仍可登入查詢歷年時數）。"
             : "復職後學生可重新登入與報名。"
         }
-        isConfirmDanger={statusConfirm?.danger}
+        isConfirmDanger={statusChange?.danger}
         isLoading={isActing}
         onConfirm={handleStatusConfirm}
-        onClose={() => setStatusConfirm(null)}
+        onClose={() => setDialog(null)}
       />
 
       <ConfirmDialog
-        open={showArchiveConfirm}
+        open={dialog?.kind === "archive"}
         title={`封存 ${volunteer.full_name}？`}
         description="封存後該學生將自名冊隱藏並停用登入（可還原）。歷史報名與時數保留；帳號不會被自動刪除。"
         isConfirmDanger
         isLoading={isActing}
         onConfirm={handleArchive}
-        onClose={() => setShowArchiveConfirm(false)}
+        onClose={() => setDialog(null)}
       />
 
       <ConfirmDialog
-        open={showDeleteConfirm}
+        open={dialog?.kind === "delete"}
         title={`永久刪除 ${volunteer.full_name}？`}
         description="將永久刪除該學生的帳號、個人資料、報名與時數紀錄、黑名單事件（無法復原）。若僅需下架帳號請改用「封存」。"
         confirmText="永久刪除"
@@ -671,238 +390,45 @@ export default function VolunteerDetailPage() {
         requireText={volunteer.full_name}
         isLoading={isActing}
         onConfirm={handleDelete}
-        onClose={() => setShowDeleteConfirm(false)}
+        onClose={() => setDialog(null)}
       />
 
-      {showBlacklistModal && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-slate-900/40"
-            onClick={() => !isActing && setShowBlacklistModal(false)}
-            aria-label="關閉"
-          />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="px-6 py-5">
-              <h3 className="text-lg font-bold text-slate-900">手動加入黑名單</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                將立即列入黑名單並連動取消該學生所有尚未開始的報名，並通知學生。
-              </p>
-              <div className="mt-4 space-y-4">
-                <Field label="黑名單天數" hint="留空＝使用系統預設自動解除天數。">
-                  <input
-                    type="number"
-                    min={1}
-                    className={inputClass}
-                    value={blacklistDays}
-                    onChange={(e) => setBlacklistDays(e.target.value)}
-                    placeholder="系統預設"
-                  />
-                </Field>
-                <Field label="備註" hint="供申訴核對，選填。">
-                  <textarea
-                    className={`${inputClass} min-h-20`}
-                    value={blacklistNote}
-                    onChange={(e) => setBlacklistNote(e.target.value)}
-                  />
-                </Field>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={isActing}
-                onClick={() => setShowBlacklistModal(false)}
-              >
-                取消
-              </Button>
-              <Button size="sm" isLoading={isActing} onClick={handleAddBlacklist}>
-                確定加入
-              </Button>
-            </div>
-          </div>
-        </div>
+      {/* 表單對話框關閉時直接不渲染，欄位預填與清空交給掛載處理（見 dialogs.tsx）。 */}
+      {dialog?.kind === "blacklist" && (
+        <BlacklistDialog
+          isBusy={isActing}
+          onClose={() => setDialog(null)}
+          onSubmit={handleAddBlacklist}
+        />
       )}
 
-      {showEditProfile && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-slate-900/40"
-            onClick={() => !isActing && setShowEditProfile(false)}
-            aria-label="關閉"
-          />
-          {/* 內容較高（系統管理員多兩欄），限制在視窗高度內、表單區自行捲動 */}
-          <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="overflow-y-auto px-6 py-5">
-              <h3 className="text-lg font-bold text-slate-900">編輯基本資料</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                姓名已鎖定學生自助修改，改由此處維護。學制調整請至「年度審查」。
-                {isSysAdmin && "聯絡 Email 與帳號僅系統管理員可代改。"}
-              </p>
-              <div className="mt-4 space-y-4">
-                <Field label="姓名" required error={editErrors.fullName}>
-                  <input
-                    className={inputClass}
-                    value={editForm.fullName}
-                    onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
-                  />
-                </Field>
-                <Field label="電話" required error={editErrors.phone}>
-                  <input
-                    className={inputClass}
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
-                  />
-                </Field>
-                <Field label="生日" error={editErrors.birthDate}>
-                  <DatePicker
-                    value={editForm.birthDate}
-                    onChange={(v) => setEditForm((f) => ({ ...f, birthDate: v }))}
-                    invalid={!!editErrors.birthDate}
-                    max={todayTaipeiDate()}
-                  />
-                </Field>
-                <Field label="地區">
-                  <Select
-                    value={editForm.region}
-                    onValueChange={(v) => setEditForm((f) => ({ ...f, region: v }))}
-                    placeholder="請選擇地區"
-                    options={YILAN_REGIONS.map((r) => ({ value: r, label: r }))}
-                    menuClassName="bg-white"
-                  />
-                </Field>
-                {isSysAdmin && (
-                  <>
-                    <Field
-                      label="聯絡 Email"
-                      required
-                      error={editErrors.email}
-                      hint="代改後會重置驗證狀態，該學生需重新驗證才能報名／簽到"
-                    >
-                      <input
-                        type="email"
-                        className={inputClass}
-                        value={editForm.email}
-                        onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                      />
-                    </Field>
-                    <Field
-                      label="帳號"
-                      required
-                      error={editErrors.username}
-                      hint="該學生以此帳號登入，變更後即刻生效（密碼不變）"
-                    >
-                      <input
-                        className={inputClass}
-                        value={editForm.username}
-                        onChange={(e) => setEditForm((f) => ({ ...f, username: e.target.value }))}
-                      />
-                    </Field>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex shrink-0 items-center justify-end gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={isActing}
-                onClick={() => setShowEditProfile(false)}
-              >
-                取消
-              </Button>
-              <Button size="sm" isLoading={isActing} onClick={handleEditProfile}>
-                儲存
-              </Button>
-            </div>
-          </div>
-        </div>
+      {dialog?.kind === "editProfile" && (
+        <EditProfileDialog
+          isBusy={isActing}
+          volunteer={volunteer}
+          isSysAdmin={isSysAdmin}
+          onClose={() => setDialog(null)}
+          onSubmit={handleEditProfile}
+        />
       )}
 
-      {showReassign && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-slate-900/40"
-            onClick={() => !isActing && setShowReassign(false)}
-            aria-label="關閉"
-          />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="px-6 py-5">
-              <h3 className="text-lg font-bold text-slate-900">變更負責社工</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                為 {volunteer.full_name} 指定新的負責社工。目前：
-                {volunteer.worker?.full_name ?? "未指派"}。
-              </p>
-              <div className="mt-4">
-                <Field label="負責社工" hint="僅列出在職社工。">
-                  <Select
-                    value={reassignTo}
-                    onValueChange={setReassignTo}
-                    placeholder={workers.length ? "選擇社工" : "無在職社工"}
-                    options={workers.map((w) => ({ value: w.id, label: w.full_name }))}
-                    menuClassName="bg-white"
-                  />
-                </Field>
-              </div>
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={isActing}
-                onClick={() => setShowReassign(false)}
-              >
-                取消
-              </Button>
-              <Button
-                size="sm"
-                isLoading={isActing}
-                disabled={!reassignTo || reassignTo === volunteer.assigned_worker_id}
-                onClick={handleReassign}
-              >
-                確定變更
-              </Button>
-            </div>
-          </div>
-        </div>
+      {dialog?.kind === "reassign" && (
+        <ReassignDialog
+          isBusy={isActing}
+          volunteer={volunteer}
+          workers={workers}
+          onClose={() => setDialog(null)}
+          onSubmit={handleReassign}
+        />
       )}
 
-      {showResetPw && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
-          <button
-            type="button"
-            className="absolute inset-0 bg-slate-900/40"
-            onClick={() => !isActing && setShowResetPw(false)}
-            aria-label="關閉"
-          />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-xl">
-            <div className="px-6 py-5">
-              <h3 className="text-lg font-bold text-slate-900">重置密碼</h3>
-              <p className="mt-1 text-sm text-slate-500">
-                系統會為 {volunteer.full_name}（帳號{" "}
-                <span className="font-semibold text-slate-700">{volunteer.username}</span>
-                ）產生一組臨時密碼並顯示於畫面上（僅顯示一次），請轉告該學生；
-                系統不會另外寄出通知。該學生首次登入時會被強制要求設定新密碼。
-              </p>
-            </div>
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-6 py-4">
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={isActing}
-                onClick={() => setShowResetPw(false)}
-              >
-                取消
-              </Button>
-              <Button size="sm" isLoading={isActing} onClick={handleResetPassword}>
-                確定重置
-              </Button>
-            </div>
-          </div>
-        </div>
+      {dialog?.kind === "resetPassword" && (
+        <ResetPasswordDialog
+          isBusy={isActing}
+          volunteer={volunteer}
+          onClose={() => setDialog(null)}
+          onConfirm={handleResetPassword}
+        />
       )}
 
       <CredentialReveal
