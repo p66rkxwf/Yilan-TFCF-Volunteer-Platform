@@ -2,7 +2,8 @@
 
 // 場次表單（新增／編輯共用）。起訖時間、名額、報名截止皆掛場次層。
 // 日期用自製日曆（可打字/點選）、時間免冒號輸入；送出驗證，不用瀏覽器原生日曆。
-// 場次類型：正式（可報名）／行前說明會（純資訊、不可報名、不計時數）。
+// 場次類型：正式場次／行前說明會（migration 31 起說明會同樣開放報名，
+// 差別只在前台獨立區塊顯示，以及出席是否計入服務時數可逐場勾選）。
 // 已結束場次禁改起訖（DB trigger 亦強制）；未給截止預設＝場次開始。
 
 import { useState } from "react";
@@ -55,7 +56,9 @@ export function SessionForm({
   const [capacity, setCapacity] = useState(String(session?.capacity ?? 10));
   const [location, setLocation] = useState(session?.location ?? "");
   const [note, setNote] = useState(session?.note ?? "");
-  const [countsHours, setCountsHours] = useState(session?.counts_hours ?? false);
+  // 新增時預設「計入時數」，與 DB 欄位預設（31 的 counts_hours DEFAULT true）一致；
+  // 不計時數的說明會是少數情況，讓它成為明確的取消勾選而非預設。
+  const [countsHours, setCountsHours] = useState(session?.counts_hours ?? true);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<{
     start?: string;
