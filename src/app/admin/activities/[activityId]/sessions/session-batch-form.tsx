@@ -172,7 +172,12 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
                 placeholder="12:00"
               />
             </Field>
-            <Field label="名額" required error={errors.capacity}>
+            <Field
+              label="名額"
+              required
+              error={errors.capacity}
+              hint="報名達名額即停止收件（待審核也算佔額）。"
+            >
               <input
                 type="number"
                 min={1}
@@ -182,12 +187,12 @@ export function SessionBatchForm({ activityId }: { activityId: string }) {
               />
             </Field>
           </div>
-          <Field label="地點" hint="留空＝沿用活動的主要地點；填寫則這批場次改於此地點。">
+          <Field label="地點" hint="留空＝沿用活動地點。">
             <input
               className={inputClass}
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="例：羅東鎮運動公園（留空沿用活動地點）"
+              placeholder="例：羅東鎮運動公園"
               maxLength={120}
             />
           </Field>

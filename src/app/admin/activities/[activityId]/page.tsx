@@ -8,7 +8,10 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { getErrorMessage } from "@/lib/ui/toast-actions";
+import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Modal } from "@/components/ui/modal";
+import { SessionForm } from "./sessions/session-form";
 import {
   PageHeader,
   Panel,
@@ -51,6 +54,7 @@ export default function ActivityDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null);
   const [isActing, setIsActing] = useState(false);
+  const [showNewSession, setShowNewSession] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -96,9 +100,10 @@ export default function ActivityDetailPage() {
   // 全體在職職員皆可管理活動（能進到後台即為在職職員）。RLS/RPC 端由
   // fn_can_manage_activity（supabase/v2/09_relax_activity_management.sql）同步放寬。
   const canManage = Boolean(activity);
-  // 發布需至少一個有效（未取消）場次；無有效場次時不提供發布入口，
-  // 避免彈出確認框後才被後端擋（DB trigger 仍為最終防線）。
+  // 發布需至少一個有效（未取消）場次。無場次時「發布」改為停用並說明原因，
+  // 而非整個隱藏——按鈕消失比按鈕停用更難懂（DB trigger 仍為最終防線）。
   const hasPublishableSession = sessions.some((s) => !s.cancelled_at);
+  const isDraft = activity?.status === "draft";
 
   const handleConfirm = async () => {
     if (!confirm || !activity) return;
@@ -207,15 +212,25 @@ export default function ActivityDetailPage() {
         backLabel="活動管理"
         actions={
           canManage ? (
-            <RowActionMenu
+            <div className="flex items-center gap-2">
+              {/* 發布是整個建立流程的終點，獨立成主按鈕而非收在「操作」選單裡 */}
+              {isDraft && (
+                <Button
+                  size="sm"
+                  disabled={!hasPublishableSession}
+                  title={hasPublishableSession ? undefined : "請先新增至少一個場次"}
+                  onClick={() => setConfirm({ kind: "publish" })}
+                >
+                  <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate mr-1 text-[18px]">
+                    publish
+                  </span>
+                  發布活動
+                </Button>
+              )}
+              <RowActionMenu
               triggerLabel="操作"
               ariaLabel={`${activity.title} 的操作`}
               actions={[
-                activity.status === "draft" && hasPublishableSession && {
-                  label: "發布活動",
-                  icon: "publish",
-                  onSelect: () => setConfirm({ kind: "publish" }),
-                },
                 ["draft", "open", "closed"].includes(activity.status) && {
                   label: "編輯活動",
                   icon: "edit",
@@ -239,10 +254,28 @@ export default function ActivityDetailPage() {
                   onSelect: () => setConfirm({ kind: "deleteDraft" }),
                 },
               ]}
-            />
+              />
+            </div>
           ) : undefined
         }
       />
+
+      {/* 草稿進度：toast 會消失，需要一條常駐的「還差什麼才能發布」 */}
+      {isDraft && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 sm:px-6">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-amber-900">
+            <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[20px]">
+              {hasPublishableSession ? "check_circle" : "pending"}
+            </span>
+            <span className="font-semibold">草稿：學生還看不到這個活動。</span>
+            {hasPublishableSession ? (
+              <span>已有 {sessions.filter((s) => !s.cancelled_at).length} 個場次，可按右上角「發布活動」開放報名。</span>
+            ) : (
+              <span>請先新增至少一個場次，才能發布。</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 space-y-5 p-4 sm:p-6">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
@@ -300,13 +333,25 @@ export default function ActivityDetailPage() {
           padded={false}
           action={
             canManage && ["draft", "open", "closed"].includes(activity.status) ? (
-              <Link prefetch={false}
-                href={`/admin/activities/${activity.id}/sessions/new`}
-                className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
-              >
-                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[16px]">add</span>
-                新增場次
-              </Link>
+              <div className="flex items-center gap-2">
+                {/* 就地開對話框，不離開本頁——建多場時不必一直跳頁來回 */}
+                <button
+                  type="button"
+                  onClick={() => setShowNewSession(true)}
+                  className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary/90"
+                >
+                  <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[16px]">add</span>
+                  新增場次
+                </button>
+                <Link
+                  prefetch={false}
+                  href={`/admin/activities/${activity.id}/sessions/new?mode=batch`}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+                >
+                  <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[16px]">date_range</span>
+                  一次加多場
+                </Link>
+              </div>
             ) : undefined
           }
         >
@@ -432,6 +477,19 @@ export default function ActivityDetailPage() {
           </TableShell>
         </Panel>
       </div>
+
+      <Modal
+        open={showNewSession}
+        title="新增場次"
+        description={activity.title}
+        onClose={() => setShowNewSession(false)}
+      >
+        <SessionForm
+          activityId={activity.id}
+          onSaved={load}
+          onCancel={() => setShowNewSession(false)}
+        />
+      </Modal>
 
       <ConfirmDialog
         open={confirm !== null}

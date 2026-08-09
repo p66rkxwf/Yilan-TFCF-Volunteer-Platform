@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/admin/ui";
 import { SessionForm } from "../session-form";
 import { SessionBatchForm } from "../session-batch-form";
@@ -10,7 +10,11 @@ type Mode = "single" | "batch";
 
 export default function NewSessionPage() {
   const { activityId } = useParams<{ activityId: string }>();
-  const [mode, setMode] = useState<Mode>("single");
+  // 活動詳情頁的「一次加多場」直接帶 ?mode=batch 進來，省去進站後再找頁籤
+  const searchParams = useSearchParams();
+  const [mode, setMode] = useState<Mode>(
+    searchParams.get("mode") === "batch" ? "batch" : "single"
+  );
 
   return (
     <>

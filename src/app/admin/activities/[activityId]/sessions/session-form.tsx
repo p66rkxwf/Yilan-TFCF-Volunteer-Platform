@@ -20,15 +20,25 @@ import type { ActivitySession, SessionType } from "@/lib/types/database";
 export function SessionForm({
   activityId,
   session,
+  onSaved,
+  onCancel,
 }: {
   activityId: string;
   session?: ActivitySession;
+  /**
+   * 對話框模式：給定時不跳頁，改呼叫此回呼讓外層重載清單。
+   * 新增成功後只清掉日期、保留時段／名額／地點，方便連續加多場。
+   */
+  onSaved?: () => void;
+  /** 對話框模式的「取消」；未給則沿用 router.back() */
+  onCancel?: () => void;
 }) {
   const supabase = createClient();
   const toast = useToast();
   const router = useRouter();
   const isEdit = Boolean(session);
   const isEnded = session ? session.end_at <= new Date().toISOString() : false;
+  const isDialog = Boolean(onSaved);
 
   const [sessionType, setSessionType] = useState<SessionType>(session?.session_type ?? "regular");
 
@@ -55,6 +65,13 @@ export function SessionForm({
   }>({});
 
   const isBriefing = sessionType === "briefing";
+
+  // 結束日期跟著開始日期走：多數場次當天結束，重打一次日期是純粹的浪費。
+  // 只在結束日期為空、或仍等於變更前的開始日期時才連動，已手動改成隔天者不覆寫。
+  const handleStartDateChange = (value: string) => {
+    if (!endDate || endDate === startDate) setEndDate(value);
+    setStartDate(value);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,6 +165,19 @@ export function SessionForm({
         });
         if (error) throw error;
         toast.success(isBriefing ? "行前說明會已新增" : "場次已新增");
+
+        // 對話框模式：留在原地讓使用者接著加下一場。日期清空（一定會不同），
+        // 時段／名額／地點保留——連續建立的場次通常只有日期在變。
+        if (isDialog) {
+          setStartDate("");
+          setEndDate("");
+          onSaved?.();
+          return;
+        }
+      }
+      if (isDialog) {
+        onSaved?.();
+        return;
       }
       router.push(`/admin/activities/${activityId}`);
       router.refresh();
@@ -158,128 +188,144 @@ export function SessionForm({
     }
   };
 
-  return (
-    <form onSubmit={handleSubmit} className="max-w-2xl">
-      <Panel>
-        <div className="space-y-4">
-          {isEnded && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              此場次已結束，為保護時數計算的歷史正確性，起訖時間已鎖定，僅能調整名額、截止、地點與說明。
-            </div>
-          )}
-
-          {isEdit ? (
-            <Field label="場次類型">
-              <p className="text-sm font-medium text-slate-700">
-                {isBriefing ? "行前說明會" : "正式場次"}
-                <span className="ml-2 text-xs text-slate-400">建立後不可變更類型</span>
-              </p>
-            </Field>
-          ) : (
-            <Field
-              label="場次類型"
-              hint="行前說明會同樣開放報名；可另外勾選出席是否計入服務時數。"
-            >
-              <Select
-                value={sessionType}
-                onValueChange={(v) => setSessionType(v as SessionType)}
-                options={[
-                  { value: "regular", label: "正式場次" },
-                  { value: "briefing", label: "行前說明會" },
-                ]}
-              />
-            </Field>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <DateTimeField
-              label="開始時間"
-              required
-              error={errors.start}
-              dateValue={startDate}
-              onDateChange={setStartDate}
-              timeValue={startTime}
-              onTimeChange={setStartTime}
-              disabled={isEnded}
-            />
-            <DateTimeField
-              label="結束時間"
-              required
-              error={errors.end}
-              dateValue={endDate}
-              onDateChange={setEndDate}
-              timeValue={endTime}
-              onTimeChange={setEndTime}
-              disabled={isEnded}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="名額" required error={errors.capacity}>
-              <input
-                type="number"
-                min={1}
-                className={inputClass}
-                value={capacity}
-                onChange={(e) => setCapacity(e.target.value)}
-              />
-            </Field>
-            <DateTimeField
-              label="報名截止時間"
-              error={errors.deadline}
-              hint="留空＝可報名至場次開始時刻。"
-              dateValue={deadlineDate}
-              onDateChange={setDeadlineDate}
-              timeValue={deadlineTime}
-              onTimeChange={setDeadlineTime}
-            />
-          </div>
-
-          <Field
-            label="地點"
-            hint="留空＝沿用活動的主要地點；填寫則此場次改於此地點。"
-          >
-            <input
-              className={inputClass}
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="例：羅東鎮運動公園（留空沿用活動地點）"
-              maxLength={120}
-            />
-          </Field>
-
-          {isBriefing && (
-            <Field label="說明" hint="選填。可填集合方式、線上連結、注意事項等，顯示於前台。">
-              <textarea
-                className={`${inputClass} min-h-24`}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="例：請於開始前 10 分鐘上線；連結 https://…"
-              />
-            </Field>
-          )}
-
-          {isBriefing && (
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={countsHours}
-                onChange={(e) => setCountsHours(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/30"
-              />
-              <span className="font-medium text-slate-700">此說明會出席計入服務時數</span>
-            </label>
-          )}
+  const fields = (
+    <div className="space-y-4">
+      {isEnded && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          此場次已結束，為保護時數計算的歷史正確性，起訖時間已鎖定，僅能調整名額、截止、地點與說明。
         </div>
-      </Panel>
+      )}
 
-      <div className="mt-4 flex items-center gap-2">
+      {isEdit ? (
+        <Field label="場次類型">
+          <p className="text-sm font-medium text-slate-700">
+            {isBriefing ? "行前說明會" : "正式場次"}
+            <span className="ml-2 text-xs text-slate-400">建立後不可變更類型</span>
+          </p>
+        </Field>
+      ) : (
+        <Field
+          label="場次類型"
+          hint="行前說明會同樣開放報名；可另外勾選出席是否計入服務時數。"
+        >
+          <Select
+            value={sessionType}
+            onValueChange={(v) => setSessionType(v as SessionType)}
+            options={[
+              { value: "regular", label: "正式場次" },
+              { value: "briefing", label: "行前說明會" },
+            ]}
+          />
+        </Field>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <DateTimeField
+          label="開始時間"
+          required
+          error={errors.start}
+          dateValue={startDate}
+          onDateChange={handleStartDateChange}
+          timeValue={startTime}
+          onTimeChange={setStartTime}
+          disabled={isEnded}
+        />
+        <DateTimeField
+          label="結束時間"
+          required
+          error={errors.end}
+          hint="跨日場次請把結束日期設為隔天。"
+          dateValue={endDate}
+          onDateChange={setEndDate}
+          timeValue={endTime}
+          onTimeChange={setEndTime}
+          disabled={isEnded}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field
+          label="名額"
+          required
+          error={errors.capacity}
+          hint="報名達名額即停止收件（待審核也算佔額）。"
+        >
+          <input
+            type="number"
+            min={1}
+            className={inputClass}
+            value={capacity}
+            onChange={(e) => setCapacity(e.target.value)}
+          />
+        </Field>
+        <DateTimeField
+          label="報名截止時間"
+          error={errors.deadline}
+          hint="留空＝可報名至場次開始時刻。"
+          dateValue={deadlineDate}
+          onDateChange={setDeadlineDate}
+          timeValue={deadlineTime}
+          onTimeChange={setDeadlineTime}
+        />
+      </div>
+
+      <Field label="地點" hint="留空＝沿用活動地點。">
+        <input
+          className={inputClass}
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+          placeholder="例：羅東鎮運動公園"
+          maxLength={120}
+        />
+      </Field>
+
+      {isBriefing && (
+        <Field label="說明" hint="選填。會顯示在前台的場次資訊中。">
+          <textarea
+            className={`${inputClass} min-h-24`}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="例：請於開始前 10 分鐘上線，連結 https://…"
+          />
+        </Field>
+      )}
+
+      {isBriefing && (
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={countsHours}
+            onChange={(e) => setCountsHours(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/30"
+          />
+          <span className="font-medium text-slate-700">此說明會出席計入服務時數</span>
+        </label>
+      )}
+    </div>
+  );
+
+  return (
+    <form onSubmit={handleSubmit} className={isDialog ? "" : "max-w-2xl"}>
+      {/* 對話框模式不套 Panel（外框由 Modal 提供），避免框中框 */}
+      {isDialog ? fields : <Panel>{fields}</Panel>}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <Button type="submit" size="sm" isLoading={isSaving}>
           {isEdit ? "儲存變更" : isBriefing ? "新增行前說明會" : "新增場次"}
         </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => router.back()}>
-          取消
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={onCancel ?? (() => router.back())}
+        >
+          {isDialog ? "關閉" : "取消"}
         </Button>
+        {isDialog && !isEdit && (
+          <span className="text-xs text-slate-400">
+            新增後會留在此處，時段與名額保留，改個日期即可再加一場。
+          </span>
+        )}
       </div>
     </form>
   );

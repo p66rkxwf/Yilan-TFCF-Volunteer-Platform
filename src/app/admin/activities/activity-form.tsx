@@ -48,8 +48,10 @@ export function ActivityForm({
   const [cancelWindow, setCancelWindow] = useState(
     String(activity?.cancel_review_window_days ?? 0)
   );
+  // 新增時預設不勾任何人：負責人會公開姓名電話並收審核信，應由建立者明確指定，
+  // 而非因為「剛好是我建的」就預設掛上自己。
   const [organizerIds, setOrganizerIds] = useState<Set<string>>(
-    new Set(initialOrganizerIds ?? [currentUserId])
+    new Set(initialOrganizerIds ?? [])
   );
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
   const [staffSearch, setStaffSearch] = useState("");
@@ -186,16 +188,21 @@ export function ActivityForm({
             />
           </Field>
 
-          <Field label="活動說明">
+          <Field label="活動說明" hint="選填。支援 Markdown，會顯示在前台的活動頁。">
             <MarkdownEditor
               value={content}
               onChange={setContent}
               minHeightClass="min-h-32"
-              placeholder="活動內容、注意事項、集合方式…"
+              placeholder="例：陪伴國小學童完成暑假作業，請穿著輕便服裝。"
             />
           </Field>
 
-          <Field label="活動地點" required error={errors.location}>
+          <Field
+            label="活動地點"
+            required
+            error={errors.location}
+            hint="各場次可另外指定地點覆寫此處。"
+          >
             <input
               className={inputClass}
               value={location}
@@ -209,7 +216,7 @@ export function ActivityForm({
             label="取消審核天數門檻"
             required
             error={errors.cancelWindow}
-            hint="場次開始前 N 天內學生取消需審核；0 = 任何時候取消都需審核。"
+            hint="場次開始前這麼多天內取消需經審核；填 0＝任何時候取消都需審核。"
           >
             <input
               type="number"
