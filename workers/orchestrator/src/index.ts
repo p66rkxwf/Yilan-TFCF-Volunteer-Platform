@@ -49,6 +49,7 @@ const ALLOWED_JOBS = new Set<string>([
   "job_send_review_reminders",
   "job_send_activity_reminders",
   "job_purge_expired",
+  "job_purge_rejected_accounts",
 ]);
 
 interface OutboxRow {
@@ -612,6 +613,23 @@ async function runJob(env: Env, fn: string): Promise<void> {
     throw new Error(`${fn}: ${error.message}`);
   }
   console.log(`[orchestrator] ${fn} ok`, data ?? "");
+
+  // 審核未通過帳號的清除：SQL 端刪完 public 的資料後回傳 id，Auth 帳號
+  // 由這裡以 service role 補刪（比照 26_hard_delete.sql 的既有分工——
+  // plpgsql 不碰 auth schema）。單筆失敗只記錄，不影響其餘。
+  if (fn === "job_purge_rejected_accounts" && Array.isArray(data)) {
+    for (const id of data as string[]) {
+      const { error: authError } = await admin.auth.admin.deleteUser(id);
+      if (authError) {
+        console.error(
+          `[orchestrator] 刪除 Auth 帳號 ${id} 失敗：${authError.message}`
+        );
+      }
+    }
+    if (data.length > 0) {
+      console.log(`[orchestrator] 已清除審核未通過帳號 ${data.length} 筆`);
+    }
+  }
 }
 
 // ---- app worker 例外告警 -------------------------------------------------
@@ -805,6 +823,7 @@ async function runScheduled(scheduledTime: number, env: Env): Promise<void> {
   if (hh === 19 && mm === 10) jobs.push("job_attendance_scan"); // 03:10 台灣
   if (hh === 19 && mm === 20) jobs.push("job_release_blacklists"); // 03:20 台灣
   if (hh === 19 && mm === 30) jobs.push("job_purge_expired"); // 03:30 台灣（定期清除）
+  if (hh === 19 && mm === 35) jobs.push("job_purge_rejected_accounts"); // 03:35 台灣（清除逾期的未通過帳號）
   if (hh === 1 && mm === 0) jobs.push("job_send_review_reminders"); // 09:00 台灣
   if (hh === 10 && mm === 0) jobs.push("job_send_activity_reminders"); // 18:00 台灣
 

@@ -321,7 +321,7 @@ function VolunteerReviewInner() {
                                 setConfirmAction({
                                   title: `拒絕 ${row.full_name} 的註冊？`,
                                   description:
-                                    "拒絕後保留紀錄、帳號無法登入使用，並通知學生。審核結果無法直接復原。",
+                                    "系統會寄出未通過通知，該帳號立即從學生名冊移除、無法登入，並在保留期（系統參數「已封存內容保留天數」）後連同個資永久刪除。保留期內可於名冊的「已封存」檢視還原。",
                                   run: () => rejectAccount(row),
                                 }),
                             },
