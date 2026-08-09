@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { todayTaipeiDate } from "@/lib/admin/datetime";
 import { createVolunteer } from "@/lib/actions/admin-volunteers";
+import { callAction } from "@/lib/ui/toast-actions";
 import { GRADE_LEVEL_LABELS, YILAN_REGIONS } from "@/lib/types/database";
 import {
   isValidBirthDate,
@@ -97,7 +98,7 @@ export default function NewVolunteerPage() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     setIsSaving(true);
-    const result = await createVolunteer(form);
+    const result = await callAction(() => createVolunteer(form));
     setIsSaving(false);
     if (result.error) {
       toast.error(result.error);

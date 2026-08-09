@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
-import { getErrorMessage } from "@/lib/ui/toast-actions";
+import { getErrorMessage, callAction } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../admin-context";
 import { purgeNow, type PurgeCounts } from "@/lib/actions/admin-archive";
 import { Button } from "@/components/ui/button";
@@ -234,7 +234,7 @@ export default function SettingsPage() {
 
   const handlePurge = async () => {
     setPurging(true);
-    const result = await purgeNow();
+    const result = await callAction(() => purgeNow());
     setPurging(false);
     if (result.error) return void toast.error(result.error);
     setPurgeResult(result.counts ?? null);

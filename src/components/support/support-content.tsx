@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { Select } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { submitSupportRequest } from "@/lib/actions/support";
+import { NETWORK_ERROR_MESSAGE } from "@/lib/ui/toast-actions";
 import { isValidEmail } from "@/lib/validation";
 import {
   TurnstileWidget,
@@ -108,6 +109,10 @@ export function SupportContent() {
         topic: TOPICS[0],
         message: "",
       });
+    } catch {
+      // finally 只讓按鈕恢復，使用者仍需要知道發生了什麼事。
+      turnstileRef.current?.reset();
+      toast.error(NETWORK_ERROR_MESSAGE, "送出失敗");
     } finally {
       setIsSubmitting(false);
     }

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
+import { callAction } from "@/lib/ui/toast-actions";
 import { createClient } from "@/lib/supabase/client";
 import { Select } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -127,7 +128,7 @@ export default function RegisterPage() {
 
     setIsLoading(true);
 
-    const result = await signUp({
+    const result = await callAction(() => signUp({
       account: formData.account,
       password: formData.password,
       name: formData.name,
@@ -137,7 +138,7 @@ export default function RegisterPage() {
       region: formData.region || undefined,
       birthday: normalizeBirthdayForSubmit(formData.birthday),
       turnstileToken,
-    });
+    }));
 
     if (result.error) {
       // token 已被伺服器端 siteverify 消耗（一次性），失敗重試前需重置取得新 token。

@@ -20,6 +20,7 @@ import {
   restoreRecord,
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
+import { callAction } from "@/lib/ui/toast-actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CredentialReveal } from "@/components/admin/credential-reveal";
 import {
@@ -147,7 +148,7 @@ export default function StaffPage() {
   const confirmRoleChange = async () => {
     if (!roleConfirm) return;
     setIsActing(true);
-    const result = await setStaffRole(roleConfirm.row.id, roleConfirm.role);
+    const result = await callAction(() => setStaffRole(roleConfirm.row.id, roleConfirm.role));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success(
@@ -176,7 +177,7 @@ export default function StaffPage() {
   const handleReassign = async () => {
     if (!reassignFrom || !reassignTo) return;
     setIsActing(true);
-    const result = await reassignWorker(reassignFrom.id, reassignTo);
+    const result = await callAction(() => reassignWorker(reassignFrom.id, reassignTo));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     const toName = rows.find((r) => r.id === reassignTo)?.full_name ?? "新社工";
@@ -192,7 +193,7 @@ export default function StaffPage() {
     if (!statusConfirm) return;
     setIsActing(true);
     const next = statusConfirm.status === "active" ? "suspended" : "active";
-    const result = await setStaffStatus(statusConfirm.id, next);
+    const result = await callAction(() => setStaffStatus(statusConfirm.id, next));
     setIsActing(false);
     if (result.error && !result.success) return void toast.error(result.error);
     if (result.error) toast.info(result.error);
@@ -204,7 +205,7 @@ export default function StaffPage() {
   const confirmResetPw = async () => {
     if (!resetPwTarget) return;
     setIsActing(true);
-    const result = await resetStaffPassword(resetPwTarget.id);
+    const result = await callAction(() => resetStaffPassword(resetPwTarget.id));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     // 密碼只回傳這一次，改用需手動關閉的卡片顯示（toast 會自動消失、來不及抄）。
@@ -232,7 +233,7 @@ export default function StaffPage() {
   const confirmArchive = async () => {
     if (!archiveTarget) return;
     setIsActing(true);
-    const result = await archiveRecord("staff_profiles", archiveTarget.id);
+    const result = await callAction(() => archiveRecord("staff_profiles", archiveTarget.id));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success("已封存並停用該職員帳號登入");
@@ -243,7 +244,7 @@ export default function StaffPage() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setIsActing(true);
-    const result = await deleteRecordPermanently("staff_profiles", deleteTarget.id);
+    const result = await callAction(() => deleteRecordPermanently("staff_profiles", deleteTarget.id));
     setIsActing(false);
     if (result.error && !result.success) return void toast.error(result.error);
     if (result.error) toast.info(result.error);
@@ -253,7 +254,7 @@ export default function StaffPage() {
   };
 
   const restoreStaff = async (row: StaffRow) => {
-    const result = await restoreRecord("staff_profiles", row.id);
+    const result = await callAction(() => restoreRecord("staff_profiles", row.id));
     if (result.error) return void toast.error(result.error);
     toast.success("已還原並恢復登入");
     await load();
@@ -272,7 +273,7 @@ export default function StaffPage() {
     setEditErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setIsActing(true);
-    const result = await updateStaffProfile({
+    const result = await callAction(() => updateStaffProfile({
       staffId: editTarget.id,
       fullName: editForm.fullName.trim(),
       phone: editForm.phone.trim(),
@@ -280,7 +281,7 @@ export default function StaffPage() {
       email: editForm.email.trim(),
       username: editForm.username.trim(),
       jobTitle: editForm.jobTitle,
-    });
+    }));
     setIsActing(false);
     if (result.error) return void toast.error(`更新失敗：${result.error}`);
     const usernameChanged = editForm.username.trim() !== editTarget.username;

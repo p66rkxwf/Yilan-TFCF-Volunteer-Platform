@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAuth } from "@/components/auth-provider";
 import { cancelRegistration } from "@/lib/actions/registrations";
+import { callAction } from "@/lib/ui/toast-actions";
 import { ProfilePageHeader } from "../profile-page-header";
 import { formatSessionRange } from "@/lib/admin/datetime";
 
@@ -108,7 +109,7 @@ export default function RegistrationsPage() {
     if (!confirmCancelReg) return;
     setIsCancelling(true);
 
-    const result = await cancelRegistration(confirmCancelReg.id);
+    const result = await callAction(() => cancelRegistration(confirmCancelReg.id));
 
     if (result.error) {
       toast.error(result.error);

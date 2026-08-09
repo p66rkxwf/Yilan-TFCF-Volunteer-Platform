@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { VolunteerProfile, YilanRegion } from "@/lib/types/database";
 import { useToast } from "@/components/ui/toast";
 import { getMyHoursSummary, type HoursSummary } from "@/lib/actions/registrations";
+import { NETWORK_ERROR_MESSAGE } from "@/lib/ui/toast-actions";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "./profile-page-header";
 import { Section, InfoRow } from "@/components/site/section";
@@ -53,25 +54,32 @@ export default function ProfilePage() {
     }
 
     async function load(userId: string) {
-      const [{ data: profileData }, summary] = await Promise.all([
-        supabase.from("volunteer_profiles").select("*").eq("id", userId).maybeSingle(),
-        getMyHoursSummary(),
-      ]);
+      // getMyHoursSummary 是 Server Action：斷線時 promise 會 reject，
+      // 沒有 finally 的話 isLoading 永遠是 true，畫面就卡在轉圈圈。
+      try {
+        const [{ data: profileData }, summary] = await Promise.all([
+          supabase.from("volunteer_profiles").select("*").eq("id", userId).maybeSingle(),
+          getMyHoursSummary(),
+        ]);
 
-      if (profileData) {
-        setProfile(profileData);
-        setForm({
-          full_name: profileData.full_name || "",
-          phone: profileData.phone || "",
-          region: (profileData.region as YilanRegion) || "",
-        });
+        if (profileData) {
+          setProfile(profileData);
+          setForm({
+            full_name: profileData.full_name || "",
+            phone: profileData.phone || "",
+            region: (profileData.region as YilanRegion) || "",
+          });
+        }
+
+        setHoursSummary(summary);
+      } catch {
+        toast.error(NETWORK_ERROR_MESSAGE);
+      } finally {
+        setIsLoading(false);
       }
-
-      setHoursSummary(summary);
-      setIsLoading(false);
     }
     load(user.id);
-  }, [supabase, user, authLoading]);
+  }, [supabase, user, authLoading, toast]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

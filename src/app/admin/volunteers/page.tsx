@@ -30,6 +30,7 @@ import {
   restoreRecord,
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
+import { callAction } from "@/lib/ui/toast-actions";
 import { VOLUNTEER_STATUS } from "@/lib/admin/labels";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import type { GradeLevel, VolunteerStatus } from "@/lib/types/database";
@@ -84,7 +85,7 @@ export default function VolunteersPage() {
   const confirmArchive = async () => {
     if (!archiveTarget) return;
     setIsActing(true);
-    const result = await archiveRecord("volunteer_profiles", archiveTarget.id);
+    const result = await callAction(() => archiveRecord("volunteer_profiles", archiveTarget.id));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success("已封存並停用該學生帳號登入");
@@ -93,7 +94,7 @@ export default function VolunteersPage() {
   };
 
   const restore = async (row: VolunteerRow) => {
-    const result = await restoreRecord("volunteer_profiles", row.id);
+    const result = await callAction(() => restoreRecord("volunteer_profiles", row.id));
     if (result.error) return void toast.error(result.error);
     toast.success("已還原並恢復登入");
     await load();
@@ -102,7 +103,7 @@ export default function VolunteersPage() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setIsActing(true);
-    const result = await deleteRecordPermanently("volunteer_profiles", deleteTarget.id);
+    const result = await callAction(() => deleteRecordPermanently("volunteer_profiles", deleteTarget.id));
     setIsActing(false);
     if (result.error && !result.success) return void toast.error(result.error);
     if (result.error) toast.info(result.error);

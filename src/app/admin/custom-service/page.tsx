@@ -26,6 +26,7 @@ import {
 } from "@/components/admin/ui";
 import { DateTimeField } from "@/components/ui/datetime-field";
 import { submitCustomService, reviewCustomService } from "@/lib/actions/custom-service";
+import { callAction } from "@/lib/ui/toast-actions";
 import {
   taipeiLocalToIso,
   formatSessionRange,
@@ -131,7 +132,7 @@ function CustomServiceInner() {
   const doReview = async (approve: boolean) => {
     if (!target) return;
     setIsActing(true);
-    const result = await reviewCustomService(target.id, approve, note);
+    const result = await callAction(() => reviewCustomService(target.id, approve, note));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success(approve ? "已核可，時數已計入該志工。" : "已退回。");
@@ -189,14 +190,14 @@ function CustomServiceInner() {
     if (Object.keys(errs).length > 0) return;
 
     setIsActing(true);
-    const result = await submitCustomService({
+    const result = await callAction(() => submitCustomService({
       volunteerId: form.volunteerId,
       title: form.title,
       leaderName: form.leaderName,
       description: form.description,
       startIso: startIso!,
       endIso: endIso!,
-    });
+    }));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success("已代為登錄並送審。");

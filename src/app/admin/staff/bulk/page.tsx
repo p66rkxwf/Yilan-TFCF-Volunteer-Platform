@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { useAdminProfile } from "../../admin-context";
 import { bulkCreateStaff, type BulkStaffRow, type BulkStaffResult } from "@/lib/actions/bulk-staff";
+import { callAction } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, TableShell, Th, Td, EmptyRow } from "@/components/admin/ui";
 import { STAFF_ROLE, STAFF_JOB_TITLE } from "@/lib/admin/labels";
@@ -159,7 +160,7 @@ export default function BulkStaffPage() {
       jobTitle: r.jobTitle,
       region: r.region,
     }));
-    const res = await bulkCreateStaff(payload);
+    const res = await callAction(() => bulkCreateStaff(payload));
     setIsSaving(false);
     if (res.error) return void toast.error(res.error);
     setResults(res.results ?? []);

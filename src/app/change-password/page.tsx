@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/ui/toast";
 import { updatePassword, signOut } from "@/lib/actions/auth";
+import { callAction } from "@/lib/ui/toast-actions";
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -30,7 +31,9 @@ export default function ChangePasswordPage() {
     if (password.length < 8) return void toast.error("密碼至少需要 8 個字元。");
 
     setIsSaving(true);
-    const result = await updatePassword(password);
+    // 使用者是被 middleware 強制導到本頁的：這裡若因斷線而卡住 loading，
+    // 等於整個平台都進不去，故網路失敗也必須恢復按鈕並給訊息。
+    const result = await callAction(() => updatePassword(password));
     setIsSaving(false);
     if (result.error) return void toast.error(result.error);
 

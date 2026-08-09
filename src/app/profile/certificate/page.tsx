@@ -8,6 +8,8 @@ import {
   type HoursSummary,
 } from "@/lib/actions/registrations";
 import { ProfilePageHeader } from "../profile-page-header";
+import { useToast } from "@/components/ui/toast";
+import { NETWORK_ERROR_MESSAGE } from "@/lib/ui/toast-actions";
 
 const PRINT_STYLE = `
 @media print {
@@ -25,22 +27,30 @@ const PRINT_STYLE = `
 `;
 
 export default function CertificatePage() {
+  const toast = useToast();
   const [fullName, setFullName] = useState("");
   const [summary, setSummary] = useState<HoursSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const [profile, hours] = await Promise.all([
-        getProfile(),
-        getMyHoursSummary(),
-      ]);
-      setFullName(profile?.full_name ?? "");
-      setSummary(hours);
-      setIsLoading(false);
+      // 兩者皆為 Server Action：斷線時會 reject，沒有 finally 就會卡在轉圈圈。
+      // 失敗時 summary 維持 null，畫面會走既有的「查無時數紀錄」分支。
+      try {
+        const [profile, hours] = await Promise.all([
+          getProfile(),
+          getMyHoursSummary(),
+        ]);
+        setFullName(profile?.full_name ?? "");
+        setSummary(hours);
+      } catch {
+        toast.error(NETWORK_ERROR_MESSAGE);
+      } finally {
+        setIsLoading(false);
+      }
     }
     load();
-  }, []);
+  }, [toast]);
 
   const today = new Date().toLocaleDateString("zh-TW", {
     year: "numeric",

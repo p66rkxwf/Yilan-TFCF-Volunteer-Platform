@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-provider";
 import { markNotificationsRead } from "@/lib/actions/notifications";
+import { callAction } from "@/lib/ui/toast-actions";
 import { getNotificationDisplay } from "@/lib/notifications";
 
 const DROPDOWN_LIMIT = 10;
@@ -103,7 +104,11 @@ export function NotificationBell() {
     if (!item.read_at) {
       // 樂觀更新徽章，背景標記已讀
       setUnreadCount((n) => Math.max(0, n - 1));
-      markNotificationsRead([item.id]).then(refreshUnreadCount);
+      // 標為已讀是背景動作，失敗不打擾使用者；但 Server Action 斷線會 reject，
+      // 沒有 catch 就是一個 unhandled rejection，故一律接住並重新取回真實未讀數。
+      markNotificationsRead([item.id])
+        .catch(() => {})
+        .finally(refreshUnreadCount);
     }
     const { href } = getNotificationDisplay(item.notification_type, item.payload);
     if (href) router.push(href);
@@ -114,7 +119,8 @@ export function NotificationBell() {
     setItems((current) =>
       current.map((it) => ({ ...it, read_at: it.read_at ?? new Date().toISOString() }))
     );
-    await markNotificationsRead();
+    // 同上：先樂觀更新畫面，實際結果以 refreshUnreadCount() 重新取回為準。
+    await callAction(() => markNotificationsRead());
     refreshUnreadCount();
   };
 

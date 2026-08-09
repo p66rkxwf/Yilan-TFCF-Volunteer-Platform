@@ -9,7 +9,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
-import { getErrorMessage } from "@/lib/ui/toast-actions";
+import { getErrorMessage, callAction } from "@/lib/ui/toast-actions";
 import { reviewVolunteerAccount } from "@/lib/actions/admin-users";
 import { reviewDeactivationRequest } from "@/lib/actions/deactivation";
 import { useAdminProfile } from "../admin-context";
@@ -160,14 +160,14 @@ function VolunteerReviewInner() {
   const approveAccount = async (row: AccountRow) => {
     const workerId = rowWorker[row.id];
     if (!workerId) return void toast.error("請先為此學生指定負責社工");
-    const result = await reviewVolunteerAccount(row.id, true, workerId);
+    const result = await callAction(() => reviewVolunteerAccount(row.id, true, workerId));
     if (result.error) return void toast.error(result.error);
     toast.success(`已核准 ${row.full_name}`);
     await refreshAll();
   };
 
   const rejectAccount = async (row: AccountRow) => {
-    const result = await reviewVolunteerAccount(row.id, false);
+    const result = await callAction(() => reviewVolunteerAccount(row.id, false));
     if (result.error) return void toast.error(result.error);
     toast.success(`已拒絕 ${row.full_name}`);
     await refreshAll();
@@ -191,7 +191,7 @@ function VolunteerReviewInner() {
   };
 
   const reviewDeactivation = async (row: DeactivationRow, approve: boolean) => {
-    const result = await reviewDeactivationRequest(row.id, approve);
+    const result = await callAction(() => reviewDeactivationRequest(row.id, approve));
     if (result.error) return void toast.error(getErrorMessage(result.error));
     toast.success(approve ? "已核准停用申請" : "已駁回停用申請");
     await refreshAll();

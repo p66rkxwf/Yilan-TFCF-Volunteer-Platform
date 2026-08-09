@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/components/ui/toast";
 import { markNotificationsRead } from "@/lib/actions/notifications";
+import { callAction } from "@/lib/ui/toast-actions";
 import { getNotificationDisplay } from "@/lib/notifications";
 
 const TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
@@ -73,7 +74,7 @@ export default function NotificationsPage() {
   const handleMarkAllRead = async () => {
     if (marking || unreadCount === 0) return;
     setMarking(true);
-    const result = await markNotificationsRead();
+    const result = await callAction(() => markNotificationsRead());
     setMarking(false);
     if (result.error) {
       toast.error(result.error, "操作失敗");

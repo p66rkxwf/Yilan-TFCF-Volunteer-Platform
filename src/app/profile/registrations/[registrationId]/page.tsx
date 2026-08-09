@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { selfCheckIn } from "@/lib/actions/registrations";
+import { callAction } from "@/lib/ui/toast-actions";
 import { Markdown } from "@/components/admin/markdown";
 import { formatSessionRange } from "@/lib/admin/datetime";
 
@@ -124,7 +125,7 @@ export default function RegistrationDetailPage() {
   const handleCheckIn = async () => {
     if (isCheckingIn) return;
     setIsCheckingIn(true);
-    const result = await selfCheckIn(registrationId);
+    const result = await callAction(() => selfCheckIn(registrationId));
     if (result.error) {
       toast.error(result.error, "簽到失敗");
     } else {

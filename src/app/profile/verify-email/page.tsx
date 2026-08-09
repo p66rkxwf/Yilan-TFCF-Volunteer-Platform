@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "../profile-page-header";
 import { requestEmailOtp, verifyEmailOtp } from "@/lib/actions/email-verify";
+import { callAction } from "@/lib/ui/toast-actions";
 
 export default function VerifyEmailPage() {
   const [supabase] = useState(() => createClient());
@@ -48,7 +49,7 @@ export default function VerifyEmailPage() {
 
   const handleSend = async () => {
     setSending(true);
-    const result = await requestEmailOtp();
+    const result = await callAction(() => requestEmailOtp());
     setSending(false);
     if (result.error) return void toast.error(result.error);
     toast.success("驗證碼已寄出，請查收聯絡信箱（15 分鐘內有效）。");
@@ -58,7 +59,7 @@ export default function VerifyEmailPage() {
 
   const handleVerify = async () => {
     setVerifying(true);
-    const result = await verifyEmailOtp(code);
+    const result = await callAction(() => verifyEmailOtp(code));
     setVerifying(false);
     if (result.error) return void toast.error(result.error);
     toast.success("Email 已驗證，您現在可以報名活動了。");

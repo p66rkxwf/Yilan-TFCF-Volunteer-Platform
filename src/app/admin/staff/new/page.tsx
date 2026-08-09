@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
 import { useAdminProfile } from "../../admin-context";
 import { createStaff } from "@/lib/actions/admin-users";
+import { callAction } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { CredentialReveal } from "@/components/admin/credential-reveal";
 import { PageHeader, Panel, Field, inputClass } from "@/components/admin/ui";
@@ -68,7 +69,7 @@ export default function NewStaffPage() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
     setIsSaving(true);
-    const result = await createStaff(form);
+    const result = await callAction(() => createStaff(form));
     setIsSaving(false);
     if (result.error) return void toast.error(result.error);
     setRevealed({

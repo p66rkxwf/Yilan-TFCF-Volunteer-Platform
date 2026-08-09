@@ -30,6 +30,7 @@ import {
   restoreRecord,
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
+import { callAction } from "@/lib/ui/toast-actions";
 import { ACTIVITY_STATUS } from "@/lib/admin/labels";
 import { formatSessionRange } from "@/lib/admin/datetime";
 import type { Activity, ActivityStatus } from "@/lib/types/database";
@@ -85,7 +86,7 @@ export default function AdminActivitiesPage() {
   const confirmArchive = async () => {
     if (!archiveTarget) return;
     setIsActing(true);
-    const result = await archiveRecord("activities", archiveTarget.id);
+    const result = await callAction(() => archiveRecord("activities", archiveTarget.id));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success("活動已封存（前台不再顯示，可於「顯示已封存」中還原）");
@@ -94,7 +95,7 @@ export default function AdminActivitiesPage() {
   };
 
   const restore = async (row: ActivityRow) => {
-    const result = await restoreRecord("activities", row.id);
+    const result = await callAction(() => restoreRecord("activities", row.id));
     if (result.error) return void toast.error(result.error);
     toast.success("活動已還原");
     await load();
@@ -103,7 +104,7 @@ export default function AdminActivitiesPage() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setIsActing(true);
-    const result = await deleteRecordPermanently("activities", deleteTarget.id);
+    const result = await callAction(() => deleteRecordPermanently("activities", deleteTarget.id));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success(`已永久刪除「${deleteTarget.title}」與其場次、報名紀錄`);

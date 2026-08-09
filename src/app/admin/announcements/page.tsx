@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
-import { getErrorMessage } from "@/lib/ui/toast-actions";
+import { getErrorMessage, callAction } from "@/lib/ui/toast-actions";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   PageHeader,
@@ -126,7 +126,7 @@ export default function AnnouncementsPage() {
   const confirmArchive = async () => {
     if (!archiveTarget) return;
     setIsActing(true);
-    const result = await archiveRecord("announcements", archiveTarget.id);
+    const result = await callAction(() => archiveRecord("announcements", archiveTarget.id));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success("公告已封存（可於「顯示已封存」中還原）");
@@ -137,7 +137,7 @@ export default function AnnouncementsPage() {
   const confirmDelete = async () => {
     if (!deleteTarget) return;
     setIsActing(true);
-    const result = await deleteRecordPermanently("announcements", deleteTarget.id);
+    const result = await callAction(() => deleteRecordPermanently("announcements", deleteTarget.id));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success(`已永久刪除「${deleteTarget.title}」`);
@@ -146,7 +146,7 @@ export default function AnnouncementsPage() {
   };
 
   const restore = async (row: AnnRow) => {
-    const result = await restoreRecord("announcements", row.id);
+    const result = await callAction(() => restoreRecord("announcements", row.id));
     if (result.error) return void toast.error(result.error);
     toast.success("公告已還原");
     await load();

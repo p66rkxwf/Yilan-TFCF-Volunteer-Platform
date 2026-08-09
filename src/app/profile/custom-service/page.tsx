@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "../profile-page-header";
 import { submitCustomService } from "@/lib/actions/custom-service";
+import { callAction } from "@/lib/ui/toast-actions";
 import { DateTimeField } from "@/components/ui/datetime-field";
 import {
   taipeiLocalToIso,
@@ -100,14 +101,14 @@ export default function CustomServicePage() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setIsSaving(true);
-    const result = await submitCustomService({
+    const result = await callAction(() => submitCustomService({
       volunteerId: user.id,
       title: form.title,
       leaderName: form.leaderName,
       description: form.description,
       startIso: startIso!,
       endIso: endIso!,
-    });
+    }));
     setIsSaving(false);
     if (result.error) return void toast.error(result.error);
     toast.success("已送出，待職員審核後計入服務時數。");

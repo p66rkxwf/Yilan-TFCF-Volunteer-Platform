@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
-import { getErrorMessage } from "@/lib/ui/toast-actions";
+import { getErrorMessage, callAction } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../../admin-context";
 import {
   setVolunteerStatus,
@@ -201,7 +201,7 @@ export default function VolunteerDetailPage() {
   const handleStatusConfirm = async () => {
     if (!statusConfirm) return;
     setIsActing(true);
-    const result = await setVolunteerStatus(volunteerId, statusConfirm.status);
+    const result = await callAction(() => setVolunteerStatus(volunteerId, statusConfirm.status));
     setIsActing(false);
     if (result.error && !result.success) {
       toast.error(result.error);
@@ -245,7 +245,7 @@ export default function VolunteerDetailPage() {
   const handleReassign = async () => {
     if (!reassignTo) return;
     setIsActing(true);
-    const result = await setVolunteerWorker(volunteerId, reassignTo);
+    const result = await callAction(() => setVolunteerWorker(volunteerId, reassignTo));
     setIsActing(false);
     if (result.error) {
       toast.error(result.error);
@@ -286,7 +286,7 @@ export default function VolunteerDetailPage() {
     if (Object.keys(errors).length > 0) return;
     setIsActing(true);
     // 聯絡 Email/帳號 僅系統管理員可代改（RPC 亦強制）；一般職員不帶這兩個參數。
-    const result = await updateVolunteerProfile({
+    const result = await callAction(() => updateVolunteerProfile({
       volunteerId,
       fullName: editForm.fullName,
       phone: editForm.phone,
@@ -295,7 +295,7 @@ export default function VolunteerDetailPage() {
       ...(isSysAdmin
         ? { email: editForm.email.trim(), username: editForm.username.trim() }
         : {}),
-    });
+    }));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     const emailChanged = isSysAdmin && volunteer && editForm.email.trim() !== volunteer.email;
@@ -314,7 +314,7 @@ export default function VolunteerDetailPage() {
 
   const handleResetPassword = async () => {
     setIsActing(true);
-    const result = await resetVolunteerPassword(volunteerId);
+    const result = await callAction(() => resetVolunteerPassword(volunteerId));
     setIsActing(false);
     if (result.error) {
       toast.error(result.error);
@@ -347,7 +347,7 @@ export default function VolunteerDetailPage() {
 
   const handleArchive = async () => {
     setIsActing(true);
-    const result = await archiveRecord("volunteer_profiles", volunteerId);
+    const result = await callAction(() => archiveRecord("volunteer_profiles", volunteerId));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
     toast.success("已封存並停用該學生帳號登入");
@@ -356,7 +356,7 @@ export default function VolunteerDetailPage() {
   };
 
   const handleRestore = async () => {
-    const result = await restoreRecord("volunteer_profiles", volunteerId);
+    const result = await callAction(() => restoreRecord("volunteer_profiles", volunteerId));
     if (result.error) return void toast.error(result.error);
     toast.success("已還原並恢復登入");
     await load();
@@ -364,7 +364,7 @@ export default function VolunteerDetailPage() {
 
   const handleDelete = async () => {
     setIsActing(true);
-    const result = await deleteRecordPermanently("volunteer_profiles", volunteerId);
+    const result = await callAction(() => deleteRecordPermanently("volunteer_profiles", volunteerId));
     setIsActing(false);
     if (result.error && !result.success) return void toast.error(result.error);
     if (result.error) toast.info(result.error);

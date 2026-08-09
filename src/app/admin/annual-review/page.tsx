@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
-import { getErrorMessage } from "@/lib/ui/toast-actions";
+import { getErrorMessage, callAction } from "@/lib/ui/toast-actions";
 import { useAdminProfile } from "../admin-context";
 import { setVolunteerStatus } from "@/lib/actions/admin-users";
 import {
@@ -83,7 +83,7 @@ export default function AnnualReviewPage() {
   const confirmGraduate = async () => {
     if (!graduateTarget) return;
     setActingId(graduateTarget.id);
-    const result = await setVolunteerStatus(graduateTarget.id, "graduated");
+    const result = await callAction(() => setVolunteerStatus(graduateTarget.id, "graduated"));
     setActingId(null);
     if (result.error && !result.success) return void toast.error(result.error);
     toast.success("已標記畢業結案");

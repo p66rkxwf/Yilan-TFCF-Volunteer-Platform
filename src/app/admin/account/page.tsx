@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAdminProfile } from "../admin-context";
 import { updateOwnStaffProfile } from "@/lib/actions/staff-profile";
 import { updatePassword } from "@/lib/actions/auth";
+import { callAction } from "@/lib/ui/toast-actions";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Panel, Field, inputClass, ToggleRow } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
@@ -101,12 +102,12 @@ export default function AccountSettingsPage() {
     if (Object.keys(nextErrors).length > 0) return;
 
     setIsSaving(true);
-    const result = await updateOwnStaffProfile({
+    const result = await callAction(() => updateOwnStaffProfile({
       phone: form.phone.trim(),
       region: form.region.trim() || undefined,
       email: form.email.trim(),
       username: form.username.trim(),
-    });
+    }));
     setIsSaving(false);
     if (result.error) return void toast.error(`更新失敗：${result.error}`);
 
@@ -127,7 +128,7 @@ export default function AccountSettingsPage() {
     if (password.length < 8) return void toast.error("密碼至少需要 8 個字元。");
 
     setIsSavingPw(true);
-    const result = await updatePassword(password);
+    const result = await callAction(() => updatePassword(password));
     setIsSavingPw(false);
     if (result.error) return void toast.error(result.error);
 
