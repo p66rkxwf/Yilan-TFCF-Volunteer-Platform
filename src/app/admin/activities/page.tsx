@@ -325,7 +325,7 @@ export default function AdminActivitiesPage() {
       <ConfirmDialog
         open={archiveTarget !== null}
         title={archiveTarget ? `封存「${archiveTarget.title}」？` : ""}
-        description="封存後此活動與其場次將自前台隱藏（志工看不到），後台可於「顯示已封存」還原。歷史報名與時數保留；超過保留天數且無場次者才會永久刪除。"
+        description="封存後此活動與其場次將自前台隱藏（學生看不到），後台可於「顯示已封存」還原。歷史報名與時數保留；超過保留天數且無場次者才會永久刪除。"
         isConfirmDanger
         isLoading={isActing}
         onConfirm={confirmArchive}

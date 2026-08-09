@@ -132,10 +132,10 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   auto_expire_registration: "自動標記報名過期",
   resolve_support_request: "標記支援需求已處理",
   reopen_support_request: "重新開啟支援需求",
-  // 志工自助操作
-  volunteer_register: "志工報名",
-  volunteer_cancel: "志工取消/申請取消報名",
-  volunteer_self_checkin: "志工自行簽到",
+  // 學生自助操作（本表只在後台顯示，故用後台用語，與下方既有條目一致）
+  volunteer_register: "學生報名",
+  volunteer_cancel: "學生取消/申請取消報名",
+  volunteer_self_checkin: "學生自行簽到",
   verify_email: "完成 Email 驗證",
   update_own_volunteer_username: "學生修改登入帳號",
   // 後台維護
@@ -165,9 +165,11 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
 };
 
 // 稽核操作者身分別（audit_logs.actor_kind）
+// 稽核紀錄的操作者身分。只在後台（操作紀錄頁與報表匯出）顯示，故用後台的
+// 「學生」而非前台的「志工」——比照同檔 CANCEL_REASON 的 volunteer_self。
 export const AUDIT_ACTOR_KIND_LABELS: Record<string, string> = {
   staff: "職員",
-  volunteer: "志工",
+  volunteer: "學生",
   system: "系統自動",
 };
 

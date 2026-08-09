@@ -159,6 +159,15 @@ export function normalizeDateInput(text: string | null | undefined): string | nu
 }
 
 // 使用者輸入的時間文字（H:mm 或 HH:mm）→ 正規化 HH:mm；非法回 null
+// 「日期欄＋時間欄」兩個自由輸入 → ISO（兩者皆合法才回傳，否則 null）。
+// 自訂服務的前台登錄表單與後台代登錄表單共用；原本兩邊各自複製了一份同名的
+// 區域函式，連註解都一樣。
+export function dateTimeInputsToIso(date: string, time: string): string | null {
+  const d = normalizeDateInput(date);
+  const t = normalizeTimeInput(time);
+  return d && t ? taipeiLocalToIso(`${d}T${t}`) : null;
+}
+
 export function normalizeTimeInput(text: string | null | undefined): string | null {
   if (!text) return null;
   const m = text.trim().match(/^(\d{1,2}):(\d{2})$/);

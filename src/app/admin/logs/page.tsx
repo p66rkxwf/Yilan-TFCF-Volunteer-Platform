@@ -155,7 +155,7 @@ export default function LogsPage() {
                       </span>
                     </Td>
                     <Td className="text-slate-600">
-                      {row.actorName ?? (row.actor_kind === "volunteer" ? "（已移除的志工）" : "系統自動")}
+                      {row.actorName ?? (row.actor_kind === "volunteer" ? "（已移除的學生）" : "系統自動")}
                     </Td>
                     <Td className="text-slate-500">
                       {AUDIT_ACTOR_KIND_LABELS[row.actor_kind ?? "system"] ?? "—"}

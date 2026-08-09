@@ -11,25 +11,13 @@ import { ProfilePageHeader } from "../profile-page-header";
 import { submitCustomService } from "@/lib/actions/custom-service";
 import { callAction } from "@/lib/ui/toast-actions";
 import { DateTimeField } from "@/components/ui/datetime-field";
-import {
-  taipeiLocalToIso,
-  formatSessionRange,
-  normalizeDateInput,
-  normalizeTimeInput,
-} from "@/lib/admin/datetime";
+import { dateTimeInputsToIso, formatSessionRange } from "@/lib/admin/datetime";
 import type { CustomServiceRecord } from "@/lib/types/database";
 import { Spinner } from "@/components/ui/spinner";
 import { panelInputClass } from "@/components/site/section";
 import { CUSTOM_SERVICE_STATUS } from "@/lib/admin/labels";
 
 const STATUS_META = CUSTOM_SERVICE_STATUS;
-
-// 日期＋時間 → ISO（兩者皆有效才回傳）
-function toIso(date: string, time: string): string | null {
-  const d = normalizeDateInput(date);
-  const t = normalizeTimeInput(time);
-  return d && t ? taipeiLocalToIso(`${d}T${t}`) : null;
-}
 
 export default function CustomServicePage() {
   const [supabase] = useState(() => createClient());
@@ -70,8 +58,8 @@ export default function CustomServicePage() {
   }, [authLoading, load]);
 
   const previewHours = useMemo(() => {
-    const s = toIso(form.startDate, form.startTime);
-    const e = toIso(form.endDate, form.endTime);
+    const s = dateTimeInputsToIso(form.startDate, form.startTime);
+    const e = dateTimeInputsToIso(form.endDate, form.endTime);
     if (!s || !e) return null;
     const ms = new Date(e).getTime() - new Date(s).getTime();
     return ms > 0 ? Math.round((ms / 3_600_000) * 10) / 10 : null;
@@ -84,8 +72,8 @@ export default function CustomServicePage() {
     e.preventDefault();
     if (!user) return void toast.error("請先登入。");
     const nextErrors: Record<string, string> = {};
-    const startIso = toIso(form.startDate, form.startTime);
-    const endIso = toIso(form.endDate, form.endTime);
+    const startIso = dateTimeInputsToIso(form.startDate, form.startTime);
+    const endIso = dateTimeInputsToIso(form.endDate, form.endTime);
     if (!form.title.trim()) nextErrors.title = "請填寫活動名稱";
     if (!form.startDate.trim() || !form.startTime.trim()) nextErrors.start = "請填寫開始日期與時間";
     else if (!startIso) nextErrors.start = "開始日期或時間格式不正確";

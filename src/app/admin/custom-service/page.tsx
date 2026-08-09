@@ -1,6 +1,6 @@
 "use client";
 
-// 自訂服務審核（任何在職職員可審）：待審核收件匣＋已處理；並可代志工登錄。
+// 自訂服務審核（任何在職職員可審）：待審核收件匣＋已處理；並可代學生登錄。
 // 送審通知該生負責社工（見 27）；此頁只負責審核與代登錄流程。
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
@@ -28,11 +28,9 @@ import { DateTimeField } from "@/components/ui/datetime-field";
 import { submitCustomService, reviewCustomService } from "@/lib/actions/custom-service";
 import { callAction } from "@/lib/ui/toast-actions";
 import {
-  taipeiLocalToIso,
+  dateTimeInputsToIso,
   formatSessionRange,
   formatDateTime,
-  normalizeDateInput,
-  normalizeTimeInput,
 } from "@/lib/admin/datetime";
 import { CUSTOM_SERVICE_STATUS } from "@/lib/admin/labels";
 import type { CustomServiceRecord } from "@/lib/types/database";
@@ -44,13 +42,6 @@ interface Row extends CustomServiceRecord {
 }
 
 const STATUS_META = CUSTOM_SERVICE_STATUS;
-
-// 日期＋時間 → ISO（兩者皆有效才回傳）
-function toIso(date: string, time: string): string | null {
-  const d = normalizeDateInput(date);
-  const t = normalizeTimeInput(time);
-  return d && t ? taipeiLocalToIso(`${d}T${t}`) : null;
-}
 
 function CustomServiceInner() {
   const supabase = createClient();
@@ -70,7 +61,7 @@ function CustomServiceInner() {
   const [approveConfirm, setApproveConfirm] = useState(false);
   const [isActing, setIsActing] = useState(false);
 
-  // 代志工登錄
+  // 代學生登錄
   const [showSubmit, setShowSubmit] = useState(false);
   const [volunteers, setVolunteers] = useState<{ id: string; full_name: string }[]>([]);
   const [form, setForm] = useState({
@@ -132,7 +123,7 @@ function CustomServiceInner() {
     const result = await callAction(() => reviewCustomService(target.id, approve, note));
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
-    toast.success(approve ? "已核可，時數已計入該志工。" : "已退回。");
+    toast.success(approve ? "已核可，時數已計入該學生。" : "已退回。");
     setApproveConfirm(false);
     setRejectConfirm(false);
     setTarget(null);
@@ -164,8 +155,8 @@ function CustomServiceInner() {
   };
 
   const previewHours = useMemo(() => {
-    const s = toIso(form.startDate, form.startTime);
-    const e = toIso(form.endDate, form.endTime);
+    const s = dateTimeInputsToIso(form.startDate, form.startTime);
+    const e = dateTimeInputsToIso(form.endDate, form.endTime);
     if (!s || !e) return null;
     const ms = new Date(e).getTime() - new Date(s).getTime();
     return ms > 0 ? Math.round((ms / 3_600_000) * 10) / 10 : null;
@@ -173,9 +164,9 @@ function CustomServiceInner() {
 
   const submitForVolunteer = async () => {
     const errs: Record<string, string> = {};
-    const startIso = toIso(form.startDate, form.startTime);
-    const endIso = toIso(form.endDate, form.endTime);
-    if (!form.volunteerId) errs.volunteerId = "請選擇志工";
+    const startIso = dateTimeInputsToIso(form.startDate, form.startTime);
+    const endIso = dateTimeInputsToIso(form.endDate, form.endTime);
+    if (!form.volunteerId) errs.volunteerId = "請選擇學生";
     if (!form.title.trim()) errs.title = "請填寫活動名稱";
     if (!form.startDate.trim() || !form.startTime.trim()) errs.start = "請填寫開始日期與時間";
     else if (!startIso) errs.start = "開始日期或時間格式不正確";
@@ -214,7 +205,7 @@ function CustomServiceInner() {
         actions={
           <Button size="sm" onClick={openSubmit}>
             <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[18px]">person_add</span>
-            代志工登錄
+            代學生登錄
           </Button>
         }
       />
@@ -346,7 +337,7 @@ function CustomServiceInner() {
             </div>
             {target.status === "pending" && (
               <div className="border-t border-slate-100 px-6 py-4">
-                <Field label="審核說明" hint="退回時建議填寫原因，會通知該志工。">
+                <Field label="審核說明" hint="退回時建議填寫原因，會通知該學生。">
                   <textarea
                     className={`${inputClass} min-h-16`}
                     value={note}
@@ -378,7 +369,7 @@ function CustomServiceInner() {
       <ConfirmDialog
         open={approveConfirm}
         title={target ? `核可「${target.title}」？` : ""}
-        description="核可後該志工的服務時數立即計入累計時數並通知本人。審核結果無法直接復原。"
+        description="核可後該學生的服務時數立即計入累計時數並通知本人。審核結果無法直接復原。"
         isLoading={isActing}
         onConfirm={() => doReview(true)}
         onClose={() => {
@@ -390,7 +381,7 @@ function CustomServiceInner() {
       <ConfirmDialog
         open={rejectConfirm}
         title={target ? `退回「${target.title}」？` : ""}
-        description="退回後不計入時數並通知該志工。審核結果無法直接復原（志工可修正後重新登錄）。"
+        description="退回後不計入時數並通知該學生。審核結果無法直接復原（學生可修正後重新登錄）。"
         isConfirmDanger
         confirmText="退回"
         isLoading={isActing}
@@ -401,7 +392,7 @@ function CustomServiceInner() {
         }}
       />
 
-      {/* 代志工登錄 */}
+      {/* 代學生登錄 */}
       {showSubmit && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center px-4">
           <button
@@ -412,14 +403,14 @@ function CustomServiceInner() {
           />
           <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
             <div className="px-6 py-5">
-              <h3 className="text-lg font-bold text-slate-900">代志工登錄自訂服務</h3>
-              <p className="mt-1 text-sm text-slate-500">代選定志工登錄一筆已完成的私下服務，仍會建立為待審核。</p>
+              <h3 className="text-lg font-bold text-slate-900">代學生登錄自訂服務</h3>
+              <p className="mt-1 text-sm text-slate-500">代選定學生登錄一筆已完成的私下服務，仍會建立為待審核。</p>
               <div className="mt-4 space-y-4">
-                <Field label="志工" required error={formErrors.volunteerId}>
+                <Field label="學生" required error={formErrors.volunteerId}>
                   <Select
                     value={form.volunteerId}
                     onValueChange={(v) => setForm((f) => ({ ...f, volunteerId: v }))}
-                    placeholder={volunteers.length ? "選擇志工" : "載入中…"}
+                    placeholder={volunteers.length ? "選擇學生" : "載入中…"}
                     options={volunteers.map((v) => ({ value: v.id, label: v.full_name }))}
                     menuClassName="bg-white"
                   />
