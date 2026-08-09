@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { Select } from "@/components/ui/select";
 import type { VolunteerStatus } from "@/lib/types/database";
+import { PageSpinner } from "@/components/ui/spinner";
 
 const MD_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   month: "2-digit",
@@ -183,11 +184,7 @@ export default function VolunteerPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center py-20">
-        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
-          progress_activity
-        </span>
-      </div>
+      <PageSpinner className="flex-1 py-20" />
     );
   }
 

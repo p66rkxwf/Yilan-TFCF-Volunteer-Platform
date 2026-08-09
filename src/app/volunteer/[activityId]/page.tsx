@@ -14,6 +14,7 @@ import { callAction } from "@/lib/ui/toast-actions";
 import { Markdown } from "@/components/admin/markdown";
 import { formatSessionRange } from "@/lib/admin/datetime";
 import type { SessionType, VolunteerStatus } from "@/lib/types/database";
+import { PageSpinner } from "@/components/ui/spinner";
 
 interface SessionRow {
   id: string;
@@ -192,11 +193,7 @@ export default function VolunteerActivityDetailPage() {
 
   if (isLoading || !activity) {
     return (
-      <div className="flex flex-1 items-center justify-center py-20">
-        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
-          progress_activity
-        </span>
-      </div>
+      <PageSpinner className="flex-1 py-20" />
     );
   }
 

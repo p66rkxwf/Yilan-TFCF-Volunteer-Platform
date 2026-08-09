@@ -13,6 +13,7 @@ import { useAuth } from "@/components/auth-provider";
 import { markNotificationsRead } from "@/lib/actions/notifications";
 import { callAction } from "@/lib/ui/toast-actions";
 import { getNotificationDisplay } from "@/lib/notifications";
+import { Spinner } from "@/components/ui/spinner";
 
 const DROPDOWN_LIMIT = 10;
 
@@ -160,9 +161,7 @@ export function NotificationBell() {
           <div className="max-h-96 overflow-y-auto">
             {isLoading ? (
               <div className="flex justify-center py-8">
-                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-2xl text-primary">
-                  progress_activity
-                </span>
+                <Spinner className="text-2xl text-primary" />
               </div>
             ) : items.length === 0 ? (
               <div className="py-10 text-center text-sm text-slate-400">

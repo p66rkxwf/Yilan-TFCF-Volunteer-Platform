@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "../profile-page-header";
 import { formatSessionRange } from "@/lib/admin/datetime";
+import { PageSpinner } from "@/components/ui/spinner";
 
 const ATTENDANCE_MAP: Record<string, { label: string; color: string }> = {
   attended: { label: "已出席", color: "bg-emerald-100 text-emerald-700" },
@@ -146,11 +147,7 @@ export default function HistoryPage() {
           )}
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
-                progress_activity
-              </span>
-            </div>
+            <PageSpinner className="py-20" />
           ) : rows.length === 0 ? (
             <div className="py-16 text-center">
               <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate mb-3 block text-5xl text-slate-300">

@@ -18,15 +18,14 @@ import {
   normalizeTimeInput,
 } from "@/lib/admin/datetime";
 import type { CustomServiceRecord, CustomServiceStatus } from "@/lib/types/database";
+import { Spinner } from "@/components/ui/spinner";
+import { panelInputClass } from "@/components/site/section";
 
 const STATUS_META: Record<CustomServiceStatus, { label: string; badge: string }> = {
   pending: { label: "待審核", badge: "bg-amber-100 text-amber-800" },
   approved: { label: "已核可", badge: "bg-emerald-100 text-emerald-700" },
   rejected: { label: "已退回", badge: "bg-slate-200 text-slate-600" },
 };
-
-const inputCls =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20";
 
 // 日期＋時間 → ISO（兩者皆有效才回傳）
 function toIso(date: string, time: string): string | null {
@@ -147,7 +146,7 @@ export default function CustomServicePage() {
                 </label>
                 <input
                   id="cs-title"
-                  className={inputCls}
+                  className={panelInputClass}
                   value={form.title}
                   onChange={(e) => set("title", e.target.value)}
                   placeholder="例：社區獨居長者關懷訪視"
@@ -192,7 +191,7 @@ export default function CustomServicePage() {
                 </label>
                 <input
                   id="cs-leader"
-                  className={inputCls}
+                  className={panelInputClass}
                   value={form.leaderName}
                   onChange={(e) => set("leaderName", e.target.value)}
                   placeholder="這次服務的帶隊／負責人姓名"
@@ -207,7 +206,7 @@ export default function CustomServicePage() {
                 <label htmlFor="cs-desc" className="mb-1.5 block text-sm font-semibold text-slate-700">說明</label>
                 <textarea
                   id="cs-desc"
-                  className={`${inputCls} min-h-24`}
+                  className={`${panelInputClass} min-h-24`}
                   value={form.description}
                   onChange={(e) => set("description", e.target.value)}
                   placeholder="服務內容、地點、對象等（供審核參考）"
@@ -222,9 +221,7 @@ export default function CustomServicePage() {
                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
               >
                 {isSaving && (
-                  <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[18px]">
-                    progress_activity
-                  </span>
+                  <Spinner className="text-[18px]" />
                 )}
                 送出審核
               </button>

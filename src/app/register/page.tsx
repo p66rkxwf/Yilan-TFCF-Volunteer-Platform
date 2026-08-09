@@ -18,6 +18,7 @@ import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import { isValidEmail, isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
 import type { GradeLevel, YilanRegion } from "@/lib/types/database";
 import { setFlashToast, useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import {
   TurnstileWidget,
   type TurnstileHandle,
@@ -404,9 +405,7 @@ export default function RegisterPage() {
               disabled={isLoading}
             >
               {isLoading ? (
-                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[20px]">
-                  progress_activity
-                </span>
+                <Spinner className="text-[20px]" />
               ) : (
                 <>
                   <span>註冊成為志工</span>

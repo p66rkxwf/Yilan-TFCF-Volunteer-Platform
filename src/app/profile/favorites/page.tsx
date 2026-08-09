@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "../profile-page-header";
+import { PageSpinner } from "@/components/ui/spinner";
 
 const MD_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   month: "2-digit",
@@ -162,11 +163,7 @@ export default function FavoritesPage() {
       <div className="flex-1 overflow-y-auto p-5 md:p-8">
         <div className="w-full">
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
-                progress_activity
-              </span>
-            </div>
+            <PageSpinner className="py-20" />
           ) : favorites.length === 0 ? (
             <div className="py-16 text-center">
               <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate mb-3 block text-5xl text-slate-300">

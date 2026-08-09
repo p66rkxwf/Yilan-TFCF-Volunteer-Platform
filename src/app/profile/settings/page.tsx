@@ -15,7 +15,8 @@ import { NOTIFICATION_META, emailTogglableTypes } from "@/lib/notifications";
 import { isValidUsername } from "@/lib/validation";
 import type { DeactivationRequest, NotificationType } from "@/lib/types/database";
 import { ProfilePageHeader } from "../profile-page-header";
-import { InfoRow } from "@/components/site/section";
+import { InfoRow, inlineInputClass } from "@/components/site/section";
+import { Spinner } from "@/components/ui/spinner";
 
 // 志工可自行關閉的信件（提醒類）；審核結果、活動取消等重要通知不可關閉。
 const VOLUNTEER_EMAIL_TYPES = emailTogglableTypes("user", "volunteer");
@@ -299,9 +300,6 @@ export default function SettingsPage() {
     }
   };
 
-  const inputCls =
-    "w-full px-3 py-1.5 text-sm rounded-lg border border-slate-200 bg-transparent focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all";
-
   return (
     <>
       <ProfilePageHeader title="帳號設定" />
@@ -319,7 +317,7 @@ export default function SettingsPage() {
                 <InfoRow label="新密碼">
                   <input
                     type="password"
-                    className={inputCls}
+                    className={inlineInputClass}
                     placeholder="至少 8 個字元"
                     autoComplete="new-password"
                     value={pwForm.password}
@@ -330,7 +328,7 @@ export default function SettingsPage() {
                 <InfoRow label="確認新密碼">
                   <input
                     type="password"
-                    className={inputCls}
+                    className={inlineInputClass}
                     placeholder="再次輸入新密碼"
                     autoComplete="new-password"
                     value={pwForm.confirm}
@@ -346,9 +344,7 @@ export default function SettingsPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {pwLoading && (
-                    <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[16px]">
-                      progress_activity
-                    </span>
+                    <Spinner className="text-[16px]" />
                   )}
                   更新密碼
                 </button>
@@ -373,7 +369,7 @@ export default function SettingsPage() {
               <dl>
                 <InfoRow label="新帳號">
                   <input
-                    className={inputCls}
+                    className={inlineInputClass}
                     placeholder="4～30 碼英數與 . _ -"
                     autoComplete="username"
                     value={usernameForm.username}
@@ -388,9 +384,7 @@ export default function SettingsPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {usernameLoading && (
-                    <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[16px]">
-                      progress_activity
-                    </span>
+                    <Spinner className="text-[16px]" />
                   )}
                   更新帳號
                 </button>
@@ -437,7 +431,7 @@ export default function SettingsPage() {
                 <InfoRow label="新 Email">
                   <input
                     type="email"
-                    className={inputCls}
+                    className={inlineInputClass}
                     placeholder="new-email@example.com"
                     value={emailForm.email}
                     onChange={(e) => setEmailForm({ email: e.target.value })}
@@ -451,9 +445,7 @@ export default function SettingsPage() {
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60"
                 >
                   {emailLoading && (
-                    <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[16px]">
-                      progress_activity
-                    </span>
+                    <Spinner className="text-[16px]" />
                   )}
                   更新 Email
                 </button>
@@ -513,9 +505,7 @@ export default function SettingsPage() {
           >
             {isLoadingRequest ? (
               <div className="flex items-center justify-center py-6">
-                <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-2xl text-primary">
-                  progress_activity
-                </span>
+                <Spinner className="text-2xl text-primary" />
               </div>
             ) : pendingRequest ? (
               <div className="space-y-4">
@@ -534,9 +524,7 @@ export default function SettingsPage() {
                     className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold transition-colors hover:bg-slate-50 disabled:opacity-60"
                   >
                     {withdrawLoading && (
-                      <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[16px]">
-                        progress_activity
-                      </span>
+                      <Spinner className="text-[16px]" />
                     )}
                     撤回申請
                   </button>
@@ -547,7 +535,7 @@ export default function SettingsPage() {
                 <dl>
                   <InfoRow label="申請原因" align="start">
                     <textarea
-                      className={`${inputCls} min-h-20`}
+                      className={`${inlineInputClass} min-h-20`}
                       rows={3}
                       placeholder="請簡述申請停用的原因（選填）"
                       value={deactivateReason}

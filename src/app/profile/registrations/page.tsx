@@ -11,6 +11,7 @@ import { cancelRegistration } from "@/lib/actions/registrations";
 import { callAction } from "@/lib/ui/toast-actions";
 import { ProfilePageHeader } from "../profile-page-header";
 import { formatSessionRange } from "@/lib/admin/datetime";
+import { PageSpinner } from "@/components/ui/spinner";
 
 interface RegistrationRow {
   id: string;
@@ -205,11 +206,7 @@ export default function RegistrationsPage() {
 
           {/* List */}
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
-                progress_activity
-              </span>
-            </div>
+            <PageSpinner className="py-20" />
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center">
               <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate mb-3 block text-5xl text-slate-300">

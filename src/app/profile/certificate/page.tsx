@@ -10,6 +10,7 @@ import {
 import { ProfilePageHeader } from "../profile-page-header";
 import { useToast } from "@/components/ui/toast";
 import { NETWORK_ERROR_MESSAGE } from "@/lib/ui/toast-actions";
+import { PageSpinner } from "@/components/ui/spinner";
 
 const PRINT_STYLE = `
 @media print {
@@ -61,11 +62,7 @@ export default function CertificatePage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
-          progress_activity
-        </span>
-      </div>
+      <PageSpinner className="flex-1" />
     );
   }
 

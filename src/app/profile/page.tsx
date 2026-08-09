@@ -10,8 +10,9 @@ import { getMyHoursSummary, type HoursSummary } from "@/lib/actions/registration
 import { NETWORK_ERROR_MESSAGE } from "@/lib/ui/toast-actions";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "./profile-page-header";
-import { Section, InfoRow } from "@/components/site/section";
+import { Section, InfoRow, inlineInputClass } from "@/components/site/section";
 import { isValidTaiwanPhone } from "@/lib/validation";
+import { PageSpinner, Spinner } from "@/components/ui/spinner";
 
 const REGIONS: YilanRegion[] = [
   "宜蘭市", "羅東鎮", "蘇澳鎮", "頭城鎮", "礁溪鄉",
@@ -25,8 +26,6 @@ const ACCOUNT_STATUS_MAP: Record<string, { label: string; color: string }> = {
   graduated: { label: "帳號已結案", color: "bg-slate-200 text-slate-600" },
 };
 
-const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-transparent px-3 py-1.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20";
 const readonlyClass =
   "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-slate-500 outline-none";
 
@@ -143,11 +142,7 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
-          progress_activity
-        </span>
-      </div>
+      <PageSpinner className="flex-1" />
     );
   }
 
@@ -206,7 +201,7 @@ export default function ProfilePage() {
               </InfoRow>
               <InfoRow label="電話">
                 <input
-                  className={profile ? inputClass : readonlyClass}
+                  className={profile ? inlineInputClass : readonlyClass}
                   type="tel"
                   name="phone"
                   placeholder="請輸入聯絡電話"
@@ -279,9 +274,7 @@ export default function ProfilePage() {
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-white transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSaving && (
-                    <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[16px]">
-                      progress_activity
-                    </span>
+                    <Spinner className="text-[16px]" />
                   )}
                   {isDirty ? "儲存變更" : "已儲存"}
                 </button>

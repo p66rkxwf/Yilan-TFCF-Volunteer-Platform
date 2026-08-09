@@ -7,6 +7,7 @@ import { login } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 import { safeInternalPath } from "@/lib/url";
 import { setFlashToast, useToast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function LoginPage() {
   return (
@@ -177,9 +178,7 @@ function LoginForm() {
             disabled={isLoading}
           >
             {isLoading ? (
-              <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-[20px]">
-                progress_activity
-              </span>
+              <Spinner className="text-[20px]" />
             ) : (
               <>
                 登入

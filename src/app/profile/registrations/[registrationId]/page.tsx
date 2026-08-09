@@ -14,6 +14,7 @@ import { selfCheckIn } from "@/lib/actions/registrations";
 import { callAction } from "@/lib/ui/toast-actions";
 import { Markdown } from "@/components/admin/markdown";
 import { formatSessionRange } from "@/lib/admin/datetime";
+import { PageSpinner } from "@/components/ui/spinner";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: "待審核", color: "bg-amber-100 text-amber-700" },
@@ -137,11 +138,7 @@ export default function RegistrationDetailPage() {
 
   if (isLoading || !reg) {
     return (
-      <div className="flex flex-1 items-center justify-center py-20">
-        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate animate-spin text-4xl text-primary">
-          progress_activity
-        </span>
-      </div>
+      <PageSpinner className="flex-1 py-20" />
     );
   }
 

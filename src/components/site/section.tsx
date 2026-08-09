@@ -32,6 +32,22 @@ export function Section({
   );
 }
 
+// 前台輸入框樣式。原本 /profile、/profile/settings、/profile/custom-service 各自
+// 在檔案頂端寫一份，名字還兩種（inputClass／inputCls），且已經漂移：focus ring
+// 深淺、padding、背景各不相同。前兩者其實完全等價（只有 class 排列順序不同），
+// 併為 inlineInputClass；custom-service 的表單面板確實需要白底與較高的行高，
+// 保留為 panelInputClass —— 讓差異是具名的決定，而不是複製後忘了同步。
+//
+// 後台另有一份 admin/ui.tsx 的 inputClass（含 disabled 樣式），兩邊刻意不共用。
+
+// InfoRow 內嵌用：透明底、緊湊行高，融入資料列。
+export const inlineInputClass =
+  "w-full rounded-lg border border-slate-200 bg-transparent px-3 py-1.5 text-sm outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20";
+
+// 獨立表單面板用：白底、標準行高。
+export const panelInputClass =
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20";
+
 // 左標籤·右內容一列（label-left rows）；children 可為純文字或 <input>。
 // 手機：標籤在上、內容在下；桌面：標籤靠左固定寬、內容佔滿右側。
 export function InfoRow({
