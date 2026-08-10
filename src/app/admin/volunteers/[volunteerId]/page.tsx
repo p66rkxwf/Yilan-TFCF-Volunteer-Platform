@@ -207,15 +207,18 @@ export default function VolunteerDetailPage() {
     setIsActing(false);
     if (result.error) return void toast.error(result.error);
 
-    const emailChanged = isSysAdmin && form.email.trim() !== volunteer.email;
-    const usernameChanged = isSysAdmin && form.username.trim() !== volunteer.username;
-    await finish("已更新學生基本資料");
-    if (emailChanged) {
+    // 本 handler 不用 finish()：成功訊息之後還要接兩則補充說明，而 finish() 會
+    // 先 await 重新載入，會把補充說明推遲一整趟往返、與成功訊息脫節。
+    // 變更比對必須在 load() 之前做，才比得到舊值。
+    toast.success("已更新學生基本資料");
+    if (isSysAdmin && form.email.trim() !== volunteer.email) {
       toast.info("聯絡 Email 已變更並重置驗證狀態，該學生需重新完成 Email 驗證才能報名／簽到。");
     }
-    if (usernameChanged) {
+    if (isSysAdmin && form.username.trim() !== volunteer.username) {
       toast.info(`該學生下次登入請改用新帳號「${form.username.trim()}」。`);
     }
+    setDialog(null);
+    await load();
   };
 
   const handleResetPassword = async () => {
