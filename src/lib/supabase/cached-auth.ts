@@ -40,8 +40,7 @@ export const getCachedIdentity = cache(
   }
 );
 
-// 未登入／無權限的統一文案。auth.ts 過去另寫「尚未登入。」，同一個狀況兩種
-// 說法，一律以此處為準。
+// 未登入／無權限的統一文案，全站以此處為準，不要另造措辭。
 const NOT_SIGNED_IN = "請先登入。";
 const NO_PERMISSION = "沒有權限執行此操作。";
 
@@ -52,9 +51,8 @@ type AuthGuardResult =
   | { supabase: Awaited<ReturnType<typeof createClient>>; userId: string; error?: undefined }
   | { supabase: Awaited<ReturnType<typeof createClient>>; userId: null; error: string };
 
-// 集中的「已登入」檢查，取代先前 registrations / notifications / deactivation /
-// email-verify / custom-service 各自重複的「createClient ＋ getCachedUser ＋
-// 中文錯誤訊息」三行樣板。
+// 集中的「已登入」檢查：需要登入但不限職員的 action 一律由此開頭，
+// 不要自行拼 createClient ＋ getCachedUser ＋ 錯誤訊息。
 export async function requireUser(): Promise<AuthGuardResult> {
   const supabase = await createClient();
   const user = await getCachedUser();
@@ -64,10 +62,9 @@ export async function requireUser(): Promise<AuthGuardResult> {
   return { supabase, userId: user.id };
 }
 
-// 集中的「在職職員」權限檢查，取代先前 registrations.ts / notifications.ts
-// 各自重複的實作。V1 的 requireAdmin 語意其實是「是否為職員」（V1 的
-// ADMIN_ROLES 涵蓋所有職員角色），非僅限系統/單位管理員；更細緻的權限
-// （system_admin / unit_admin 專屬操作）交由 RPC / RLS 內部再檢查。
+// 名稱易誤導：本函式檢查的是「在職職員」，不是「管理員」——沿用 V1 命名，
+// 而 V1 的 ADMIN_ROLES 涵蓋所有職員角色。system_admin / unit_admin 專屬的操作
+// 必須另外自行檢查角色，或交由 RPC / RLS 把關。
 export async function requireAdmin(): Promise<AuthGuardResult> {
   const { supabase, userId, error } = await requireUser();
   if (error) return { supabase, userId: null, error };

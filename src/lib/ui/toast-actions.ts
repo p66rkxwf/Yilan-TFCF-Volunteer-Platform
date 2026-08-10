@@ -28,18 +28,16 @@ export type ActionResultLike = ActionResult;
  * 呼叫 Server Action，並把「網路層失敗」轉成與業務錯誤同型的結果。
  *
  * Server Action 底層是 fetch：斷線或 Worker 丟例外時 promise 會直接 reject，
- * 而呼叫端常寫成 `setSaving(true); const r = await action(); setSaving(false);`
- * ——那行 setSaving(false) 永遠不會跑到，按鈕就永久卡在 loading 且沒有任何訊息
- * （第一階段 QA 的 BUG-01）。一律用本函式包起來，呼叫端只需處理 result.error
- * 一條路徑，不必每個 handler 各寫一次 try/catch。
+ * 而 `setSaving(true); await action(); setSaving(false);` 這種寫法的最後一行
+ * 永遠不會跑到，按鈕就永久卡在 loading 且沒有任何訊息。呼叫 Server Action
+ * 一律包本函式，只需處理 result.error 一條路徑。
  *
- * 註：supabase-js 的 .from()/.rpc() 網路失敗是回在 error 欄位而非 throw，
- * 故那類呼叫不需要本函式。
+ * supabase-js 的 .from()/.rpc() 網路失敗是回在 error 欄位而非 throw，那類
+ * 呼叫不需要本函式。
  *
- * 回傳型別維持 T（而非 T | {error}）：既有的 action 本來就在失敗時只回
- * `{ error }`、其餘欄位為 undefined，呼叫端一律先檢查 error 再讀其他欄位，
- * 網路失敗走的是同一條路徑，故此處的 cast 與既有慣例一致，也讓呼叫端
- * 不必為了這層包裝多寫型別分支。
+ * 回傳型別維持 T（而非 T | { error }）：action 失敗時本就只回 `{ error }`、
+ * 其餘欄位為 undefined，呼叫端一律先檢查 error 再讀其他欄位，網路失敗走的是
+ * 同一條路徑，故此處的 cast 不會讓呼叫端多寫型別分支。
  */
 export async function callAction<T extends ActionResultLike>(
   action: () => Promise<T>

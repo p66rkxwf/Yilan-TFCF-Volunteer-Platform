@@ -1,17 +1,14 @@
 "use client";
 
-// 學生詳情頁的四個對話框。每個各自持有自己的表單狀態，page.tsx 只負責開關與
-// 送出後要做什麼——原本這些 useState 全攤在頁面元件上，一支元件要同時追 22 條
-// 狀態。
+// 學生詳情頁的四個對話框。各自持有自己的表單狀態，page.tsx 只負責開關與送出
+// 後要做什麼。
 //
-// 這些元件不吃 open：關閉時由 page.tsx 直接不渲染。如此一來「開啟時要清空／
-// 預填欄位」由掛載本身完成（useState 初始值），不需要 useEffect 去同步 open，
-// 上一次填到一半的內容也不可能殘留到下一次開啟。
+// 刻意不吃 open：關閉時由 page.tsx 直接不渲染，欄位的預填與清空因此由掛載
+// 完成（useState 初始值），不需要 useEffect 去同步 open，填到一半的內容也不會
+// 殘留到下次開啟。
 //
-// 待辦：外框（遮罩＋卡片＋頁尾按鈕列）在此重複四次，而 components/ui/modal.tsx
-// 的 Modal 已經提供同樣的東西，還多了 Escape 關閉、背景鎖捲、role="dialog" 與
-// aria-modal。改用它會順帶補上這些無障礙行為，但也會多出關閉叉叉與標題分隔線，
-// 屬外觀變更，故另案處理。
+// TODO: 改用 components/ui/modal.tsx 的 Modal，可順帶取得 Escape 關閉、背景
+// 鎖捲與 role="dialog"；因會多出關閉叉叉與標題分隔線，屬外觀變更，另案處理。
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -28,7 +25,7 @@ import {
 import { YILAN_REGIONS } from "@/lib/types/database";
 import type { VolunteerDetail } from "./panels";
 
-// 四個對話框共用的外框。抽在本檔內是為了讓上面那則待辦只有一處要改。
+// 四個對話框共用的外框：遮罩、卡片、頁尾按鈕列。
 function DialogShell({
   isBusy,
   onClose,
@@ -144,7 +141,7 @@ export function EditProfileDialog({
   onClose: () => void;
   onSubmit: (form: EditProfileInput) => void;
 }) {
-  // 掛載時以目前資料預填；關閉再開會重新掛載，因此看到的一定是最新值。
+  // 掛載時以目前資料預填（關閉再開會重新掛載，故必為最新值）。
   const [form, setForm] = useState<EditProfileInput>(() => ({
     fullName: volunteer.full_name,
     phone: volunteer.phone,

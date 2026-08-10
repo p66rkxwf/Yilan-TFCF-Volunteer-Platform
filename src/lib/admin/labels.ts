@@ -1,6 +1,5 @@
 // 各 ENUM 的中文標籤與徽章樣式（唯一事實來源，各頁面不得自行定義）。
-// 檔案路徑掛在 admin/ 是沿革，內容同時服務前後台——檔尾另有一段前台專用的
-// 標籤，文案與後台刻意不同（見該處說明）。lib/admin/datetime.ts 同樣是全站共用。
+// 前後台共用（如同 lib/admin/datetime.ts）；檔尾另有一段前台專用標籤。
 
 import type {
   ActivityStatus,
@@ -132,7 +131,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   auto_expire_registration: "自動標記報名過期",
   resolve_support_request: "標記支援需求已處理",
   reopen_support_request: "重新開啟支援需求",
-  // 學生自助操作（本表只在後台顯示，故用後台用語，與下方既有條目一致）
+  // 學生自助操作
   volunteer_register: "學生報名",
   volunteer_cancel: "學生取消/申請取消報名",
   volunteer_self_checkin: "學生自行簽到",
@@ -165,8 +164,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
 };
 
 // 稽核操作者身分別（audit_logs.actor_kind）
-// 稽核紀錄的操作者身分。只在後台（操作紀錄頁與報表匯出）顯示，故用後台的
-// 「學生」而非前台的「志工」——比照同檔 CANCEL_REASON 的 volunteer_self。
+// 稽核紀錄的操作者身分。只在後台顯示，故 volunteer 用「學生」而非「志工」。
 export const AUDIT_ACTOR_KIND_LABELS: Record<string, string> = {
   staff: "職員",
   volunteer: "學生",
@@ -176,12 +174,9 @@ export const AUDIT_ACTOR_KIND_LABELS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 // 前台（志工視角）專用標籤
 //
-// 文案刻意與上方的後台版本不同：後台是審核者的視角（「已核准」「已拒絕」），
-// 前台是被審核者的視角（「已通過」「未通過」），對當事人溫和一些。這是一個
-// 決定，不是忘了同步——原本兩份定義散在 /profile/registrations 的清單頁與詳情
-// 頁，看起來就像後台那份漏改。並列在此讓差異有跡可循。
-//
-// 徽章欄位名為 color 而非 badge，同樣沿用前台原本的寫法。
+// 文案與上方後台版本不同是刻意的，不是漏同步：後台是審核者的視角（「已核准」
+// 「已拒絕」），前台是被審核者的視角（「已通過」「未通過」）。兩者並列於此，
+// 改任一邊時看得到另一邊。
 // ---------------------------------------------------------------------------
 
 export interface PublicStatusMeta {

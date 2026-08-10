@@ -47,8 +47,8 @@ type StatusChange = {
   danger: boolean;
 };
 
-// 同時間只會開一個對話框，故用單一狀態而非六個布林旗標——旗標各自獨立時，
-// 「開 A 前要不要關 B」得靠呼叫端自律，這裡結構上就不可能同時開兩個。
+// 同時間只會開一個對話框，故用單一狀態而非各自獨立的布林旗標：兩個對話框
+// 同時開啟在結構上就不可能發生。
 type OpenDialog =
   | { kind: "status"; change: StatusChange }
   | { kind: "blacklist" }
@@ -393,7 +393,7 @@ export default function VolunteerDetailPage() {
         onClose={() => setDialog(null)}
       />
 
-      {/* 表單對話框關閉時直接不渲染，欄位預填與清空交給掛載處理（見 dialogs.tsx）。 */}
+      {/* 關閉時不渲染：欄位預填與清空交由掛載處理，見 dialogs.tsx 檔頭。 */}
       {dialog?.kind === "blacklist" && (
         <BlacklistDialog
           isBusy={isActing}

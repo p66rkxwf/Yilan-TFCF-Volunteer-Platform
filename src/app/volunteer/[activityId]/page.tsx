@@ -90,8 +90,8 @@ export default function VolunteerActivityDetailPage() {
         .eq("activity_id", activityId)
         .order("start_at"),
       supabase.from("v_session_open_slots").select("activity_session_id, open_slots"),
-      // 逐活動取負責人聯絡方式。同名視圖自 37 起已對 authenticated 撤銷 SELECT：
-      // 原本任何登入者都能一次撈出全部活動的職員姓名＋電話（資安加固 S4）。
+      // 逐活動取負責人聯絡方式。不可改回 v_organizer_contacts：該視圖自 37 起
+      // 已對 authenticated 撤銷 SELECT，避免一次撈出全部活動的職員姓名與電話。
       supabase.rpc("rpc_organizer_contacts", { p_activity_id: activityId }),
     ]);
 

@@ -390,9 +390,9 @@ export interface OverdueCancelReview {
 }
 
 // 負責人聯絡方式：志工唯一能讀到的職員個資（姓名＋電話）。
-// 志工端一律經 rpc_organizer_contacts(p_activity_id) 逐活動取得——同名視圖
-// v_organizer_contacts 自 37 起已對 authenticated 撤銷 SELECT，避免一次撈全部
-// （資安加固 S4）；視圖僅保留給後台／既有 SQL 參照。
+// 志工端一律經 rpc_organizer_contacts(p_activity_id) 逐活動取得：同名視圖
+// v_organizer_contacts 自 37 起已對 authenticated 撤銷 SELECT，避免一次撈全部，
+// 僅保留給後台／既有 SQL 參照。
 export interface OrganizerContact {
   activity_id: string;
   full_name: string;

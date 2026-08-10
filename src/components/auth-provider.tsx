@@ -20,14 +20,14 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 // 全站唯一的登入狀態來源，取代先前 Header 與各頁面各自呼叫
-// getUser() 的重複驗證。只訂閱 onAuthStateChange（訂閱當下會用本地
-// session 立即觸發一次，不需另外呼叫 getSession()），角色查詢依
+// supabase.auth.getUser() 的重複驗證。只訂閱 onAuthStateChange（訂閱當下會用
+// 本地 session 立即觸發一次，不需另外呼叫 getSession()），角色查詢依
 // user id 去重複，同一使用者不會重複查。保持即時性（登入/登出後
 // UI 立即切換，不需整頁重新整理）。
 //
 // 安全提醒：這裡的 user/isAdmin 僅供「UI 顯示」用（要不要顯示後台
 // 連結、登入/登出按鈕）。實際的存取控制邊界仍在 middleware、RLS
-// 與各 Server Action 內的 getUser() 驗證，不受此 context 影響。
+// 與各 Server Action 開頭的 requireUser()／requireAdmin()，不受此 context 影響。
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
