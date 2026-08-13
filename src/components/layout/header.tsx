@@ -120,7 +120,7 @@ export function Header() {
       <Link href="/" className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/capoo.png"
+          src="/logo.png"
           alt="宜蘭家扶中心"
           width={40}
           height={40}
