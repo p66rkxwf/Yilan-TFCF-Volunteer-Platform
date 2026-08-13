@@ -7,7 +7,7 @@
 與系統設定。首頁保留了獎學金入口，但開放時間尚未公告。
 
 > [!NOTE]
-> `supabase/v2/` 內已收錄可從零建置的完整 V2 SQL（01～37，依編號為部署順序）。
+> `supabase/v2/` 內已收錄可從零建置的完整 V2 SQL（01～38，依編號為部署順序）。
 > 依 [supabase/README.md](supabase/README.md) 的順序執行即可建立 `staff_profiles`、`volunteer_profiles`、
 > `activities`／`activity_sessions`、`registrations`、`favorites`、`support_requests` 等全部資料表與
 > RLS／RPC；文件內也說明了部署後需在 Supabase Dashboard 補的手動步驟（種子系統管理員、授權排程函式給
@@ -111,7 +111,7 @@
 
 ### 需求
 
-- Node.js `20+`
+- Node.js `22+`（Wrangler 的要求；已以 `engines`／`.nvmrc`／`.node-version` 固定，CI 亦同）
 - `npm`
 - 一個可用的 Supabase 專案
 
@@ -154,12 +154,51 @@ npm run dev
 
 啟動後開啟 `http://localhost:3000`。
 
+### 測試
+
+平台的權限與業務規則幾乎都在資料庫端（RLS + `SECURITY DEFINER` RPC），所以測試也在資料庫端跑——
+在一個全新的 Postgres 上依序套用 `supabase/v2/*.sql`，再對 RPC 的守衛矩陣下斷言。
+
+```bash
+# 1. 起一個乾淨的 Postgres（不需要 Supabase CLI；SQL 只依賴 auth.users／auth.uid()／三個角色，
+#    由 tests/db/bootstrap.sql 補齊）
+docker run -d --name yilan-test-pg -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:16
+
+# 2. 套用全部 SQL
+export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/postgres
+npm run db:apply -- --bootstrap
+
+# 3. 跑測試
+npm run test:db
+```
+
+`--upto=NN` 可重現「資料庫停在第 NN 號檔」的狀態，用來確認測試真的抓得到東西。
+例如在 `--upto=38`（即 `39` 尚未套用的正式庫）上，下列 6 項必定紅燈：
+未驗證 Email 仍可報名、極短場次時數違反 CHECK、以及 4 項 OTP 外洩防線。
+**新增守衛時請照這個方式驗一次**——在修好之前必須是紅燈的測試，才是真的有在測東西。
+
+### staging 環境（選用）
+
+PR 會自動部署到 staging（`.github/workflows/preview.yml`），需先手動準備：
+
+1. 另建一個 Supabase 專案並套用 `supabase/v2/*.sql`
+2. GitHub → Settings → Environments 建立 `staging` environment，設定其 variables／secrets
+3. `npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --env staging`
+4. 設定 repository variable `STAGING_ENABLED=true` 啟用
+
+未設定時該 workflow 會自動跳過，不會擋住 PR。staging 刻意不部署 orchestrator，
+避免測試資料真的寄信到實際信箱。
+
 ## 可用腳本
 
 - `npm run dev`: 啟動開發伺服器
 - `npm run build`: 建立 production build
 - `npm run start`: 啟動 production server
 - `npm run lint`: 使用 ESLint flat config（`eslint.config.mjs`，沿用 `eslint-config-next`）執行 `eslint .`
+- `npm run typecheck`: `tsc --noEmit`
+- `npm run test` / `npm run test:db`: Vitest（DB 整合測試，需先備妥 `DATABASE_URL`，見「測試」）
+- `npm run db:apply`: 把 `supabase/v2/*.sql` 依序套用到 `DATABASE_URL`（`--bootstrap`／`--upto=NN`）
+- `npm run check:registry`: 檢查 `supabase/v2/FUNCTIONS.md` 是否與實際覆蓋鏈一致
 - `npm run preview`: 透過 `opennextjs-cloudflare` 建置後，於本機預覽 Cloudflare Workers 版本
 - `npm run deploy`: 建置並部署到 Cloudflare Workers
 - `npm run upload`: 建置並上傳新版本（不直接切換上線）
@@ -170,9 +209,13 @@ npm run dev
 ```text
 .
 ├─ public/                # 靜態資源
+├─ docs/                  # waf-checklist.md（Cloudflare 防濫用設定檢查表）
+├─ scripts/               # apply-v2-sql.mjs／check-function-registry.mjs
+├─ tests/db/              # DB 整合測試（bootstrap.sql + vitest）
 ├─ supabase/
 │  ├─ README.md           # V2 部署順序與部署後手動步驟
-│  └─ v2/                 # 01~37 SQL（01~06 定案版，07 之後為增量 patch）
+│  └─ v2/                 # 01~43 SQL（01~06 定案版，07 之後為增量 patch）
+│     └─ FUNCTIONS.md     # 函式版本登記表（改函式前必查）
 ├─ src/
 │  ├─ app/                # App Router 頁面與 layout
 │  │  ├─ admin/           # 後台：activities/registrations/attendance/volunteers/
@@ -213,7 +256,13 @@ npm run dev
   寫入的資料表刻意不開放直寫 policy，一律強制走 `SECURITY DEFINER` RPC，交易邊界與權限檢查集中在
   資料庫端（詳見 `supabase/v2/03_rls_policies.sql`、`04_rpc_functions.sql`）。
 - 通知採 Transactional Outbox 模式：業務交易只寫入 `notification_outbox`，由 Cloudflare Cron Worker
-  （`workers/orchestrator/`）每分鐘消化並經 Resend 寄出；同一 worker 也以 service_role RPC 觸發 5 支
-  背景排程函式（`job_*`），故本專案不使用 pg_cron。
+  （`workers/orchestrator/`）每分鐘消化並經 Resend 寄出；同一 worker 也以 service_role RPC 觸發 8 支
+  背景排程函式（`job_*`），故本專案不使用 pg_cron。佇列採 claim/complete（`FOR UPDATE SKIP LOCKED`）
+  避免重複寄信，失敗以退避重試並在逾次數後進 dead letter（見 `supabase/v2/42_*.sql`）。
+- 站內通知一律讀 `v_my_notifications` 視圖而非 `notification_outbox` 基表：基表是寄信佇列，
+  `payload` 可能含不該外露的內容（見 `supabase/v2/40_otp_leak_fix.sql`）。
 - 核心資料表與 RLS／RPC 已收錄於 `supabase/v2/`，可從零建置；`07` 之後為陸續新增的增量 patch，
-  執行細節（含 `07`／`21`／`27` 需分兩步驟、`30`／`37` 須先於前端部署）見 `supabase/README.md`。
+  執行細節（含 `07`／`21`／`27`／`42` 需分兩步驟、`30`／`37`／`38`／`42` 須先於前端或 worker 部署，
+  `41` 須後於前端部署）見 `supabase/README.md`。
+- **修改既有 DB 函式前先查 `supabase/v2/FUNCTIONS.md`**：該表登記每支函式的完整覆蓋鏈與 canonical
+  來源檔。曾發生過後續 patch 從舊版複製而洗掉先前安全條件的事故（見該檔說明），CI 會檢查此表。

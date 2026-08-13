@@ -75,11 +75,43 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
     **必須先於前端部署**（`30` 因前端已查詢 `session_type`／`location`／`note` 欄位；
     `37` 會撤銷 `v_organizer_contacts` 對 `authenticated` 的 SELECT，前端改呼叫
     `rpc_organizer_contacts`），`33` 會 `ALTER TYPE` 新增 `skipped` 寄送狀態。
+23. `38_notification_manage.sql` — 站內通知的使用者自刪：`notification_outbox` 新增
+    `deleted_at` 軟刪除欄位（保留寄信紀錄與 `dedup_key` 去重保護，不硬刪），收緊 `15`
+    的 SELECT policy 為「本人且未刪除」，並新增 `rpc_delete_notifications`
+    （帶 ids＝刪指定幾則；不帶＝清除全部已讀）。**必須先於前端部署**——通知頁與
+    header 鈴鐺的刪除鈕會呼叫此 RPC。已刪除的列仍由 `23` 的 `job_purge_expired()`
+    依保留期硬清，不會累積。
+24. `39_fix_function_regressions.sql` — 正確性修補：找回被後續 patch 覆蓋掉的守衛。
+    `rpc_register_for_session` 補回 `21` 的 Email 驗證關卡（`34` 誤以 `04` 為來源重寫時遺失）、
+    `fn_fill_hours_on_attendance` 補回 `16` 的時數下限 `0.01`（`31` 誤以 `02` 為來源時遺失）、
+    `rpc_self_check_in` 補上 `34` 漏掉的 `deleted_at IS NULL`。另補 `35` 漏寫的
+    `GRANT EXECUTE ON job_purge_rejected_accounts() TO service_role`（缺這行的話該排程
+    每晚都因權限不足失敗，且錯誤被 worker 吞掉，審核未通過帳號從未真正被清除）。
+    同時新增 `FUNCTIONS.md` 版本登記表——**修改既有函式前務必先查該表的 canonical 來源**。
+25. `40_otp_leak_fix.sql` — 資安：Email OTP 明碼不再寫入 `notification_outbox.payload`
+    （`15` 開放本人讀取整列，等於讓驗證碼免進信箱可得）。worker 改以 service_role 直接查
+    `email_verifications` 取碼；並新增 `v_my_notifications` 視圖收斂站內通知的讀取面。
+    **必須後於新版 mail worker 部署**——舊 worker 從 payload 讀碼，會寄出空白驗證碼。
+26. `41_notification_read_lockdown.sql` — 撤銷 `authenticated` 對 `notification_outbox`
+    的 SELECT。**必須後於前端部署**（前端需先改查 `v_my_notifications`），否則鈴鐺與通知頁會空白。
+27. `42_notification_queue_hardening.sql` — 寄信佇列 claim 鎖與退避重試：新增
+    `processing` 狀態與 `attempt_count`／`next_attempt_at`／`locked_at`／`locked_by` 欄位，
+    以 `rpc_claim_notifications`（`FOR UPDATE SKIP LOCKED`）取代原本「讀 pending → 寄 → 回寫」
+    的無鎖流程（該流程在兩個執行個體重疊時會重複寄信），並以 `rpc_complete_notification`
+    回報終態、暫時性失敗依 30s→2m→10m→1h→6h 退避、逾 6 次進 dead letter。
+    **分兩步執行**（STEP 1 `ALTER TYPE` 加 `processing` → STEP 2 其餘），
+    且**須先於新版 worker 部署**（worker 會呼叫這裡建立的 RPC）。
+28. `43_schema_version.sql` — 部署漂移偵測：`system_settings` 新增 `schema_version`。
+    app／DB／worker 是三套獨立部署，DB 落後時最危險的不是「RPC 不存在」這種看得見的錯，
+    而是「畫面正常但少了一段安全限制」。`/api/health` 與 worker 的 `?health=1` 會比對此值。
+    **從本檔起，每支新 patch 都須在檔尾把此值更新為自己的編號**，並同步更新
+    `src/app/api/health/route.ts` 與 `workers/orchestrator/src/index.ts` 的 `EXPECTED_DB_SCHEMA`。
 
 ### 部署後手動步驟
 
 1. **授權排程函式（供 Cloudflare Cron Worker 觸發）**：於 SQL Editor 執行
-   `12_enable_scheduled_jobs.sql`（`GRANT EXECUTE` 5 支 `job_*` 給 `service_role`；可重複執行）。
+   `12_enable_scheduled_jobs.sql`（`GRANT EXECUTE` `05` 的 5 支 `job_*` 給 `service_role`；可重複執行）。
+   之後新增的 `job_*` 各自在所屬檔案內授權（`23`／`35`／`42`）——`35` 原本漏寫，已由 `39` 補上。
    **不使用 pg_cron**——實際排程由 Cloudflare Cron Worker（`workers/orchestrator/`）負責。未完成此步
    （或未部署 Worker）的後果：活動不會自動 open→closed→completed、缺席不會自動判定/加黑名單、
    黑名單不會自動解除、提醒不會產生。驗證：`SET ROLE service_role; SELECT
@@ -95,22 +127,28 @@ repo 移除，如需查閱歷史結構請翻 Git 紀錄。
 3. `system_settings`、`grade_reference_ages` 已由 `01_schema.sql` 種好預設值，不需額外動作。
 4. **部署寄信 worker（Cloudflare Cron Worker）**：通知一律先寫入 `notification_outbox` 佇列，需由
    worker 消費才會實際寄出。worker 位於 `workers/orchestrator/`（Cloudflare Cron Worker，Resend 寄送，
-   並一併觸發第 1 點的 5 支 `job_*`）。部署步驟（於 `workers/orchestrator/`）：
+   並一併觸發全部 8 支 `job_*`）。部署步驟（於 `workers/orchestrator/`）：
    1. `npm install`
    2. 設定 secrets：`wrangler secret put` 依序設定 `SUPABASE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、
       `RESEND_API_KEY`、`MAIL_FROM`（例：`宜蘭家扶志工平台 <noreply@你的網域>`）、`SITE_URL`
       （寄件網域需先在 Resend 驗證）。
    3. `wrangler deploy`（`wrangler.jsonc` 為單一每分鐘 cron，各排程於 worker 內依 UTC 時間分派）。
       細節見 `workers/orchestrator/README.md`。
-   > `supabase/functions/send-notifications/` 為舊版 Supabase Edge Function 實作，已 deprecated，僅留參考。
    未設定 `RESEND_API_KEY` 時 worker 會略過 outbox 消化而不寄出（等同暫時停用，佇列仍會累積）。
 
 ### 常見注意事項
 
 - `01`～`06` 使用純 `CREATE TABLE`/`CREATE TYPE`（非 idempotent），設計為在乾淨 schema 上執行一次；
   若需要重跑，請整個重建 Supabase 專案（V1 的一次性重置腳本已隨 legacy 目錄一併移除）。
-- `07`～`10` 皆可重複執行；`07` 例外——其 `CREATE TYPE` 若已存在會報錯，此時略過 STEP 1 重跑 STEP 2 即可。
+- `07` 以後的 patch 皆可重複執行；`07` 例外——其 `CREATE TYPE` 若已存在會報錯，此時略過 STEP 1
+  重跑 STEP 2 即可。
+- 需分兩步驟執行（`ALTER TYPE` 後不可於同交易內使用）：`07`、`21`、`27`、`33`、`42`。
+- 有部署順序要求：`30`／`37`／`38`／`42` 須**先於**前端或 worker 部署；`40` 須**後於** worker、
+  `41` 須**後於**前端。詳見各檔檔頭。
 - anon（未登入）預設對所有資料表全面封鎖；目前僅 `08`（已發布公告，欄位級）與 `10`
   （`rpc_submit_support_request`，僅此一支 RPC）主動開放給 anon，其餘一律要求登入。
-- 完整業務規格見 `files/志工管理平台_功能需求文件_v2.md`（`07`～`10` 為規格書之後新增/調整的異動，
+- **修改既有函式前先查 `FUNCTIONS.md`**：該表登記每支函式／視圖的完整覆蓋鏈與 canonical 來源檔。
+  本目錄的 patch 慣例是「複製整支函式改幾行」，挑錯來源會安靜地洗掉先前版本新增的條件——
+  `34` 與 `31` 都發生過（已由 `39` 修回）。CI 會以 `scripts/check-function-registry.mjs` 檢查此表。
+- 完整業務規格見 `files/志工管理平台_功能需求文件_v2.md`（`07` 以後為規格書之後新增/調整的異動，
   文件本身未同步更新，以本檔的部署順序註解為準）。
