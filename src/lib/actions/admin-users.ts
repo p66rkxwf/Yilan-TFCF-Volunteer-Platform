@@ -223,10 +223,20 @@ export async function setVolunteerStatus(
 
   if (error) return { error: error.message };
 
+  // DB 與 Auth 不在同一個 transaction 裡，兩者可能不同步（DB 已停權但 token 仍有效）。
+  // 無法原子化，但至少不能把錯誤吞掉——回報 partial success 讓管理員知道要重試。
+  // 比照同檔 setStaffStatus 的處理方式。
   const admin = createAdminClient();
-  await admin.auth.admin.updateUserById(targetUserId, {
+  const { error: banError } = await admin.auth.admin.updateUserById(targetUserId, {
     ban_duration: newStatus === "suspended" ? "876000h" : "none",
   });
+
+  if (banError) {
+    return {
+      success: true,
+      error: `帳號狀態已更新，但同步 Auth 停權狀態時發生問題：${banError.message}`,
+    };
+  }
 
   return { success: true };
 }

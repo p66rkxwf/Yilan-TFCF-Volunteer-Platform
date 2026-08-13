@@ -56,9 +56,17 @@ export async function reviewDeactivationRequest(
     const volunteerId = (req as { volunteer_id?: string } | null)?.volunteer_id;
     if (volunteerId) {
       const admin = createAdminClient();
-      await admin.auth.admin.updateUserById(volunteerId, {
+      const { error: banError } = await admin.auth.admin.updateUserById(volunteerId, {
         ban_duration: "876000h",
       });
+      // 同 setVolunteerStatus：DB 與 Auth 無法包在同一 transaction，錯誤不可吞掉，
+      // 否則會出現「名冊顯示已停用、但本人 token 仍可用」而無人察覺。
+      if (banError) {
+        return {
+          success: true,
+          error: `停用申請已核准，但同步 Auth 停權狀態時發生問題：${banError.message}`,
+        };
+      }
     }
   }
 
