@@ -1,6 +1,7 @@
 // 手寫型別（非自動產生），對應 supabase/v2/01_schema.sql 起的全部表／視圖／RPC。
-// notification_outbox 自 15_notification_center.sql 起開放本人 SELECT（站內通知中心），
-// 故一併納入型別；其寫入仍僅限 SECURITY DEFINER 函式與發信 worker。
+// notification_outbox 是發信佇列，自 41_notification_read_lockdown.sql 起不再開放
+// authenticated 直讀；站內通知一律走 v_my_notifications 視圖（40_otp_leak_fix.sql）。
+// 基表型別仍保留，因 service_role 的發信 worker 與排程仍以完整欄位操作它。
 
 export type StaffRole = "system_admin" | "unit_admin" | "staff";
 export type StaffAccountStatus = "active" | "suspended";
@@ -237,8 +238,10 @@ export interface CustomServiceRecord {
   updated_at: string;
 }
 
-// 站內通知中心讀取用（RLS 限本人列）；status/error/sent_at 為 email 寄送狀態，
-// read_at 為站內已讀狀態，兩者正交（見 15_notification_center.sql）。
+// 發信佇列基表（service_role／SECURITY DEFINER 專用，authenticated 讀不到）。
+// status/error/sent_at 為 email 寄送狀態，read_at 為站內已讀狀態，
+// deleted_at 為使用者自行刪除（軟刪，保留寄信紀錄與去重依據），三者彼此正交
+//（見 15_notification_center.sql、38_notification_manage.sql）。
 export interface NotificationOutboxRow {
   id: string;
   recipient_user_id: string;
@@ -248,9 +251,21 @@ export interface NotificationOutboxRow {
   status: NotificationStatus;
   error: string | null;
   read_at: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
   sent_at: string | null;
+}
+
+// v_my_notifications（40_otp_leak_fix.sql）：站內通知中心唯一的讀取來源。
+// 視圖只外露渲染所需欄位（不含 recipient_user_id／status／error／dedup_key），
+// 並整型別排除 email_verification——驗證碼只該在信箱裡看到。
+export interface MyNotificationRow {
+  id: string;
+  notification_type: NotificationType;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
 }
 
 export type AnnouncementStatus = "draft" | "published" | "unpublished";
@@ -562,7 +577,8 @@ export interface Database {
       notification_outbox: {
         Row: NotificationOutboxRow;
         Insert: never; // 僅 fn_notify / trigger / worker 寫入
-        Update: never; // 已讀一律走 rpc_mark_notifications_read
+        Update: never; // 已讀走 rpc_mark_notifications_read；刪除走 rpc_delete_notifications
+        // 讀取：authenticated 無 SELECT 權（41），前台一律查 v_my_notifications
         Relationships: [];
       };
       notification_email_prefs: {
@@ -573,6 +589,7 @@ export interface Database {
       };
     };
     Views: {
+      v_my_notifications: { Row: MyNotificationRow };
       v_organizer_contacts: { Row: OrganizerContact };
       v_session_open_slots: { Row: SessionOpenSlots };
       v_volunteer_hours: { Row: VolunteerHoursSummary };
@@ -639,6 +656,11 @@ export interface Database {
         Returns: void;
       };
       rpc_mark_notifications_read: {
+        Args: { p_ids?: string[] | null };
+        Returns: number;
+      };
+      // p_ids 省略／null＝清除全部已讀（非全部）
+      rpc_delete_notifications: {
         Args: { p_ids?: string[] | null };
         Returns: number;
       };

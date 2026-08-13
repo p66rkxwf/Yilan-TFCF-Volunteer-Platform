@@ -1,30 +1,24 @@
 "use client";
 
 // Header 通知鈴鐺：未讀數徽章＋下拉近期通知（站內通知中心入口）。
-// 資料直接以瀏覽器 client 讀 notification_outbox（RLS 限本人列，
-// 見 15_notification_center.sql）；不用 Realtime，改掛載時查未讀數、
-// 開啟下拉時抓最新清單（與本專案「無即時推播依賴」的慣例一致）。
+// 資料以瀏覽器 client 讀 v_my_notifications——不是基表 notification_outbox：
+// 基表兼作寄信佇列，payload 可能含不該外露的內容（如 Email OTP 明碼），
+// 故讀取面收斂為只外露渲染所需欄位的視圖（見 40_otp_leak_fix.sql）。
+// 不用 Realtime，改掛載時查未讀數、開啟下拉時抓最新清單
+//（與本專案「無即時推播依賴」的慣例一致）。
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth-provider";
-import { markNotificationsRead } from "@/lib/actions/notifications";
+import { deleteNotifications, markNotificationsRead } from "@/lib/actions/notifications";
 import { callAction } from "@/lib/ui/toast-actions";
 import { getNotificationDisplay } from "@/lib/notifications";
+import { formatShortDateTime } from "@/lib/admin/datetime";
 import { Spinner } from "@/components/ui/spinner";
 
 const DROPDOWN_LIMIT = 10;
-
-const TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Taipei",
-  hourCycle: "h23",
-});
 
 interface BellItem {
   id: string;
@@ -48,7 +42,7 @@ export function NotificationBell() {
   const refreshUnreadCount = useCallback(async () => {
     if (!user) return;
     const { count } = await supabase
-      .from("notification_outbox")
+      .from("v_my_notifications")
       .select("id", { count: "exact", head: true })
       .is("read_at", null);
     setUnreadCount(count ?? 0);
@@ -57,7 +51,7 @@ export function NotificationBell() {
   const loadItems = useCallback(async () => {
     setIsLoading(true);
     const { data } = await supabase
-      .from("notification_outbox")
+      .from("v_my_notifications")
       .select("id, notification_type, payload, read_at, created_at")
       .order("created_at", { ascending: false })
       .limit(DROPDOWN_LIMIT);
@@ -113,6 +107,16 @@ export function NotificationBell() {
     }
     const { href } = getNotificationDisplay(item.notification_type, item.payload);
     if (href) router.push(href);
+  };
+
+  // 刪除（軟刪）單則：先樂觀移除，未讀的話一併扣徽章，最後一律以
+  // refreshUnreadCount() 取回真實數字（比照下方標記已讀的做法）。
+  const handleDelete = async (item: BellItem) => {
+    setItems((current) => current.filter((it) => it.id !== item.id));
+    if (!item.read_at) setUnreadCount((n) => Math.max(0, n - 1));
+    await callAction(() => deleteNotifications([item.id]));
+    refreshUnreadCount();
+    loadItems();
   };
 
   const handleMarkAllRead = async () => {
@@ -176,13 +180,18 @@ export function NotificationBell() {
                   );
                   const unread = !item.read_at;
                   return (
-                    <li key={item.id}>
+                    // 整列曾是一顆 button，塞不下刪除鈕（巢狀 button 是無效 HTML）；
+                    // 改為列＝flex 容器，內容與刪除各自是獨立按鈕。
+                    <li
+                      key={item.id}
+                      className={`group flex items-start gap-1 pr-2 transition-colors hover:bg-slate-50 ${
+                        unread ? "bg-primary/5" : ""
+                      }`}
+                    >
                       <button
                         type="button"
                         onClick={() => handleItemClick(item)}
-                        className={`flex w-full items-start gap-2.5 px-4 py-3 text-left transition-colors hover:bg-slate-50 ${
-                          unread ? "bg-primary/5" : ""
-                        }`}
+                        className="flex min-w-0 flex-1 items-start gap-2.5 py-3 pl-4 text-left"
                       >
                         <span
                           className={`mt-1.5 size-2 shrink-0 rounded-full ${
@@ -201,8 +210,19 @@ export function NotificationBell() {
                             {display.lines[0]}
                           </span>
                           <span className="mt-1 block text-[11px] text-slate-400">
-                            {TIME_FORMATTER.format(new Date(item.created_at))}
+                            {formatShortDateTime(item.created_at)}
                           </span>
+                        </span>
+                      </button>
+                      {/* 觸控裝置沒有 hover，故 max-md 一律顯示 */}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(item)}
+                        aria-label={`刪除「${display.title}」`}
+                        className="mt-2.5 shrink-0 rounded-lg p-1 text-slate-300 opacity-100 transition-colors hover:bg-slate-200 hover:text-slate-600 md:opacity-0 md:focus-visible:opacity-100 md:group-hover:opacity-100"
+                      >
+                        <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[16px]">
+                          delete
                         </span>
                       </button>
                     </li>
