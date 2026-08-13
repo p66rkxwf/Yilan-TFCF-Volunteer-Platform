@@ -4,13 +4,19 @@
 // 守衛在 rpc_request_email_otp / rpc_verify_email_otp 內強制，本頁只負責流程與提示。
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "../profile-page-header";
 import { requestEmailOtp, verifyEmailOtp } from "@/lib/actions/email-verify";
 import { callAction } from "@/lib/ui/toast-actions";
+import {
+  TurnstileWidget,
+  type TurnstileHandle,
+} from "@/components/support/turnstile-widget";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function VerifyEmailPage() {
   const [supabase] = useState(() => createClient());
@@ -24,6 +30,8 @@ export default function VerifyEmailPage() {
   const [verifying, setVerifying] = useState(false);
   const [sentOnce, setSentOnce] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -48,9 +56,15 @@ export default function VerifyEmailPage() {
   }, [cooldown]);
 
   const handleSend = async () => {
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      return void toast.error("請先完成人機驗證後再寄送。", "驗證未完成");
+    }
+
     setSending(true);
-    const result = await callAction(() => requestEmailOtp());
+    const result = await callAction(() => requestEmailOtp(turnstileToken));
     setSending(false);
+    // token 一次性，寄送後（不論成敗）都要重置才能再按一次「重新寄送」。
+    turnstileRef.current?.reset();
     if (result.error) return void toast.error(result.error);
     toast.success("驗證碼已寄出，請查收聯絡信箱（15 分鐘內有效）。");
     setSentOnce(true);
@@ -103,6 +117,14 @@ export default function VerifyEmailPage() {
               <p className="mt-1 text-xs text-slate-400">
                 信箱有誤？請至「帳號設定」更新聯絡 Email 後再驗證。
               </p>
+
+              {TURNSTILE_SITE_KEY && (
+                <TurnstileWidget
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onToken={setTurnstileToken}
+                />
+              )}
 
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button

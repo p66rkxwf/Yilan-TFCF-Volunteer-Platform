@@ -1,10 +1,12 @@
 // Cloudflare Turnstile 人機驗證（伺服器端）。
 //
-// 設計為「未設定金鑰即自動停用」：
-//   - 未設定 TURNSTILE_SECRET_KEY 時 verifyTurnstile() 直接回傳 true，
-//     方便本機開發與尚未申請金鑰的環境照常運作（fail-open）。
-//   - 一旦於環境變數設定 secret（並在前端設 NEXT_PUBLIC_TURNSTILE_SITE_KEY），
-//     驗證即自動生效，缺 token 或驗證失敗都會被擋下。
+// 啟用與否由「兩把金鑰是否成對設定」決定：
+//   - 兩者皆未設定＝功能刻意停用，verifyTurnstile() 回傳 true（fail-open），
+//     方便本機開發與尚未申請金鑰的環境照常運作。
+//   - 兩者皆設定＝驗證生效，缺 token 或驗證失敗都會被擋下。
+//   - 只設了 site key 而缺 secret＝設定錯誤，一律 fail-closed 擋下並記錄
+//     （見下方註解：這種情況靜默放行等於防護形同虛設）。
+//   - siteverify 服務異常＝fail-closed。
 //
 // 申請金鑰：Cloudflare Dashboard → Turnstile → 新增網站，取得 Site Key（公開）
 // 與 Secret Key（伺服器端）。

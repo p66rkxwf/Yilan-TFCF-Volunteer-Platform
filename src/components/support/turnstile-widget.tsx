@@ -1,8 +1,8 @@
 "use client";
 
 // Cloudflare Turnstile 小工具（明確渲染模式）。僅在有 site key 時由表單掛載
-// （/support、/register）。使用者完成驗證後透過 onToken 回傳 token；過期或
-// 錯誤則回傳 null 要求重驗。
+// （/support、/register、/login、/profile/verify-email）。使用者完成驗證後
+// 透過 onToken 回傳 token；過期或錯誤則回傳 null 要求重驗。
 //
 // token 為一次性且約 300 秒過期：
 // - "refresh-expired": "auto" 讓 widget 在 token 過期時自動重新驗證，

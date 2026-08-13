@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { login } from "@/lib/actions/auth";
@@ -9,6 +9,12 @@ import { safeInternalPath } from "@/lib/url";
 import { setFlashToast, useToast } from "@/components/ui/toast";
 import { callAction } from "@/lib/ui/toast-actions";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  TurnstileWidget,
+  type TurnstileHandle,
+} from "@/components/support/turnstile-widget";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function LoginPage() {
   return (
@@ -33,6 +39,8 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   useEffect(() => {
     if (registered === "true") {
@@ -60,15 +68,22 @@ function LoginForm() {
     e.preventDefault();
     if (!validateForm()) return;
 
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      toast.error("請先完成人機驗證後再登入。", "驗證未完成");
+      return;
+    }
+
     setIsLoading(true);
 
     // 密碼驗證在伺服器端完成（login），前端不再取得任何帳號的 email。
     // 斷線時 callAction 會回與業務錯誤同型的結果，走下面同一條 error 路徑。
     const { session, error } = await callAction(() =>
-      login(formData.account, formData.password)
+      login(formData.account, formData.password, turnstileToken)
     );
 
     if (error || !session) {
+      // token 已被伺服器端 siteverify 消耗（一次性），重試前需重置取得新 token。
+      turnstileRef.current?.reset();
       toast.error(error ?? "帳號或密碼錯誤，請重新輸入。");
       setIsLoading(false);
       return;
@@ -171,6 +186,14 @@ function LoginForm() {
               <p className="text-amber-600 text-xs mt-1">{errors.password}</p>
             )}
           </div>
+
+          {TURNSTILE_SITE_KEY && (
+            <TurnstileWidget
+              ref={turnstileRef}
+              siteKey={TURNSTILE_SITE_KEY}
+              onToken={setTurnstileToken}
+            />
+          )}
 
           <button
             className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"

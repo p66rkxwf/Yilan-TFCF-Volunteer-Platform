@@ -33,13 +33,21 @@ export interface AuthResult {
 //
 // 安全性（資安審核 Finding 3）：此函式「不」對外匯出、也不把 email 回傳給前端；
 // 查表沿用 admin client（未登入者 anon 受 RLS 限制查不到任何列），避免帳號列舉。
-async function resolveAuthEmailInternal(account: string): Promise<string | null> {
+//
+// 一併回傳命中的 profile 表與 id，讓 login() 能只對正確那張表寫一次 last_login_at，
+// 不必對兩張表各盲打一次 UPDATE。
+type ProfileTable = "volunteer_profiles" | "staff_profiles";
+
+async function resolveAuthEmailInternal(
+  account: string
+): Promise<{ email: string; id: string; table: ProfileTable } | null> {
   const input = account.trim();
   if (!input) return null;
 
   const admin = adminClient();
 
   let id: string | null = null;
+  let table: ProfileTable = "volunteer_profiles";
   const { data: volunteer } = await admin
     .from("volunteer_profiles")
     .select("id")
@@ -53,13 +61,26 @@ async function resolveAuthEmailInternal(account: string): Promise<string | null>
       .select("id")
       .eq("username", input)
       .maybeSingle();
-    if (staff) id = staff.id as string;
+    if (staff) {
+      id = staff.id as string;
+      table = "staff_profiles";
+    }
   }
 
   if (!id) return null;
 
   const { data } = await admin.auth.admin.getUserById(id);
-  return data?.user?.email ?? null;
+  const email = data?.user?.email;
+  return email ? { email, id, table } : null;
+}
+
+// 記錄「最後登入時間」。以 admin client 寫入：service_role 繞過 RLS 與志工自改
+// 白名單 trigger。這只是記帳，寫失敗不該害使用者登不進來，故吞掉錯誤。
+async function touchLastLogin(table: ProfileTable, id: string): Promise<void> {
+  await adminClient()
+    .from(table)
+    .update({ last_login_at: new Date().toISOString() })
+    .eq("id", id);
 }
 
 // 伺服器端登入：以「帳號」+ 密碼驗證，成功只回傳 session（絕不回 email）。
@@ -68,19 +89,29 @@ async function resolveAuthEmailInternal(account: string): Promise<string | null>
 // 立即通知 Header/AuthProvider，維持免整頁重新整理即可反映登入狀態的體驗。
 export async function login(
   account: string,
-  password: string
+  password: string,
+  turnstileToken?: string | null
 ): Promise<{ session?: Session; error?: string }> {
   const generic = { error: "帳號或密碼錯誤，請重新輸入。" };
 
-  const email = await resolveAuthEmailInternal(account);
-  if (!email) return generic;
+  // 防濫用：登入是最常被暴力嘗試／撞庫的端點，先過 Turnstile（未設金鑰時自動放行）。
+  // 刻意在解析帳號之前擋下，避免機器人靠回應時間差探測帳號是否存在。
+  const humanVerified = await verifyTurnstile(turnstileToken ?? null);
+  if (!humanVerified) {
+    return { error: "人機驗證失敗，請重新完成驗證後再登入。" };
+  }
+
+  const resolved = await resolveAuthEmailInternal(account);
+  if (!resolved) return generic;
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
-    email,
+    email: resolved.email,
     password,
   });
   if (error || !data.session) return generic;
+
+  await touchLastLogin(resolved.table, resolved.id);
 
   return { session: data.session };
 }
@@ -190,6 +221,8 @@ export async function signUp(formData: {
     region: formData.region || null,
     grade: formData.grade,
     status: "pending_review",
+    // signUp 直接回 session 時，註冊當下就是第一次登入
+    last_login_at: authData.session ? new Date().toISOString() : null,
   });
 
   if (profileError) {
