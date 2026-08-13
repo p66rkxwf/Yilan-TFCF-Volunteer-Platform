@@ -119,12 +119,14 @@ export function Header() {
       <div className="flex w-full items-center justify-between">
       <Link href="/" className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* 寬高都寫死成正方形再 rounded-full：w-auto 會讓非正方形的原圖裁成橢圓。
+            object-cover 是裁切而非壓縮，換圖時比例不同也不會變形。 */}
         <img
           src="/capoo.png"
           alt="宜蘭家扶中心"
           width={40}
           height={40}
-          className="h-10 w-auto"
+          className="h-10 w-10 rounded-full object-cover"
         />
         <h2 className="text-slate-900 text-xl font-bold tracking-tight">
           宜蘭家扶中心
