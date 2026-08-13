@@ -12,10 +12,10 @@ import {
   Td,
   EmptyRow,
   EmptyState,
+  TimeCell,
 } from "@/components/admin/ui";
 import { REGISTRATION_STATUS } from "@/lib/admin/labels";
 import {
-  formatDateTime,
   formatSessionRange,
   formatTimeRange,
   formatDayHeading,
@@ -314,7 +314,7 @@ export default async function AdminDashboardPage() {
                         </p>
                       </Td>
                       <Td className="whitespace-nowrap text-slate-500">
-                        {formatDateTime(row.created_at)}
+                        <TimeCell iso={row.created_at} />
                       </Td>
                       <Td>
                         <StatusPill

@@ -2,6 +2,7 @@
 
 // 活動詳情：基本資料、狀態操作、負責人、場次清單（含各場報名統計與操作）。
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -106,6 +107,9 @@ export default function ActivityDetailPage() {
   // 而非整個隱藏——按鈕消失比按鈕停用更難懂（DB trigger 仍為最終防線）。
   const hasPublishableSession = sessions.some((s) => !s.cancelled_at);
   const isDraft = activity?.status === "draft";
+  // 已取消／已完成的活動不再開放編輯（與原本收在頁首選單時的條件相同）
+  const canEdit =
+    canManage && ["draft", "open", "closed"].includes(activity?.status ?? "");
 
   const handleConfirm = async () => {
     if (!confirm || !activity) return;
@@ -233,11 +237,6 @@ export default function ActivityDetailPage() {
               triggerLabel="操作"
               ariaLabel={`${activity.title} 的操作`}
               actions={[
-                ["draft", "open", "closed"].includes(activity.status) && {
-                  label: "編輯活動",
-                  icon: "edit",
-                  href: `/admin/activities/${activity.id}/edit`,
-                },
                 activity.status === "open" && {
                   label: "提前截止",
                   icon: "event_busy",
@@ -274,7 +273,21 @@ export default function ActivityDetailPage() {
 
       <div className="flex-1 space-y-5 p-4 sm:p-6">
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <Panel title="基本資料">
+          {/* 「編輯」放卡片右上角而非收在頁首「操作」選單裡，比照志工詳情頁的基本資料卡 */}
+          <Panel
+            title="基本資料"
+            action={
+              canEdit ? (
+                <Link
+                  prefetch={false}
+                  href={`/admin/activities/${activity.id}/edit`}
+                  className="text-xs font-semibold text-primary hover:text-primary/80"
+                >
+                  編輯
+                </Link>
+              ) : undefined
+            }
+          >
             <dl className="space-y-3">
               <DescriptionItem label="狀態">
                 <StatusPill meta={meta} />

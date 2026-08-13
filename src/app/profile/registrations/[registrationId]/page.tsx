@@ -13,7 +13,7 @@ import { useAuth } from "@/components/auth-provider";
 import { selfCheckIn } from "@/lib/actions/registrations";
 import { callAction } from "@/lib/ui/toast-actions";
 import { Markdown } from "@/components/admin/markdown";
-import { formatSessionRange } from "@/lib/admin/datetime";
+import { formatDateTime, formatSessionRange } from "@/lib/admin/datetime";
 import { ATTENDANCE_STATUS_PUBLIC, REGISTRATION_STATUS_PUBLIC } from "@/lib/admin/labels";
 import { PageSpinner } from "@/components/ui/spinner";
 
@@ -25,16 +25,6 @@ const ATTENDANCE_MAP = ATTENDANCE_STATUS_PUBLIC as Record<
   string,
   { label: string; color: string }
 >;
-
-const DATETIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Taipei",
-  hourCycle: "h23",
-});
 
 interface RegistrationDetail {
   id: string;
@@ -207,7 +197,7 @@ export default function RegistrationDetailPage() {
               <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate text-[20px] text-slate-400">schedule</span>
               <span>
                 <span className="font-medium text-slate-500">報名時間：</span>
-                {DATETIME_FORMATTER.format(new Date(reg.created_at))}
+                {formatDateTime(reg.created_at)}
               </span>
             </p>
             {reg.checked_in_at && (
@@ -217,7 +207,7 @@ export default function RegistrationDetailPage() {
                 </span>
                 <span>
                   <span className="font-medium text-slate-500">簽到時間：</span>
-                  {DATETIME_FORMATTER.format(new Date(reg.checked_in_at))}
+                  {formatDateTime(reg.checked_in_at)}
                 </span>
               </p>
             )}

@@ -19,10 +19,10 @@ import {
   LoadingRow,
   Toolbar,
   SearchInput,
+  SessionRangeCell,
   rowOpen,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
-import { formatSessionRange } from "@/lib/admin/datetime";
 import type { ActivityStats } from "@/lib/types/database";
 
 type RangeKey = "recent" | "past" | "upcoming" | "all";
@@ -128,7 +128,7 @@ export default function AttendanceListPage() {
                   return (
                     <tr key={s.activity_session_id} {...rowOpen(() => router.push(`/admin/attendance/${s.activity_session_id}`))} className="transition-colors hover:bg-slate-50">
                       <Td className="whitespace-nowrap">
-                        {formatSessionRange(s.start_at, s.end_at)}
+                        <SessionRangeCell start={s.start_at} end={s.end_at} />
                       </Td>
                       <Td className="font-semibold text-slate-900">{s.title}</Td>
                       <Td>

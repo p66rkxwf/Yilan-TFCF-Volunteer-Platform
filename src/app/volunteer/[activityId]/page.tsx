@@ -12,7 +12,7 @@ import { useAuth } from "@/components/auth-provider";
 import { registerForSession } from "@/lib/actions/registrations";
 import { callAction } from "@/lib/ui/toast-actions";
 import { Markdown } from "@/components/admin/markdown";
-import { formatSessionRange } from "@/lib/admin/datetime";
+import { formatDateTime, formatSessionRange } from "@/lib/admin/datetime";
 import type { SessionType, VolunteerStatus } from "@/lib/types/database";
 import { PageSpinner } from "@/components/ui/spinner";
 
@@ -42,16 +42,6 @@ const REG_STATUS: Record<string, { label: string; className: string }> = {
   approved: { label: "已通過", className: "bg-emerald-100 text-emerald-700" },
   cancel_pending: { label: "取消審核中", className: "bg-orange-100 text-orange-700" },
 };
-
-const DEADLINE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Taipei",
-  hourCycle: "h23",
-});
 
 export default function VolunteerActivityDetailPage() {
   const { activityId } = useParams<{ activityId: string }>();
@@ -221,7 +211,7 @@ export default function VolunteerActivityDetailPage() {
               {formatSessionRange(s.start_at, s.end_at)}
             </p>
             <p className="mt-0.5 text-xs text-slate-400">
-              報名截止 {DEADLINE_FORMATTER.format(new Date(s.registration_deadline_at))}
+              報名截止 {formatDateTime(s.registration_deadline_at)}
               {!cancelled && !ended && ` · 尚餘 ${Math.max(openSlots, 0)}／${s.capacity} 名`}
             </p>
             {s.location && (

@@ -1,15 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AnnouncementBanner } from "./announcement-banner";
+import { formatDate } from "@/lib/admin/datetime";
 
 export const dynamic = "force-dynamic";
-
-const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Asia/Taipei",
-});
 
 interface HomeAnnouncement {
   id: string;
@@ -115,7 +109,7 @@ export default async function Home() {
                       {item.title}
                     </span>
                     <time className="shrink-0 text-xs text-slate-400">
-                      {item.published_at ? DATE_FORMATTER.format(new Date(item.published_at)) : ""}
+                      {item.published_at ? formatDate(item.published_at) : ""}
                     </time>
                   </Link>
                 </li>

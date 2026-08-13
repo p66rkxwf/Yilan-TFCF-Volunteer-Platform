@@ -23,15 +23,13 @@ import {
   Field,
   RowActionMenu,
   inputClass,
+  TimeCell,
+  SessionRangeCell,
 } from "@/components/admin/ui";
 import { DateTimeField } from "@/components/ui/datetime-field";
 import { submitCustomService, reviewCustomService } from "@/lib/actions/custom-service";
 import { callAction } from "@/lib/ui/toast-actions";
-import {
-  dateTimeInputsToIso,
-  formatSessionRange,
-  formatDateTime,
-} from "@/lib/admin/datetime";
+import { dateTimeInputsToIso, formatSessionRange } from "@/lib/admin/datetime";
 import { CUSTOM_SERVICE_STATUS } from "@/lib/admin/labels";
 import type { CustomServiceRecord } from "@/lib/types/database";
 
@@ -247,12 +245,14 @@ function CustomServiceInner() {
                       )}
                     </Td>
                     <Td className="whitespace-nowrap text-slate-500">
-                      {formatSessionRange(row.start_at, row.end_at)}
+                      <SessionRangeCell start={row.start_at} end={row.end_at} />
                     </Td>
                     <Td className="text-right">{row.service_hours}</Td>
                     <Td className="whitespace-nowrap">
                       {tab === "pending" ? (
-                        <span className="text-slate-500">{formatDateTime(row.created_at)}</span>
+                        <span className="block text-slate-500">
+                          <TimeCell iso={row.created_at} />
+                        </span>
                       ) : (
                         <StatusPill meta={STATUS_META[row.status]} />
                       )}

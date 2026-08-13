@@ -108,6 +108,9 @@ export function ProfilePanel({
             ? formatDate(volunteer.last_grade_reviewed_at)
             : "尚未審查"}
         </DescriptionItem>
+        <DescriptionItem label="最後上線">
+          {volunteer.last_login_at ? formatDateTime(volunteer.last_login_at) : "尚未記錄"}
+        </DescriptionItem>
       </dl>
     </Panel>
   );

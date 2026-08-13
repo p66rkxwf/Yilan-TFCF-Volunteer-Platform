@@ -24,10 +24,11 @@ import {
   TabBar,
   BatchBar,
   RowActionMenu,
+  TimeCell,
   rowOpen,
 } from "@/components/admin/ui";
 import { useSelection } from "@/components/admin/use-selection";
-import { formatDateTime, formatSessionRange } from "@/lib/admin/datetime";
+import { formatSessionRange } from "@/lib/admin/datetime";
 
 type TabKey = "pending" | "cancel" | "overdue";
 
@@ -300,7 +301,7 @@ function RegistrationsInner() {
                       </p>
                     </Td>
                     <Td className="whitespace-nowrap text-slate-500">
-                      {formatDateTime(tab === "pending" ? row.created_at : row.cancel_requested_at)}
+                      <TimeCell iso={tab === "pending" ? row.created_at : row.cancel_requested_at} />
                     </Td>
                     <Td className="text-right">
                       <RowActionMenu

@@ -22,6 +22,7 @@ import {
   Pagination,
   RowActionMenu,
   rowOpen,
+  SessionRangeCell,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -32,7 +33,6 @@ import {
 } from "@/lib/actions/admin-archive";
 import { callAction } from "@/lib/ui/toast-actions";
 import { ACTIVITY_STATUS } from "@/lib/admin/labels";
-import { formatSessionRange } from "@/lib/admin/datetime";
 import type { Activity, ActivityStatus } from "@/lib/types/database";
 
 const PAGE_SIZE = 20;
@@ -130,16 +130,15 @@ export default function AdminActivitiesPage() {
   const currentPage = Math.min(page, pageCount);
   const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  // 下一場未取消場次（未來優先，否則顯示最近一場）
-  const nextSessionText = (row: ActivityRow) => {
+  // 下一場未取消場次（未來優先，否則顯示最近一場）。回場次本身而非字串，
+  // 讓儲存格能用 SessionRangeCell 排成兩行。
+  const nextSession = (row: ActivityRow) => {
     const active = row.activity_sessions
       .filter((s) => !s.cancelled_at)
       .sort((a, b) => a.start_at.localeCompare(b.start_at));
-    if (active.length === 0) return "—";
+    if (active.length === 0) return null;
     const now = new Date().toISOString();
-    const upcoming = active.find((s) => s.end_at >= now);
-    const target = upcoming ?? active[active.length - 1];
-    return formatSessionRange(target.start_at, target.end_at);
+    return active.find((s) => s.end_at >= now) ?? active[active.length - 1];
   };
 
   return (
@@ -235,6 +234,7 @@ export default function AdminActivitiesPage() {
               ) : (
                 paged.map((row) => {
                   const activeSessions = row.activity_sessions.filter((s) => !s.cancelled_at);
+                  const next = nextSession(row);
                   return (
                     <tr key={row.id} {...rowOpen(() => router.push(`/admin/activities/${row.id}`))} className="transition-colors hover:bg-slate-50">
                       <Td>
@@ -257,7 +257,13 @@ export default function AdminActivitiesPage() {
                           </span>
                         )}
                       </Td>
-                      <Td className="whitespace-nowrap text-slate-500">{nextSessionText(row)}</Td>
+                      <Td className="whitespace-nowrap text-slate-500">
+                        {next ? (
+                          <SessionRangeCell start={next.start_at} end={next.end_at} />
+                        ) : (
+                          "—"
+                        )}
+                      </Td>
                       <Td className="whitespace-nowrap text-slate-500">
                         {row.creator?.full_name ?? "—"}
                       </Td>

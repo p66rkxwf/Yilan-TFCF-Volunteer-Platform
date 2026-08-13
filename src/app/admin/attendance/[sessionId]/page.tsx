@@ -24,10 +24,11 @@ import {
   LoadingRow,
   BatchBar,
   RowActionMenu,
+  TimeCell,
 } from "@/components/admin/ui";
 import { useSelection } from "@/components/admin/use-selection";
 import { ATTENDANCE_STATUS } from "@/lib/admin/labels";
-import { formatSessionRange, formatDateTime } from "@/lib/admin/datetime";
+import { formatSessionRange } from "@/lib/admin/datetime";
 import type { ActivitySession, AttendanceStatus } from "@/lib/types/database";
 
 interface RosterRow {
@@ -284,7 +285,7 @@ export default function SessionRosterPage() {
                         )}
                       </Td>
                       <Td className="whitespace-nowrap text-slate-500">
-                        {formatDateTime(row.checked_in_at)}
+                        <TimeCell iso={row.checked_in_at} />
                       </Td>
                       <Td className="text-slate-500">
                         {row.attendance_recorded_by

@@ -5,15 +5,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { Markdown } from "@/components/admin/markdown";
+import { formatDate } from "@/lib/admin/datetime";
 
 export const dynamic = "force-dynamic";
-
-const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Asia/Taipei",
-});
 
 interface AnnouncementDetail {
   id: string;
@@ -93,9 +87,7 @@ export default async function AnnouncementDetailPage({
                 {announcement.title}
               </h1>
               <time className="mt-1 block text-xs text-slate-400">
-                {announcement.published_at
-                  ? DATE_FORMATTER.format(new Date(announcement.published_at))
-                  : ""}
+                {announcement.published_at ? formatDate(announcement.published_at) : ""}
               </time>
             </div>
           </div>

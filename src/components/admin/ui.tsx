@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import React from "react";
+import { formatSessionDate, formatTimeRange, splitDateTime } from "@/lib/admin/datetime";
 import type { StatusMeta } from "@/lib/admin/labels";
 
 export function PageHeader({
@@ -135,6 +136,39 @@ export function Td({
     <td colSpan={colSpan} className={`border-b border-slate-100 px-4 py-3 text-sm text-slate-700 ${className}`}>
       {children}
     </td>
+  );
+}
+
+// ===== 表格用的兩行時間 =====
+//
+// 後台表格一律把時間拆成「日期一行、時刻一行」：單行完整時間動輒 16～25 字，
+// 是各表最寬的欄位，會把活動名稱之類真正該看的內容擠掉。兩者都放在 <Td> 裡，
+// 呼叫端自行決定 Td 的 className（通常要 whitespace-nowrap）。
+//
+// 詳情頁的「基本資料」資料列、卡片內文、頁首說明、對話框與 CSV 匯出一律維持
+// 單行——那些地方沒有欄寬壓力，斷行反而更難讀。
+
+// 單一時間戳（簽到、註冊、建立、發布…）。刻意不帶星期：這類是「何時發生」，
+// 星期對讀者沒有意義。
+export function TimeCell({ iso }: { iso: string | null | undefined }) {
+  const parts = splitDateTime(iso);
+  if (!parts) return <span className="text-slate-400">—</span>;
+  return (
+    <>
+      <span className="block">{parts.date}</span>
+      <span className="block text-xs text-slate-500">{parts.time}</span>
+    </>
+  );
+}
+
+// 場次起訖。第一行帶星期（要判斷「那天是不是週末」），第二行用短格式時段，
+// 跨日時會自動變成「20:00–7/11 06:00」。
+export function SessionRangeCell({ start, end }: { start: string; end: string }) {
+  return (
+    <>
+      <span className="block">{formatSessionDate(start)}</span>
+      <span className="block text-xs text-slate-500">{formatTimeRange(start, end)}</span>
+    </>
   );
 }
 

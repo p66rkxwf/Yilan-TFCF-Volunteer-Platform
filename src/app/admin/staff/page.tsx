@@ -41,6 +41,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { STAFF_ROLE, STAFF_JOB_TITLE, STAFF_STATUS } from "@/lib/admin/labels";
+import { formatDate } from "@/lib/admin/datetime";
 import { isValidEmail, isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
 import { YILAN_REGIONS } from "@/lib/types/database";
 import type { StaffRole, StaffJobTitle, StaffAccountStatus } from "@/lib/types/database";
@@ -55,6 +56,7 @@ interface StaffRow {
   role: StaffRole;
   job_title: StaffJobTitle;
   status: StaffAccountStatus;
+  last_login_at: string | null;
 }
 
 export default function StaffPage() {
@@ -108,7 +110,7 @@ export default function StaffPage() {
     setIsLoading(true);
     let staffQuery = supabase
       .from("staff_profiles")
-      .select("id, full_name, username, email, phone, region, role, job_title, status")
+      .select("id, full_name, username, email, phone, region, role, job_title, status, last_login_at")
       .order("created_at", { ascending: true });
     staffQuery = showArchived
       ? staffQuery.not("deleted_at", "is", null)
@@ -357,14 +359,15 @@ export default function StaffPage() {
                 <Th>負責學生</Th>
                 <Th>角色</Th>
                 <Th>狀態</Th>
+                <Th>最後上線</Th>
                 {isAdmin && <Th className="text-right">操作</Th>}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <LoadingRow colSpan={isAdmin ? 8 : 7} />
+                <LoadingRow colSpan={isAdmin ? 9 : 8} />
               ) : filtered.length === 0 ? (
-                <EmptyRow colSpan={isAdmin ? 8 : 7} message="沒有符合的職員" />
+                <EmptyRow colSpan={isAdmin ? 9 : 8} message="沒有符合的職員" />
               ) : (
                 filtered.map((row) => {
                   const isSelf = row.id === profile.id;
@@ -404,6 +407,10 @@ export default function StaffPage() {
                       </Td>
                       <Td>
                         <StatusPill meta={STAFF_STATUS[row.status]} />
+                      </Td>
+                      {/* 只給日期即可看出哪些帳號長期沒用；完整時間非此頁需求 */}
+                      <Td className="whitespace-nowrap text-slate-500">
+                        {formatDate(row.last_login_at)}
                       </Td>
                       {isAdmin && (
                         <Td className="text-right">

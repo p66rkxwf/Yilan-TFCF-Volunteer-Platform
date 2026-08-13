@@ -3,15 +3,9 @@
 
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { formatDate } from "@/lib/admin/datetime";
 
 export const dynamic = "force-dynamic";
-
-const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Asia/Taipei",
-});
 
 interface AnnouncementListRow {
   id: string;
@@ -62,7 +56,7 @@ export default async function AnnouncementsPage() {
                     {row.title}
                   </span>
                   <time className="shrink-0 text-xs text-slate-400">
-                    {row.published_at ? DATE_FORMATTER.format(new Date(row.published_at)) : ""}
+                    {row.published_at ? formatDate(row.published_at) : ""}
                   </time>
                   <span translate="no" aria-hidden="true" className="material-symbols-outlined notranslate shrink-0 text-[18px] text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-primary">
                     chevron_right

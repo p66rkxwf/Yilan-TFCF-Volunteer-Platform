@@ -32,6 +32,7 @@ import {
 } from "@/lib/actions/admin-archive";
 import { callAction } from "@/lib/ui/toast-actions";
 import { VOLUNTEER_STATUS } from "@/lib/admin/labels";
+import { formatDate } from "@/lib/admin/datetime";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import type { GradeLevel, VolunteerStatus } from "@/lib/types/database";
 
@@ -45,6 +46,7 @@ interface VolunteerRow {
   grade: GradeLevel;
   status: VolunteerStatus;
   is_blacklisted: boolean;
+  last_login_at: string | null;
   worker: { full_name: string } | null;
 }
 
@@ -71,7 +73,7 @@ export default function VolunteersPage() {
     setIsLoading(true);
     let q = supabase
       .from("volunteer_profiles")
-      .select("id, full_name, phone, region, grade, status, is_blacklisted, worker:assigned_worker_id(full_name)")
+      .select("id, full_name, phone, region, grade, status, is_blacklisted, last_login_at, worker:assigned_worker_id(full_name)")
       .order("created_at", { ascending: false })
       .limit(2000);
     q = showArchived ? q.not("deleted_at", "is", null) : q.is("deleted_at", null);
@@ -232,14 +234,15 @@ export default function VolunteersPage() {
                 <Th>電話</Th>
                 <Th>負責社工</Th>
                 <Th>狀態</Th>
+                <Th>最後上線</Th>
                 {isSysAdmin && <Th className="text-right">操作</Th>}
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <LoadingRow colSpan={isSysAdmin ? 7 : 6} />
+                <LoadingRow colSpan={isSysAdmin ? 8 : 7} />
               ) : paged.length === 0 ? (
-                <EmptyRow colSpan={isSysAdmin ? 7 : 6} message="沒有符合條件的學生" />
+                <EmptyRow colSpan={isSysAdmin ? 8 : 7} message="沒有符合條件的學生" />
               ) : (
                 paged.map((row) => (
                   <tr key={row.id} {...rowOpen(() => router.push(`/admin/volunteers/${row.id}`))} className="transition-colors hover:bg-slate-50">
@@ -262,6 +265,10 @@ export default function VolunteersPage() {
                     <Td className="text-slate-500">{row.worker?.full_name ?? "—"}</Td>
                     <Td>
                       <StatusPill meta={VOLUNTEER_STATUS[row.status]} />
+                    </Td>
+                    {/* 名冊只給日期（完整時間看詳情頁）——這裡欄位已經很多，省一點是一點 */}
+                    <Td className="whitespace-nowrap text-slate-500">
+                      {formatDate(row.last_login_at)}
                     </Td>
                     {isSysAdmin && (
                       <Td className="text-right">

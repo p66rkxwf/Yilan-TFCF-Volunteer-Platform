@@ -27,11 +27,12 @@ import {
   BatchBar,
   RowActionMenu,
   rowOpen,
+  TimeCell,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { useSelection } from "@/components/admin/use-selection";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
-import { formatDate, formatDateTime } from "@/lib/admin/datetime";
+import { formatDate } from "@/lib/admin/datetime";
 import type { GradeLevel } from "@/lib/types/database";
 
 type TabKey = "accounts" | "deactivation";
@@ -288,7 +289,7 @@ function VolunteerReviewInner() {
                         <p className="text-xs text-slate-400">{row.email}</p>
                       </Td>
                       <Td className="whitespace-nowrap text-slate-500">
-                        {formatDateTime(row.created_at)}
+                        <TimeCell iso={row.created_at} />
                       </Td>
                       <Td className="w-44">
                         <Select
@@ -383,7 +384,7 @@ function VolunteerReviewInner() {
                         )}
                       </Td>
                       <Td className="whitespace-nowrap text-slate-500">
-                        {formatDateTime(row.created_at)}
+                        <TimeCell iso={row.created_at} />
                       </Td>
                       <Td className="text-right">
                         <RowActionMenu

@@ -18,6 +18,7 @@ import {
   Toolbar,
   SearchInput,
   RowActionMenu,
+  TimeCell,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { SUPPORT_REQUEST_STATUS } from "@/lib/admin/labels";
@@ -160,7 +161,7 @@ export default function SupportRequestsPage() {
                       </button>
                     </Td>
                     <Td className="whitespace-nowrap text-slate-500">
-                      {formatDateTime(row.created_at)}
+                      <TimeCell iso={row.created_at} />
                     </Td>
                     <Td className="text-right">
                       <RowActionMenu

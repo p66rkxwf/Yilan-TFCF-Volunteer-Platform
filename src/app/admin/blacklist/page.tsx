@@ -23,11 +23,11 @@ import {
   TabBar,
   RowActionMenu,
   rowOpen,
+  TimeCell,
 } from "@/components/admin/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DateTimeField } from "@/components/ui/datetime-field";
 import {
-  formatDateTime,
   splitTaipeiLocal,
   taipeiLocalToIso,
   normalizeDateInput,
@@ -220,15 +220,15 @@ function BlacklistInner() {
                       )}
                     </Td>
                     <Td className="whitespace-nowrap text-slate-500">
-                      {formatDateTime(event.triggered_at)}
+                      <TimeCell iso={event.triggered_at} />
                     </Td>
                     <Td className="whitespace-nowrap text-slate-500">
-                      {formatDateTime(event.expected_release_at)}
+                      <TimeCell iso={event.expected_release_at} />
                     </Td>
                     {tab === "history" && (
-                      <Td className="whitespace-nowrap">
-                        <span className="text-emerald-600">{formatDateTime(event.released_at)}</span>
-                        <span className="ml-1 text-xs text-slate-400">
+                      <Td className="whitespace-nowrap text-emerald-600">
+                        <TimeCell iso={event.released_at} />
+                        <span className="block text-xs text-slate-400">
                           （{event.releaser?.full_name ?? "系統自動"}）
                         </span>
                       </Td>

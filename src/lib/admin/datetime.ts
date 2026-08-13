@@ -25,13 +25,23 @@ const TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
   hourCycle: "h23",
 });
 
-const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  weekday: "short",
+const MONTH_DAY_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
+  month: "2-digit",
+  day: "2-digit",
   timeZone: "Asia/Taipei",
 });
 
 // 週標題（日曆/預覽共用）
 export const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
+
+// 星期一律取「五」而非「週五」。刻意不用 Intl 的 weekday:"short"——zh-TW 會吐
+// 「週五」，全站規範是括號內只放一個字。先投影到台灣本地日期再做純日曆運算，
+// 索引空間與 WEEKDAY_LABELS 一致。
+export function taipeiWeekday(iso: string | null | undefined): string {
+  const dateKey = taipeiDateKey(iso);
+  if (!dateKey) return "";
+  return WEEKDAY_LABELS[new Date(`${dateKey}T00:00:00Z`).getUTCDay()];
+}
 
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -43,15 +53,54 @@ export function formatDate(iso: string | null | undefined): string {
   return DATE_FORMATTER.format(new Date(iso));
 }
 
+// 只有時刻「09:03」。供表格兩行時間格的第二行。
+export function formatTimeOnly(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return TIME_FORMATTER.format(new Date(iso));
+}
+
+// 月／日「07/10」。供活動卡片等空間很窄、且年份無歧義的位置。
+export function formatMonthDay(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return MONTH_DAY_FORMATTER.format(new Date(iso));
+}
+
+// 月／日＋時刻「07/10 09:03」。供通知鈴鐺這種寬度很窄的下拉。
+export function formatShortDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return `${MONTH_DAY_FORMATTER.format(new Date(iso))} ${TIME_FORMATTER.format(new Date(iso))}`;
+}
+
+// 月／日＋星期「07/10（一）」。供批量建場次的預覽標籤。
+export function formatMonthDayWeekday(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return `${MONTH_DAY_FORMATTER.format(new Date(iso))}（${taipeiWeekday(iso)}）`;
+}
+
+// 表格兩行時間格用：拆成日期與時刻兩段。null 回 null，讓呼叫端只印一個「—」
+// 而不是上下兩行破折號。
+export function splitDateTime(
+  iso: string | null | undefined
+): { date: string; time: string } | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return { date: DATE_FORMATTER.format(d), time: TIME_FORMATTER.format(d) };
+}
+
+// 場次日期含星期：「2026/07/10（五）」。供兩行式時間欄與 formatSessionRange 共用。
+export function formatSessionDate(iso: string): string {
+  return `${DATE_FORMATTER.format(new Date(iso))}（${taipeiWeekday(iso)}）`;
+}
+
 // 場次起訖：同日顯示「2026/07/10（五）09:00–12:00」，跨日顯示完整兩端
 export function formatSessionRange(startIso: string, endIso: string): string {
   const start = new Date(startIso);
   const end = new Date(endIso);
   const sameDay = DATE_FORMATTER.format(start) === DATE_FORMATTER.format(end);
-  const startText = `${DATE_FORMATTER.format(start)}（${WEEKDAY_FORMATTER.format(start)}）${TIME_FORMATTER.format(start)}`;
+  const startText = `${formatSessionDate(startIso)}${TIME_FORMATTER.format(start)}`;
   return sameDay
     ? `${startText}–${TIME_FORMATTER.format(end)}`
-    : `${startText} ～ ${DATE_FORMATTER.format(end)}（${WEEKDAY_FORMATTER.format(end)}）${TIME_FORMATTER.format(end)}`;
+    : `${startText} ～ ${formatSessionDate(endIso)}${TIME_FORMATTER.format(end)}`;
 }
 
 // 場次時段（不含開始日期）：同日「09:00–12:00」，跨日「08:00–8/14 10:00」。

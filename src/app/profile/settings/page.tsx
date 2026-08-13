@@ -18,19 +18,10 @@ import type { DeactivationRequest, NotificationType } from "@/lib/types/database
 import { ProfilePageHeader } from "../profile-page-header";
 import { InfoRow, inlineInputClass } from "@/components/site/section";
 import { Spinner } from "@/components/ui/spinner";
+import { formatDateTime } from "@/lib/admin/datetime";
 
 // 志工可自行關閉的信件（提醒類）；審核結果、活動取消等重要通知不可關閉。
 const VOLUNTEER_EMAIL_TYPES = emailTogglableTypes("user", "volunteer");
-
-const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Taipei",
-  hourCycle: "h23",
-});
 
 function SettingsSection({
   icon,
@@ -45,9 +36,15 @@ function SettingsSection({
   children: React.ReactNode;
   danger?: boolean;
 }) {
+  // 卡片樣式與 /profile/custom-service 相同（前台 main 是白底，靠 border + shadow 分界）。
+  // 標題列不再畫底線——卡片邊界已經負責分隔。
   return (
-    <section>
-      <div className="mb-4 flex items-start gap-2.5 border-b border-slate-200 pb-2.5">
+    <section
+      className={`rounded-xl border bg-white p-5 shadow-sm md:p-6 ${
+        danger ? "border-amber-200" : "border-slate-200"
+      }`}
+    >
+      <div className="mb-4 flex items-start gap-2.5">
         <span translate="no" aria-hidden="true"
           className={`material-symbols-outlined notranslate text-[20px] ${
             danger ? "text-amber-600" : "text-primary"
@@ -271,7 +268,7 @@ export default function SettingsPage() {
       <ProfilePageHeader title="帳號設定" />
 
       <div className="flex-1 overflow-y-auto p-5 md:p-8">
-        <div className="w-full space-y-8">
+        <div className="w-full space-y-5">
           {/* Password */}
           <SettingsSection
             icon="lock"
@@ -477,7 +474,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                   <p className="text-sm text-amber-800 font-medium">
-                    停用申請已於 {DATE_FORMATTER.format(new Date(pendingRequest.created_at))} 送出，待管理員處理。
+                    停用申請已於 {formatDateTime(pendingRequest.created_at)} 送出，待管理員處理。
                   </p>
                   {pendingRequest.reason ? (
                     <p className="mt-2 text-sm text-amber-700">申請原因：{pendingRequest.reason}</p>

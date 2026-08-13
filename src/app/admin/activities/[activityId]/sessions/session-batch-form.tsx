@@ -15,20 +15,18 @@ import { Button } from "@/components/ui/button";
 import { Field, inputClass, Panel } from "@/components/admin/ui";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimeInput } from "@/components/ui/time-input";
-import { normalizeDateInput, normalizeTimeInput, taipeiLocalToIso } from "@/lib/admin/datetime";
+import {
+  formatMonthDayWeekday,
+  normalizeDateInput,
+  normalizeTimeInput,
+  taipeiLocalToIso,
+} from "@/lib/admin/datetime";
 
 const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
-const DATE_LABEL = new Intl.DateTimeFormat("zh-TW", {
-  month: "2-digit",
-  day: "2-digit",
-  weekday: "short",
-  timeZone: "Asia/Taipei",
-});
-
 function labelForDate(date: string): string {
   // date=yyyy-MM-dd，以中午避開時區換日
-  return DATE_LABEL.format(new Date(`${date}T12:00:00+08:00`));
+  return formatMonthDayWeekday(`${date}T12:00:00+08:00`);
 }
 
 export function SessionBatchForm({

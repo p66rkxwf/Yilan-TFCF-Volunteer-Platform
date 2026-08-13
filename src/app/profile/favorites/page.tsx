@@ -8,12 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "../profile-page-header";
 import { PageSpinner } from "@/components/ui/spinner";
-
-const MD_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Asia/Taipei",
-});
+import { formatMonthDay } from "@/lib/admin/datetime";
 
 type Availability = "open" | "full" | "closed" | "cancelled";
 
@@ -37,9 +32,9 @@ const AVAILABILITY_META: Record<Availability, { label: string; className: string
 
 function formatRange(firstStart: string | null, lastEnd: string | null): string {
   if (!firstStart) return "時間未定";
-  const start = MD_FORMATTER.format(new Date(firstStart));
+  const start = formatMonthDay(firstStart);
   if (!lastEnd) return start;
-  const end = MD_FORMATTER.format(new Date(lastEnd));
+  const end = formatMonthDay(lastEnd);
   return start === end ? start : `${start}–${end}`;
 }
 

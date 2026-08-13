@@ -22,6 +22,7 @@ import {
   SearchInput,
   RowActionMenu,
   rowOpen,
+  TimeCell,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { useAdminProfile } from "../admin-context";
@@ -31,7 +32,6 @@ import {
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
 import { ANNOUNCEMENT_STATUS } from "@/lib/admin/labels";
-import { formatDateTime } from "@/lib/admin/datetime";
 import type { Announcement, AnnouncementStatus } from "@/lib/types/database";
 
 interface AnnRow extends Announcement {
@@ -242,7 +242,7 @@ export default function AnnouncementsPage() {
                     </Td>
                     <Td className="text-slate-500">{row.creator?.full_name ?? "—"}</Td>
                     <Td className="whitespace-nowrap text-slate-500">
-                      {row.published_at ? formatDateTime(row.published_at) : "—"}
+                      <TimeCell iso={row.published_at} />
                     </Td>
                     <Td className="text-right">
                       <RowActionMenu

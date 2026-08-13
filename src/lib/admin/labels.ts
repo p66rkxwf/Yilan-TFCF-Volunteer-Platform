@@ -161,7 +161,138 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   update_system_settings: "更新系統參數",
   create_period: "新增期間",
   delete_period: "刪除期間",
+  // 由 trigger 以 'activity_' || status 動態組出，四種狀態都會寫入
+  activity_completed: "活動結束",
+  activity_cancelled: "活動已取消",
+  // 排程/觸發器寫入
+  session_time_conflict_detected: "偵測到場次時間衝突",
+  blacklist_released_by_makeup: "補登出席解除黑名單",
 };
+
+// 操作紀錄 target_table → 中文（audit_logs.target_table）
+export const AUDIT_TARGET_LABELS: Record<string, string> = {
+  volunteer_profiles: "學生",
+  staff_profiles: "職員",
+  registrations: "報名",
+  activities: "活動",
+  activity_sessions: "場次",
+  announcements: "公告",
+  blacklist_events: "黑名單",
+  deactivation_requests: "停用申請",
+  custom_service_records: "自訂服務",
+  support_requests: "支援需求",
+  system_settings: "系統參數",
+  periods: "期間",
+  notification_outbox: "通知",
+  audit_logs: "操作紀錄",
+};
+
+// 操作紀錄的操作類型分群。共 60+ 種 action，攤平成一個下拉會長到不能用，
+// 故先分大類；篩選器讓使用者選「整個大類」或大類底下的單一項目。
+// 新增 action 時記得一併掛進某一組，否則篩選器選不到（清單本身仍會顯示）。
+export const AUDIT_ACTION_GROUPS: { key: string; label: string; actions: string[] }[] = [
+  {
+    key: "registration",
+    label: "報名",
+    actions: [
+      "approve_registration",
+      "reject_registration",
+      "approve_cancel",
+      "reject_cancel",
+      "assign_volunteer",
+      "auto_expire_registration",
+      "volunteer_register",
+      "volunteer_cancel",
+      "session_time_conflict_detected",
+    ],
+  },
+  {
+    key: "attendance",
+    label: "出席",
+    actions: [
+      "manual_checkin",
+      "mark_absent",
+      "makeup_attendance",
+      "auto_mark_absent",
+      "volunteer_self_checkin",
+    ],
+  },
+  {
+    key: "volunteer_account",
+    label: "學生帳號",
+    actions: [
+      "approve_volunteer_account",
+      "reject_volunteer_account",
+      "update_volunteer_status",
+      "annual_grade_review",
+      "admin_update_volunteer_profile",
+      "set_volunteer_worker",
+      "verify_email",
+      "update_own_volunteer_username",
+      "request_deactivation",
+      "withdraw_deactivation_request",
+      "approve_deactivation_request",
+      "reject_deactivation_request",
+    ],
+  },
+  {
+    key: "blacklist",
+    label: "黑名單",
+    actions: [
+      "manual_blacklist",
+      "adjust_blacklist",
+      "auto_blacklist",
+      "auto_release_blacklist",
+      "blacklist_released_by_makeup",
+    ],
+  },
+  {
+    key: "activity",
+    label: "活動與場次",
+    actions: [
+      "activity_open",
+      "activity_closed",
+      "activity_completed",
+      "activity_cancelled",
+      "cancel_activity",
+      "cancel_session",
+      "create_session",
+      "update_session",
+      "delete_session",
+    ],
+  },
+  {
+    key: "announcement",
+    label: "公告",
+    actions: ["create_announcement", "update_announcement", "delete_announcement"],
+  },
+  {
+    key: "custom_service",
+    label: "自訂服務",
+    actions: ["submit_custom_service", "approve_custom_service", "reject_custom_service"],
+  },
+  {
+    key: "support",
+    label: "支援需求",
+    actions: ["resolve_support_request", "reopen_support_request"],
+  },
+  {
+    key: "system",
+    label: "職員與系統維護",
+    actions: [
+      "admin_update_staff_profile",
+      "update_own_staff_profile",
+      "reassign_worker",
+      "update_system_settings",
+      "create_period",
+      "delete_period",
+      "archive_record",
+      "restore_record",
+      "delete_record",
+      "manual_purge",
+    ],
+  },
+];
 
 // 稽核操作者身分別（audit_logs.actor_kind）
 // 稽核紀錄的操作者身分。只在後台顯示，故 volunteer 用「學生」而非「志工」。
