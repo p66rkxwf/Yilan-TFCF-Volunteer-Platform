@@ -196,7 +196,7 @@ PR 會自動部署到 staging（`.github/workflows/preview.yml`），需先手�
 - `npm run start`: 啟動 production server
 - `npm run lint`: 使用 ESLint flat config（`eslint.config.mjs`，沿用 `eslint-config-next`）執行 `eslint .`
 - `npm run typecheck`: `tsc --noEmit`
-- `npm run test` / `npm run test:db`: Vitest（DB 整合測試，需先備妥 `DATABASE_URL`，見「測試」）
+- `npm run test`: Vitest 全部；`test:unit` 純函式（免 DB）、`test:db` 整合測試（需 `DATABASE_URL`，見「測試」）
 - `npm run db:apply`: 把 `supabase/v2/*.sql` 依序套用到 `DATABASE_URL`（`--bootstrap`／`--upto=NN`）
 - `npm run check:registry`: 檢查 `supabase/v2/FUNCTIONS.md` 是否與實際覆蓋鏈一致
 - `npm run preview`: 透過 `opennextjs-cloudflare` 建置後，於本機預覽 Cloudflare Workers 版本

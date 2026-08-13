@@ -10,6 +10,7 @@
         "lint": "eslint .",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
+        "test:unit": "vitest run tests/unit",
         "test:db": "vitest run tests/db",
         "db:apply": "node scripts/apply-v2-sql.mjs",
         "check:registry": "node scripts/check-function-registry.mjs",

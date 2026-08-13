@@ -85,20 +85,14 @@ function escapeHtml(s: string): string {
 }
 
 // 日期時間格式與 src/lib/admin/datetime.ts 的全站規範一致
-//（日期 YYYY/MM/DD 補零、時間 24 小時制 HH:mm、一律 Asia/Taipei）。
+//（日期 YYYY-MM-DD 補零且一律帶年份、時間 24 小時制 HH:mm、一律 Asia/Taipei）。
 // worker 為獨立 package，故複製一份而非共用模組。
-const MAIL_DATE = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Asia/Taipei",
-});
-const MAIL_TIME = new Intl.DateTimeFormat("zh-TW", {
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Taipei",
-  hourCycle: "h23",
-});
+// 位移到台灣本地時刻後直接切字串，與站內 splitTaipeiLocal 同一套機制
+//（台灣無日光節約，固定 +8 小時是精確的）。
+function taipeiParts(d: Date): { date: string; time: string } {
+  const local = new Date(d.getTime() + 8 * 3_600_000).toISOString();
+  return { date: local.slice(0, 10), time: local.slice(11, 16) };
+}
 // 星期只放一個字「五」。刻意不用 Intl 的 weekday:"short"——zh-TW 會吐「週五」。
 // 與站內 taipeiWeekday / WEEKDAY_LABELS 一致（src/lib/admin/datetime.ts）。
 const MAIL_WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
@@ -114,20 +108,22 @@ function taipeiWeekdayLabel(d: Date): string {
   return MAIL_WEEKDAY_LABELS[new Date(d.getTime() + 8 * 3_600_000).getUTCDay()];
 }
 
-/** 單一時刻「2026/07/13 09:00」；對齊站內 formatDateTime。 */
+/** 單一時刻「2026-07-13 09:00」；對齊站內 formatDateTime。 */
 function formatTW(value: unknown): string {
   const d = toDate(value);
   if (!d) return "";
-  return `${MAIL_DATE.format(d)} ${MAIL_TIME.format(d)}`;
+  const { date, time } = taipeiParts(d);
+  return `${date} ${time}`;
 }
 
-/** 含星期的時刻「2026/07/13（一）09:00」；formatRangeTW 的兩端共用。 */
+/** 含星期的時刻「2026-07-13（一）09:00」；formatRangeTW 的兩端共用。 */
 function formatDayTimeTW(d: Date): string {
-  return `${MAIL_DATE.format(d)}（${taipeiWeekdayLabel(d)}）${MAIL_TIME.format(d)}`;
+  const { date, time } = taipeiParts(d);
+  return `${date}（${taipeiWeekdayLabel(d)}）${time}`;
 }
 
 /**
- * 場次起訖：同日「2026/07/13（一）09:00–12:00」，跨日附完整兩端。
+ * 場次起訖：同日「2026-07-13（一）09:00–12:00」，跨日附完整兩端。
  * 對齊站內 formatSessionRange（src/lib/admin/datetime.ts）。
  * 結束時間缺漏或非法時只顯示開始時刻。
  */
@@ -137,8 +133,8 @@ function formatRangeTW(start: unknown, end: unknown): string {
   const startText = formatDayTimeTW(startDate);
   const endDate = toDate(end);
   if (!endDate) return startText;
-  return MAIL_DATE.format(startDate) === MAIL_DATE.format(endDate)
-    ? `${startText}–${MAIL_TIME.format(endDate)}`
+  return taipeiParts(startDate).date === taipeiParts(endDate).date
+    ? `${startText}–${taipeiParts(endDate).time}`
     : `${startText} ～ ${formatDayTimeTW(endDate)}`;
 }
 

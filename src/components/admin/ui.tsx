@@ -161,8 +161,8 @@ export function TimeCell({ iso }: { iso: string | null | undefined }) {
   );
 }
 
-// 場次起訖。第一行帶星期（要判斷「那天是不是週末」），第二行用短格式時段，
-// 跨日時會自動變成「20:00–7/11 06:00」。
+// 場次起訖。第一行帶星期（要判斷「那天是不是週末」），第二行只有時段，
+// 跨日時會自動補上結束日期「20:00 – 2026-07-11 06:00」。
 export function SessionRangeCell({ start, end }: { start: string; end: string }) {
   return (
     <>

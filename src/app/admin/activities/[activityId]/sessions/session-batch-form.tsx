@@ -16,7 +16,7 @@ import { Field, inputClass, Panel } from "@/components/admin/ui";
 import { DatePicker } from "@/components/ui/date-picker";
 import { TimeInput } from "@/components/ui/time-input";
 import {
-  formatMonthDayWeekday,
+  formatSessionDate,
   normalizeDateInput,
   normalizeTimeInput,
   taipeiLocalToIso,
@@ -26,7 +26,7 @@ const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 
 function labelForDate(date: string): string {
   // date=yyyy-MM-dd，以中午避開時區換日
-  return formatMonthDayWeekday(`${date}T12:00:00+08:00`);
+  return formatSessionDate(`${date}T12:00:00+08:00`);
 }
 
 export function SessionBatchForm({

@@ -13,7 +13,7 @@ import { useAuth } from "@/components/auth-provider";
 import { Select } from "@/components/ui/select";
 import type { VolunteerStatus } from "@/lib/types/database";
 import { PageSpinner } from "@/components/ui/spinner";
-import { formatMonthDay } from "@/lib/admin/datetime";
+import { formatDate } from "@/lib/admin/datetime";
 
 const ACCOUNT_STATUS_BANNER: Partial<Record<VolunteerStatus, { label: string; color: string }>> = {
   suspended: { label: "帳號已停權，暫無法報名或收藏活動", color: "bg-amber-100 text-amber-700" },
@@ -62,10 +62,11 @@ const SORT_COMPARATORS: Record<SortKey, (a: ActivityListItem, b: ActivityListIte
 
 function formatRange(firstStart: string | null, lastEnd: string | null): string {
   if (!firstStart) return "時間未定";
-  const start = formatMonthDay(firstStart);
+  const start = formatDate(firstStart);
   if (!lastEnd) return start;
-  const end = formatMonthDay(lastEnd);
-  return start === end ? start : `${start}–${end}`;
+  const end = formatDate(lastEnd);
+  // 破折號兩側留空白：日期本身含連字號，貼著寫會連成一串難斷的橫線
+  return start === end ? start : `${start} – ${end}`;
 }
 
 export default function VolunteerPage() {

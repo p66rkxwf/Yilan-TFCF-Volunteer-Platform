@@ -15,7 +15,7 @@ import { useAuth } from "@/components/auth-provider";
 import { deleteNotifications, markNotificationsRead } from "@/lib/actions/notifications";
 import { callAction } from "@/lib/ui/toast-actions";
 import { getNotificationDisplay } from "@/lib/notifications";
-import { formatShortDateTime } from "@/lib/admin/datetime";
+import { formatDateTime } from "@/lib/admin/datetime";
 import { Spinner } from "@/components/ui/spinner";
 
 const DROPDOWN_LIMIT = 10;
@@ -210,7 +210,7 @@ export function NotificationBell() {
                             {display.lines[0]}
                           </span>
                           <span className="mt-1 block text-[11px] text-slate-400">
-                            {formatShortDateTime(item.created_at)}
+                            {formatDateTime(item.created_at)}
                           </span>
                         </span>
                       </button>

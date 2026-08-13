@@ -8,7 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/components/auth-provider";
 import { ProfilePageHeader } from "../profile-page-header";
 import { PageSpinner } from "@/components/ui/spinner";
-import { formatMonthDay } from "@/lib/admin/datetime";
+import { formatDate } from "@/lib/admin/datetime";
 
 type Availability = "open" | "full" | "closed" | "cancelled";
 
@@ -32,10 +32,11 @@ const AVAILABILITY_META: Record<Availability, { label: string; className: string
 
 function formatRange(firstStart: string | null, lastEnd: string | null): string {
   if (!firstStart) return "時間未定";
-  const start = formatMonthDay(firstStart);
+  const start = formatDate(firstStart);
   if (!lastEnd) return start;
-  const end = formatMonthDay(lastEnd);
-  return start === end ? start : `${start}–${end}`;
+  const end = formatDate(lastEnd);
+  // 破折號兩側留空白：日期本身含連字號，貼著寫會連成一串難斷的橫線
+  return start === end ? start : `${start} – ${end}`;
 }
 
 export default function FavoritesPage() {

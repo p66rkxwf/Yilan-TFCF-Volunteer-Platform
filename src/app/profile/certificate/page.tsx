@@ -11,6 +11,7 @@ import { ProfilePageHeader } from "../profile-page-header";
 import { useToast } from "@/components/ui/toast";
 import { NETWORK_ERROR_MESSAGE } from "@/lib/ui/toast-actions";
 import { PageSpinner } from "@/components/ui/spinner";
+import { formatDate } from "@/lib/admin/datetime";
 
 const PRINT_STYLE = `
 @media print {
@@ -53,12 +54,7 @@ export default function CertificatePage() {
     load();
   }, [toast]);
 
-  const today = new Date().toLocaleDateString("zh-TW", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "Asia/Taipei",
-  });
+  const today = formatDate(new Date().toISOString());
 
   if (isLoading) {
     return (
@@ -138,14 +134,7 @@ export default function CertificatePage() {
                   <tr key={entry.registration_id}>
                     <td className="py-3 text-sm text-slate-800">{entry.activity_title}</td>
                     <td className="py-3 text-sm text-slate-500 whitespace-nowrap">
-                      {entry.session_start_at
-                        ? new Date(entry.session_start_at).toLocaleDateString("zh-TW", {
-                            year: "numeric",
-                            month: "2-digit",
-                            day: "2-digit",
-                            timeZone: "Asia/Taipei",
-                          })
-                        : "—"}
+                      {formatDate(entry.session_start_at)}
                     </td>
                     <td className="py-3 text-sm text-slate-800 text-right font-semibold whitespace-nowrap">
                       {entry.hours} 小時

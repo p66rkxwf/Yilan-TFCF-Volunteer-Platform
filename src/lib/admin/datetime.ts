@@ -1,35 +1,12 @@
 // 全站共用：台灣時區的時間顯示與 <input type="datetime-local"> 轉換
-// 格式規範：日期 YYYY/MM/DD（補零）、時間 24 小時制 HH:mm
-
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Taipei",
-  hourCycle: "h23",
-});
-
-const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Asia/Taipei",
-});
-
-const TIME_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Asia/Taipei",
-  hourCycle: "h23",
-});
-
-const MONTH_DAY_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  month: "2-digit",
-  day: "2-digit",
-  timeZone: "Asia/Taipei",
-});
+//
+// 格式規範：日期一律 YYYY-MM-DD（補零、一律帶年份，無「7/24」這種簡寫），
+// 時間一律 24 小時制 HH:mm。窄版面也不例外——同一個日期在不同頁面長得不一樣，
+// 比欄位寬一點更難讀。
+//
+// 顯示與分組共用 splitTaipeiLocal（固定 +8 小時位移；台灣無日光節約），刻意不用
+// Intl 的 timeZone：兩套機制並存時，畫面顯示的日期有可能與 taipeiDateKey 算出的
+// 分組鍵落在不同天，那種不一致極難察覺。一個來源就沒有這個問題。
 
 // 週標題（日曆/預覽共用）
 export const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
@@ -43,38 +20,23 @@ export function taipeiWeekday(iso: string | null | undefined): string {
   return WEEKDAY_LABELS[new Date(`${dateKey}T00:00:00Z`).getUTCDay()];
 }
 
+// 「2026-07-24 09:03」
 export function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return DATE_TIME_FORMATTER.format(new Date(iso));
+  const { date, time } = splitTaipeiLocal(iso);
+  return `${date} ${time}`;
 }
 
+// 「2026-07-24」
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return DATE_FORMATTER.format(new Date(iso));
+  return splitTaipeiLocal(iso).date;
 }
 
 // 只有時刻「09:03」。供表格兩行時間格的第二行。
 export function formatTimeOnly(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return TIME_FORMATTER.format(new Date(iso));
-}
-
-// 月／日「07/10」。供活動卡片等空間很窄、且年份無歧義的位置。
-export function formatMonthDay(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return MONTH_DAY_FORMATTER.format(new Date(iso));
-}
-
-// 月／日＋時刻「07/10 09:03」。供通知鈴鐺這種寬度很窄的下拉。
-export function formatShortDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return `${MONTH_DAY_FORMATTER.format(new Date(iso))} ${TIME_FORMATTER.format(new Date(iso))}`;
-}
-
-// 月／日＋星期「07/10（一）」。供批量建場次的預覽標籤。
-export function formatMonthDayWeekday(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  return `${MONTH_DAY_FORMATTER.format(new Date(iso))}（${taipeiWeekday(iso)}）`;
+  return splitTaipeiLocal(iso).time;
 }
 
 // 表格兩行時間格用：拆成日期與時刻兩段。null 回 null，讓呼叫端只印一個「—」
@@ -83,37 +45,33 @@ export function splitDateTime(
   iso: string | null | undefined
 ): { date: string; time: string } | null {
   if (!iso) return null;
-  const d = new Date(iso);
-  return { date: DATE_FORMATTER.format(d), time: TIME_FORMATTER.format(d) };
+  return splitTaipeiLocal(iso);
 }
 
-// 場次日期含星期：「2026/07/10（五）」。供兩行式時間欄與 formatSessionRange 共用。
+// 場次日期含星期：「2026-07-24（五）」。供兩行式時間欄與 formatSessionRange 共用。
 export function formatSessionDate(iso: string): string {
-  return `${DATE_FORMATTER.format(new Date(iso))}（${taipeiWeekday(iso)}）`;
+  return `${formatDate(iso)}（${taipeiWeekday(iso)}）`;
 }
 
-// 場次起訖：同日顯示「2026/07/10（五）09:00–12:00」，跨日顯示完整兩端
+// 場次起訖：同日顯示「2026-07-24（五）09:00–12:00」，跨日顯示完整兩端
 export function formatSessionRange(startIso: string, endIso: string): string {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  const sameDay = DATE_FORMATTER.format(start) === DATE_FORMATTER.format(end);
-  const startText = `${formatSessionDate(startIso)}${TIME_FORMATTER.format(start)}`;
-  return sameDay
-    ? `${startText}–${TIME_FORMATTER.format(end)}`
-    : `${startText} ～ ${formatSessionDate(endIso)}${TIME_FORMATTER.format(end)}`;
+  const start = splitTaipeiLocal(startIso);
+  const end = splitTaipeiLocal(endIso);
+  const startText = `${formatSessionDate(startIso)}${start.time}`;
+  return start.date === end.date
+    ? `${startText}–${end.time}`
+    : `${startText} ～ ${formatSessionDate(endIso)}${end.time}`;
 }
 
-// 場次時段（不含開始日期）：同日「09:00–12:00」，跨日「08:00–8/14 10:00」。
-// 供「已用開始日期分組、每列不需重複日期」的清單使用；跨日的結束端省略年份
-// （欄位很窄，補零年份會撐爆版面；清單本身只涵蓋近幾天，年份無歧義）。
+// 場次時段（不含開始日期）：同日「09:00–12:00」，跨日「08:00 – 2026-07-25 10:00」。
+// 供「已用開始日期分組、每列不需重複日期」的清單使用。
+// 跨日那支在破折號兩側留空白：日期本身含連字號，貼著寫會變成一串難斷的橫線。
 export function formatTimeRange(startIso: string, endIso: string): string {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
-  if (DATE_FORMATTER.format(start) === DATE_FORMATTER.format(end)) {
-    return `${TIME_FORMATTER.format(start)}–${TIME_FORMATTER.format(end)}`;
-  }
-  const [, month, day] = taipeiDateKey(endIso).split("-");
-  return `${TIME_FORMATTER.format(start)}–${Number(month)}/${Number(day)} ${TIME_FORMATTER.format(end)}`;
+  const start = splitTaipeiLocal(startIso);
+  const end = splitTaipeiLocal(endIso);
+  return start.date === end.date
+    ? `${start.time}–${end.time}`
+    : `${start.time} – ${end.date} ${end.time}`;
 }
 
 // 分組鍵：一律取台灣本地日期（'YYYY-MM-DD'）。務必用這個而非 Date#getDate()，
@@ -122,8 +80,8 @@ export function taipeiDateKey(iso: string | null | undefined): string {
   return splitTaipeiLocal(iso).date;
 }
 
-// 日期分組的小節標題：今天／明天／7/13（日）。
-// 此處刻意不補零（標題求短），與本檔「日期 YYYY/MM/DD 補零」的欄位格式規範分開。
+// 日期分組的小節標題：今天／明天／2026-07-24（四）。
+// dateKey 本身就是 YYYY-MM-DD，直接用即符合全站格式。
 export function formatDayHeading(dateKey: string): string {
   if (!dateKey) return "";
   if (dateKey === todayTaipeiDate()) return "今天";
@@ -131,10 +89,9 @@ export function formatDayHeading(dateKey: string): string {
   if (dateKey === taipeiDateKey(new Date(Date.now() + 86_400_000).toISOString())) {
     return "明天";
   }
-  const [, month, day] = dateKey.split("-");
   // 純日曆運算（不牽涉時區）：以 UTC 午夜取星期，索引空間與 WEEKDAY_LABELS 一致
   const weekday = WEEKDAY_LABELS[new Date(`${dateKey}T00:00:00Z`).getUTCDay()];
-  return `${Number(month)}/${Number(day)}（${weekday}）`;
+  return `${dateKey}（${weekday}）`;
 }
 
 // datetime-local（視為台灣時間）→ ISO（UTC）

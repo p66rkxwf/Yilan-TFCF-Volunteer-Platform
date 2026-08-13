@@ -40,6 +40,9 @@ jobs:
 
       - run: npm run typecheck
 
+      # 純函式測試，不需要資料庫，故放在這個 job
+      - run: npm run test:unit
+
       # orchestrator 是獨立套件，deploy.yml 的 paths-ignore 也排除了 workers/**，
       # 過去完全不經任何檢查就手動部署。
       - name: Orchestrator typecheck
