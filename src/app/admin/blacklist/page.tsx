@@ -22,6 +22,7 @@ import {
   LoadingRow,
   TabBar,
   RowActionMenu,
+  SortableTh,
   rowOpen,
   TimeCell,
 } from "@/components/admin/ui";
@@ -33,6 +34,12 @@ import {
   normalizeDateInput,
   normalizeTimeInput,
 } from "@/lib/admin/datetime";
+import {
+  byBoolean,
+  byIso,
+  byText,
+  useTableSort,
+} from "@/components/admin/use-table-sort";
 import type { BlacklistEvent } from "@/lib/types/database";
 
 type TabKey = "active" | "history";
@@ -42,6 +49,16 @@ interface EventRow extends BlacklistEvent {
   releaser: { full_name: string } | null;
 }
 
+const SORTS = {
+  volunteer: byText<EventRow>((r) => r.volunteer?.full_name),
+  triggered: byIso<EventRow>((r) => r.triggered_at),
+  expected: byIso<EventRow>((r) => r.expected_release_at),
+  released: byIso<EventRow>((r) => r.released_at),
+  // 類型欄顯示的是「自動／手動」，故直接比那個旗標
+  kind: byBoolean<EventRow>((r) => r.is_manual),
+  note: byText<EventRow>((r) => r.note),
+};
+
 function BlacklistInner() {
   const supabase = createClient();
   const toast = useToast();
@@ -50,6 +67,8 @@ function BlacklistInner() {
   const profile = useAdminProfile();
   const isAdmin = profile.role === "system_admin" || profile.role === "unit_admin";
   const tab = (searchParams.get("tab") as TabKey) || "active";
+
+  const { sort, toggle, sortRows } = useTableSort<EventRow>(SORTS);
 
   const [rows, setRows] = useState<EventRow[]>([]);
   const [counts, setCounts] = useState({ active: 0 });
@@ -181,12 +200,14 @@ function BlacklistInner() {
           <TableShell>
             <thead>
               <tr>
-                <Th>學生</Th>
-                <Th>列入時間</Th>
-                <Th>預計解除</Th>
-                {tab === "history" && <Th>實際解除</Th>}
-                <Th>類型</Th>
-                <Th>備註</Th>
+                <SortableTh sortKey="volunteer" sort={sort} onToggle={toggle}>學生</SortableTh>
+                <SortableTh sortKey="triggered" sort={sort} onToggle={toggle}>列入時間</SortableTh>
+                <SortableTh sortKey="expected" sort={sort} onToggle={toggle}>預計解除</SortableTh>
+                {tab === "history" && (
+                  <SortableTh sortKey="released" sort={sort} onToggle={toggle}>實際解除</SortableTh>
+                )}
+                <SortableTh sortKey="kind" sort={sort} onToggle={toggle}>類型</SortableTh>
+                <SortableTh sortKey="note" sort={sort} onToggle={toggle}>備註</SortableTh>
                 {tab === "active" && isAdmin && <Th className="text-right">操作</Th>}
               </tr>
             </thead>
@@ -199,7 +220,7 @@ function BlacklistInner() {
                   message={tab === "active" ? "目前沒有生效中的黑名單" : "沒有歷史紀錄"}
                 />
               ) : (
-                rows.map((event) => (
+                sortRows(rows).map((event) => (
                   <tr
                     key={event.id}
                     {...rowOpen(() => {

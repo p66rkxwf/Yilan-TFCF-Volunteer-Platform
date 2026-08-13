@@ -21,6 +21,7 @@ import {
   Pagination,
   RowActionMenu,
   rowOpen,
+  SortableTh,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -31,7 +32,13 @@ import {
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
 import { callAction } from "@/lib/ui/toast-actions";
-import { VOLUNTEER_STATUS } from "@/lib/admin/labels";
+import { GRADE_LEVELS, VOLUNTEER_STATUS, rankBy } from "@/lib/admin/labels";
+import {
+  byIso,
+  byRank,
+  byText,
+  useTableSort,
+} from "@/components/admin/use-table-sort";
 import { formatDate } from "@/lib/admin/datetime";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import type { GradeLevel, VolunteerStatus } from "@/lib/types/database";
@@ -50,12 +57,30 @@ interface VolunteerRow {
   worker: { full_name: string } | null;
 }
 
+const rankGrade = rankBy(GRADE_LEVELS);
+const rankVolunteerStatus = rankBy(VOLUNTEER_STATUS);
+
+const SORTS = {
+  name: byText<VolunteerRow>((r) => r.full_name),
+  grade: byRank<VolunteerRow, GradeLevel>((r) => r.grade, rankGrade),
+  region: byText<VolunteerRow>((r) => r.region),
+  phone: byText<VolunteerRow>((r) => r.phone),
+  worker: byText<VolunteerRow>((r) => r.worker?.full_name),
+  // 黑名單是獨立於 status 的旗標，且徽章就顯示在這一欄，故一併納入比較
+  status: (a: VolunteerRow, b: VolunteerRow) =>
+    rankVolunteerStatus(a.status) - rankVolunteerStatus(b.status) ||
+    Number(a.is_blacklisted) - Number(b.is_blacklisted),
+  lastLogin: byIso<VolunteerRow>((r) => r.last_login_at),
+};
+
 export default function VolunteersPage() {
   const supabase = createClient();
   const toast = useToast();
   const router = useRouter();
   const profile = useAdminProfile();
   const isSysAdmin = profile.role === "system_admin";
+
+  const { sort, toggle, sortRows } = useTableSort<VolunteerRow>(SORTS);
 
   const [rows, setRows] = useState<VolunteerRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,9 +156,11 @@ export default function VolunteersPage() {
     });
   }, [rows, statusFilter, gradeFilter, blacklistFilter, search]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // 排序必須在分頁切片之前，否則只會重排當前這一頁
+  const sorted = sortRows(filtered);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const paged = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const resetPage = () => setPage(1);
 
@@ -228,13 +255,13 @@ export default function VolunteersPage() {
           <TableShell>
             <thead>
               <tr>
-                <Th>姓名</Th>
-                <Th>學制</Th>
-                <Th>地區</Th>
-                <Th>電話</Th>
-                <Th>負責社工</Th>
-                <Th>狀態</Th>
-                <Th>最後上線</Th>
+                <SortableTh sortKey="name" sort={sort} onToggle={toggle}>姓名</SortableTh>
+                <SortableTh sortKey="grade" sort={sort} onToggle={toggle}>學制</SortableTh>
+                <SortableTh sortKey="region" sort={sort} onToggle={toggle}>地區</SortableTh>
+                <SortableTh sortKey="phone" sort={sort} onToggle={toggle}>電話</SortableTh>
+                <SortableTh sortKey="worker" sort={sort} onToggle={toggle}>負責社工</SortableTh>
+                <SortableTh sortKey="status" sort={sort} onToggle={toggle}>狀態</SortableTh>
+                <SortableTh sortKey="lastLogin" sort={sort} onToggle={toggle}>最後上線</SortableTh>
                 {isSysAdmin && <Th className="text-right">操作</Th>}
               </tr>
             </thead>

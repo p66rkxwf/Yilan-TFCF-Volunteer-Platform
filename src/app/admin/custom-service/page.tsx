@@ -22,6 +22,7 @@ import {
   TabBar,
   Field,
   RowActionMenu,
+  SortableTh,
   inputClass,
   TimeCell,
   SessionRangeCell,
@@ -34,8 +35,15 @@ import {
   formatSessionRange,
   todayTaipeiDate,
 } from "@/lib/admin/datetime";
-import { CUSTOM_SERVICE_STATUS } from "@/lib/admin/labels";
-import type { CustomServiceRecord } from "@/lib/types/database";
+import { CUSTOM_SERVICE_STATUS, rankBy } from "@/lib/admin/labels";
+import {
+  byIso,
+  byNumber,
+  byRank,
+  byText,
+  useTableSort,
+} from "@/components/admin/use-table-sort";
+import type { CustomServiceRecord, CustomServiceStatus } from "@/lib/types/database";
 
 type TabKey = "pending" | "reviewed";
 
@@ -44,6 +52,7 @@ interface Row extends CustomServiceRecord {
 }
 
 const STATUS_META = CUSTOM_SERVICE_STATUS;
+const rankCustomServiceStatus = rankBy(CUSTOM_SERVICE_STATUS);
 
 function CustomServiceInner() {
   const supabase = createClient();
@@ -51,6 +60,26 @@ function CustomServiceInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = (searchParams.get("tab") as TabKey) || "pending";
+
+  // 最後一欄在待審分頁是提交時間、已處理分頁是狀態，比較子跟著切換
+  const sorts = useMemo(
+    () => ({
+      volunteer: byText<Row>((r) => r.volunteer?.full_name),
+      title: byText<Row>((r) => r.title),
+      served: byIso<Row>((r) => r.start_at),
+      hours: byNumber<Row>((r) => Number(r.service_hours)),
+      last:
+        tab === "pending"
+          ? byIso<Row>((r) => r.created_at)
+          : byRank<Row, CustomServiceStatus>(
+              (r) => r.status as CustomServiceStatus,
+              rankCustomServiceStatus
+            ),
+    }),
+    [tab]
+  );
+
+  const { sort, toggle, sortRows } = useTableSort<Row>(sorts);
 
   const [rows, setRows] = useState<Row[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -213,11 +242,15 @@ function CustomServiceInner() {
           <TableShell>
             <thead>
               <tr>
-                <Th>學生</Th>
-                <Th>活動名稱</Th>
-                <Th>服務時間</Th>
-                <Th className="text-right">時數</Th>
-                <Th>{tab === "pending" ? "提交時間" : "狀態"}</Th>
+                <SortableTh sortKey="volunteer" sort={sort} onToggle={toggle}>學生</SortableTh>
+                <SortableTh sortKey="title" sort={sort} onToggle={toggle}>活動名稱</SortableTh>
+                <SortableTh sortKey="served" sort={sort} onToggle={toggle}>服務時間</SortableTh>
+                <SortableTh sortKey="hours" sort={sort} onToggle={toggle} align="right">
+                  時數
+                </SortableTh>
+                <SortableTh sortKey="last" sort={sort} onToggle={toggle}>
+                  {tab === "pending" ? "提交時間" : "狀態"}
+                </SortableTh>
                 <Th className="text-right">操作</Th>
               </tr>
             </thead>
@@ -227,7 +260,7 @@ function CustomServiceInner() {
               ) : rows.length === 0 ? (
                 <EmptyRow colSpan={6} message={tab === "pending" ? "目前沒有待審核的登錄" : "沒有已處理的紀錄"} />
               ) : (
-                rows.map((row) => (
+                sortRows(rows).map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-slate-50">
                     <Td className="font-semibold text-slate-900">
                       {row.volunteer?.full_name ?? "—"}

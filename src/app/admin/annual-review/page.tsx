@@ -21,13 +21,32 @@ import {
   EmptyRow,
   LoadingRow,
   RowActionMenu,
+  SortableTh,
   rowOpen,
 } from "@/components/admin/ui";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Select } from "@/components/ui/select";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
+import { GRADE_LEVELS, rankBy } from "@/lib/admin/labels";
+import {
+  byIso,
+  byNumber,
+  byRank,
+  byText,
+  useTableSort,
+} from "@/components/admin/use-table-sort";
 import { formatDate } from "@/lib/admin/datetime";
 import type { AnnualGradeReviewRow, GradeLevel } from "@/lib/types/database";
+
+const rankGrade = rankBy(GRADE_LEVELS);
+
+const SORTS = {
+  name: byText<AnnualGradeReviewRow>((r) => r.full_name),
+  grade: byRank<AnnualGradeReviewRow, GradeLevel>((r) => r.grade, rankGrade),
+  age: byNumber<AnnualGradeReviewRow>((r) => r.age_at_aug31),
+  referenceAge: byNumber<AnnualGradeReviewRow>((r) => r.reference_age),
+  reviewed: byIso<AnnualGradeReviewRow>((r) => r.last_grade_reviewed_at),
+};
 
 export default function AnnualReviewPage() {
   const supabase = createClient();
@@ -35,6 +54,8 @@ export default function AnnualReviewPage() {
   const router = useRouter();
   const profile = useAdminProfile();
   const isAdmin = profile.role === "system_admin" || profile.role === "unit_admin";
+
+  const { sort, toggle, sortRows } = useTableSort<AnnualGradeReviewRow>(SORTS);
 
   const [rows, setRows] = useState<AnnualGradeReviewRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,11 +129,16 @@ export default function AnnualReviewPage() {
           <TableShell>
             <thead>
               <tr>
-                <Th>姓名</Th>
-                <Th>目前學制</Th>
-                <Th className="text-right">8/31 學年齡</Th>
-                <Th className="text-right">參考年齡</Th>
-                <Th>上次審查</Th>
+                <SortableTh sortKey="name" sort={sort} onToggle={toggle}>姓名</SortableTh>
+                <SortableTh sortKey="grade" sort={sort} onToggle={toggle}>目前學制</SortableTh>
+                <SortableTh sortKey="age" sort={sort} onToggle={toggle} align="right">
+                  8/31 學年齡
+                </SortableTh>
+                <SortableTh sortKey="referenceAge" sort={sort} onToggle={toggle} align="right">
+                  參考年齡
+                </SortableTh>
+                <SortableTh sortKey="reviewed" sort={sort} onToggle={toggle}>上次審查</SortableTh>
+                {/* 「更新為」是每列的學制下拉，不是資料，故不提供排序 */}
                 {isAdmin && <Th>更新為</Th>}
                 {isAdmin && <Th className="text-right">操作</Th>}
               </tr>
@@ -123,7 +149,7 @@ export default function AnnualReviewPage() {
               ) : rows.length === 0 ? (
                 <EmptyRow colSpan={7} message="目前沒有需審查的學生" />
               ) : (
-                rows.map((row) => (
+                sortRows(rows).map((row) => (
                   <tr key={row.id} {...rowOpen(() => router.push(`/admin/volunteers/${row.id}`))} className="transition-colors hover:bg-slate-50">
                     <Td>
                       <Link prefetch={false}

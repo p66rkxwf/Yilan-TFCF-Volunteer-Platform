@@ -15,12 +15,12 @@ import {
   PageHeader,
   Panel,
   TableShell,
-  Th,
   Td,
   EmptyRow,
   LoadingRow,
   Toolbar,
   Field,
+  SortableTh,
   TimeCell,
   rowOpen,
 } from "@/components/admin/ui";
@@ -40,7 +40,8 @@ import {
   summarizeAuditDetail,
   type AuditDetail,
 } from "@/lib/admin/audit";
-import { formatDateTime } from "@/lib/admin/datetime";
+import { formatDateTime, todayTaipeiDate } from "@/lib/admin/datetime";
+import { byIso, byText, useTableSort } from "@/components/admin/use-table-sort";
 
 const ROW_LIMIT = 1000;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -57,10 +58,21 @@ interface LogRow {
   actorName: string | null;
 }
 
-function todayTaipei(offsetDays = 0): string {
-  const d = new Date(Date.now() + offsetDays * 86_400_000 + 8 * 3_600_000);
-  return d.toISOString().slice(0, 10);
-}
+// 操作／對象／身分欄排的是畫面上的中文標籤：這幾個不是狀態機，只是一組平行的
+// 詞彙，沒有「先後」可言，依畫面文字排才對得上使用者看到的東西。
+const SORTS = {
+  time: byIso<LogRow>((r) => r.created_at),
+  action: byText<LogRow>((r) => AUDIT_ACTION_LABELS[r.action] ?? r.action),
+  target: byText<LogRow>(
+    (r) =>
+      `${AUDIT_TARGET_LABELS[r.target_table] ?? r.target_table}${auditTargetName(r.detail) ?? ""}`
+  ),
+  summary: byText<LogRow>((r) => summarizeAuditDetail(r.action, r.detail)),
+  actor: byText<LogRow>((r) => r.actorName),
+  actorKind: byText<LogRow>(
+    (r) => AUDIT_ACTOR_KIND_LABELS[r.actor_kind ?? "system"] ?? ""
+  ),
+};
 
 // 操作類型下拉：大類（g:key）＋大類底下的單項，以縮排區分層級
 const ACTION_OPTIONS = [
@@ -90,10 +102,12 @@ export default function LogsPage() {
   const router = useRouter();
   const profile = useAdminProfile();
 
+  const { sort, toggle, sortRows } = useTableSort<LogRow>(SORTS);
+
   const [rows, setRows] = useState<LogRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [dateFrom, setDateFrom] = useState(todayTaipei(-7));
-  const [dateTo, setDateTo] = useState(todayTaipei(0));
+  const [dateFrom, setDateFrom] = useState(todayTaipeiDate(-7));
+  const [dateTo, setDateTo] = useState(todayTaipeiDate(0));
   const [actionFilter, setActionFilter] = useState("all");
   const [actorKindFilter, setActorKindFilter] = useState("all");
   const [targetFilter, setTargetFilter] = useState("all");
@@ -295,12 +309,12 @@ export default function LogsPage() {
           <TableShell>
             <thead>
               <tr>
-                <Th>時間</Th>
-                <Th>操作</Th>
-                <Th>對象</Th>
-                <Th>說明</Th>
-                <Th>操作人</Th>
-                <Th>身分</Th>
+                <SortableTh sortKey="time" sort={sort} onToggle={toggle}>時間</SortableTh>
+                <SortableTh sortKey="action" sort={sort} onToggle={toggle}>操作</SortableTh>
+                <SortableTh sortKey="target" sort={sort} onToggle={toggle}>對象</SortableTh>
+                <SortableTh sortKey="summary" sort={sort} onToggle={toggle}>說明</SortableTh>
+                <SortableTh sortKey="actor" sort={sort} onToggle={toggle}>操作人</SortableTh>
+                <SortableTh sortKey="actorKind" sort={sort} onToggle={toggle}>身分</SortableTh>
               </tr>
             </thead>
             <tbody>
@@ -312,7 +326,7 @@ export default function LogsPage() {
                   message={hasFilter ? "沒有符合條件的操作紀錄" : "此區間沒有操作紀錄"}
                 />
               ) : (
-                rows.map((row) => {
+                sortRows(rows).map((row) => {
                   const targetName = auditTargetName(row.detail);
                   const summary = summarizeAuditDetail(row.action, row.detail);
                   return (

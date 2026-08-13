@@ -23,7 +23,15 @@ import {
   RowActionMenu,
   rowOpen,
   SessionRangeCell,
+  SortableTh,
 } from "@/components/admin/ui";
+import {
+  byIso,
+  byNumber,
+  byRank,
+  byText,
+  useTableSort,
+} from "@/components/admin/use-table-sort";
 import { Select } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -32,7 +40,7 @@ import {
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
 import { callAction } from "@/lib/ui/toast-actions";
-import { ACTIVITY_STATUS } from "@/lib/admin/labels";
+import { ACTIVITY_STATUS, rankBy } from "@/lib/admin/labels";
 import type { Activity, ActivityStatus } from "@/lib/types/database";
 
 const PAGE_SIZE = 20;
@@ -48,12 +56,44 @@ interface ActivityRow extends Activity {
   creator: { full_name: string } | null;
 }
 
+const liveSessions = (row: ActivityRow) =>
+  row.activity_sessions.filter((s) => !s.cancelled_at);
+
+// 「下一場」欄的排序值：與畫面顯示的那一場一致（未來優先，否則最近一場）。
+const nextSessionStart = (row: ActivityRow) => nextSession(row)?.start_at ?? "";
+
+// 下一場未取消場次（未來優先，否則顯示最近一場）。回場次本身而非字串，
+// 讓儲存格能用 SessionRangeCell 排成兩行。
+function nextSession(row: ActivityRow) {
+  const active = [...liveSessions(row)].sort((a, b) =>
+    a.start_at.localeCompare(b.start_at)
+  );
+  if (active.length === 0) return null;
+  const now = new Date().toISOString();
+  return active.find((s) => s.end_at >= now) ?? active[active.length - 1];
+}
+
+const rankActivityStatus = rankBy(ACTIVITY_STATUS);
+
+const SORTS = {
+  title: byText<ActivityRow>((r) => r.title),
+  status: byRank<ActivityRow, ActivityStatus>(
+    (r) => r.status as ActivityStatus,
+    rankActivityStatus
+  ),
+  sessions: byNumber<ActivityRow>((r) => liveSessions(r).length),
+  next: byIso<ActivityRow>(nextSessionStart),
+  creator: byText<ActivityRow>((r) => r.creator?.full_name),
+};
+
 export default function AdminActivitiesPage() {
   const supabase = createClient();
   const toast = useToast();
   const router = useRouter();
   const profile = useAdminProfile();
   const isSysAdmin = profile.role === "system_admin";
+
+  const { sort, toggle, sortRows } = useTableSort<ActivityRow>(SORTS);
 
   const [rows, setRows] = useState<ActivityRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -126,20 +166,11 @@ export default function AdminActivitiesPage() {
     });
   }, [rows, statusFilter, scopeFilter, search, profile.id]);
 
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // 排序必須在分頁切片之前，否則只會重排當前這一頁
+  const sorted = sortRows(filtered);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
-  const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-
-  // 下一場未取消場次（未來優先，否則顯示最近一場）。回場次本身而非字串，
-  // 讓儲存格能用 SessionRangeCell 排成兩行。
-  const nextSession = (row: ActivityRow) => {
-    const active = row.activity_sessions
-      .filter((s) => !s.cancelled_at)
-      .sort((a, b) => a.start_at.localeCompare(b.start_at));
-    if (active.length === 0) return null;
-    const now = new Date().toISOString();
-    return active.find((s) => s.end_at >= now) ?? active[active.length - 1];
-  };
+  const paged = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <>
@@ -218,11 +249,13 @@ export default function AdminActivitiesPage() {
           <TableShell>
             <thead>
               <tr>
-                <Th>活動</Th>
-                <Th>狀態</Th>
-                <Th className="text-right">場次數</Th>
-                <Th>下一場</Th>
-                <Th>建立者</Th>
+                <SortableTh sortKey="title" sort={sort} onToggle={toggle}>活動</SortableTh>
+                <SortableTh sortKey="status" sort={sort} onToggle={toggle}>狀態</SortableTh>
+                <SortableTh sortKey="sessions" sort={sort} onToggle={toggle} align="right">
+                  場次數
+                </SortableTh>
+                <SortableTh sortKey="next" sort={sort} onToggle={toggle}>下一場</SortableTh>
+                <SortableTh sortKey="creator" sort={sort} onToggle={toggle}>建立者</SortableTh>
                 <Th className="text-right">操作</Th>
               </tr>
             </thead>
@@ -233,7 +266,7 @@ export default function AdminActivitiesPage() {
                 <EmptyRow colSpan={7} message="沒有符合條件的活動" />
               ) : (
                 paged.map((row) => {
-                  const activeSessions = row.activity_sessions.filter((s) => !s.cancelled_at);
+                  const activeSessions = liveSessions(row);
                   const next = nextSession(row);
                   return (
                     <tr key={row.id} {...rowOpen(() => router.push(`/admin/activities/${row.id}`))} className="transition-colors hover:bg-slate-50">

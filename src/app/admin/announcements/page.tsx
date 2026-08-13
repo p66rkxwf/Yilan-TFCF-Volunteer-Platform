@@ -21,6 +21,7 @@ import {
   Toolbar,
   SearchInput,
   RowActionMenu,
+  SortableTh,
   rowOpen,
   TimeCell,
 } from "@/components/admin/ui";
@@ -31,12 +32,28 @@ import {
   restoreRecord,
   deleteRecordPermanently,
 } from "@/lib/actions/admin-archive";
-import { ANNOUNCEMENT_STATUS } from "@/lib/admin/labels";
+import { ANNOUNCEMENT_STATUS, rankBy } from "@/lib/admin/labels";
+import { byIso, byRank, byText, useTableSort } from "@/components/admin/use-table-sort";
 import type { Announcement, AnnouncementStatus } from "@/lib/types/database";
 
 interface AnnRow extends Announcement {
   creator: { full_name: string } | null;
 }
+
+const rankAnnouncementStatus = rankBy(ANNOUNCEMENT_STATUS);
+
+const SORTS = {
+  // 置頂會排在清單最前面，排序時一併考慮，否則點了標題排序會看到置頂項亂跳
+  title: (a: AnnRow, b: AnnRow) =>
+    Number(b.is_pinned) - Number(a.is_pinned) ||
+    a.title.localeCompare(b.title, "zh-Hant"),
+  status: byRank<AnnRow, AnnouncementStatus>(
+    (r) => r.status as AnnouncementStatus,
+    rankAnnouncementStatus
+  ),
+  creator: byText<AnnRow>((r) => r.creator?.full_name),
+  published: byIso<AnnRow>((r) => r.published_at),
+};
 
 export default function AnnouncementsPage() {
   const supabase = createClient();
@@ -44,6 +61,8 @@ export default function AnnouncementsPage() {
   const router = useRouter();
   const profile = useAdminProfile();
   const isSysAdmin = profile.role === "system_admin";
+
+  const { sort, toggle, sortRows } = useTableSort<AnnRow>(SORTS);
 
   const [rows, setRows] = useState<AnnRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,10 +226,10 @@ export default function AnnouncementsPage() {
           <TableShell>
             <thead>
               <tr>
-                <Th>標題</Th>
-                <Th>狀態</Th>
-                <Th>建立者</Th>
-                <Th>發布時間</Th>
+                <SortableTh sortKey="title" sort={sort} onToggle={toggle}>標題</SortableTh>
+                <SortableTh sortKey="status" sort={sort} onToggle={toggle}>狀態</SortableTh>
+                <SortableTh sortKey="creator" sort={sort} onToggle={toggle}>建立者</SortableTh>
+                <SortableTh sortKey="published" sort={sort} onToggle={toggle}>發布時間</SortableTh>
                 <Th className="text-right">操作</Th>
               </tr>
             </thead>
@@ -220,7 +239,7 @@ export default function AnnouncementsPage() {
               ) : filtered.length === 0 ? (
                 <EmptyRow colSpan={5} message="沒有符合的公告" />
               ) : (
-                filtered.map((row) => (
+                sortRows(filtered).map((row) => (
                   <tr key={row.id} {...rowOpen(() => router.push(`/admin/announcements/${row.id}/edit`))} className="transition-colors hover:bg-slate-50">
                     <Td>
                       <span className="flex items-center gap-1.5">

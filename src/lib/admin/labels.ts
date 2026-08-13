@@ -22,6 +22,29 @@ export interface StatusMeta {
   badge: string;
 }
 
+/**
+ * 依對照表的「鍵序」給排名，供表格點擊排序用。
+ *
+ * 本檔各對照表的鍵本來就是照狀態機／學制的自然順序寫的（待審核→在職→停權…、
+ * 國中→高中→大學…），直接沿用即可；另外維護一份排序表遲早會與這裡不同步。
+ * 依中文標籤排字面順序則幾乎沒有意義——「已取消、待審核、已核准」排在一起，
+ * 看不出任何流程上的先後。
+ *
+ * 未知值與空值一律排在最後。
+ */
+export function rankBy<T extends string>(
+  source: Record<T, unknown> | readonly T[]
+): (value: T | null | undefined) => number {
+  // 對照表用鍵序，順序陣列（如 GRADE_LEVELS）直接用本身
+  const order: readonly T[] = Array.isArray(source)
+    ? (source as readonly T[])
+    : (Object.keys(source) as T[]);
+  return (value) => {
+    const index = value ? order.indexOf(value) : -1;
+    return index === -1 ? order.length : index;
+  };
+}
+
 export const ACTIVITY_STATUS: Record<ActivityStatus, StatusMeta> = {
   draft: { label: "草稿", badge: "bg-slate-100 text-slate-600" },
   open: { label: "開放報名", badge: "bg-emerald-100 text-emerald-700" },

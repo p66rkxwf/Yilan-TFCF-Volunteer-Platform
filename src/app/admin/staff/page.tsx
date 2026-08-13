@@ -36,11 +36,19 @@ import {
   SearchInput,
   Field,
   RowActionMenu,
+  SortableTh,
   inputClass,
 } from "@/components/admin/ui";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { STAFF_ROLE, STAFF_JOB_TITLE, STAFF_STATUS } from "@/lib/admin/labels";
+import { STAFF_ROLE, STAFF_JOB_TITLE, STAFF_STATUS, rankBy } from "@/lib/admin/labels";
+import {
+  byIso,
+  byNumber,
+  byRank,
+  byText,
+  useTableSort,
+} from "@/components/admin/use-table-sort";
 import { formatDate } from "@/lib/admin/datetime";
 import { isValidEmail, isValidTaiwanPhone, isValidUsername } from "@/lib/validation";
 import { YILAN_REGIONS } from "@/lib/types/database";
@@ -58,6 +66,10 @@ interface StaffRow {
   status: StaffAccountStatus;
   last_login_at: string | null;
 }
+
+const rankJobTitle = rankBy(STAFF_JOB_TITLE);
+const rankRole = rankBy(STAFF_ROLE);
+const rankStaffStatus = rankBy(STAFF_STATUS);
 
 export default function StaffPage() {
   const supabase = createClient();
@@ -146,6 +158,27 @@ export default function StaffPage() {
       (r) => r.full_name.includes(q) || r.username.includes(q) || r.phone.includes(q)
     );
   }, [rows, search]);
+
+  // 「負責學生」的筆數是另外查來的，故本頁的比較子要在元件內組
+  const sorts = useMemo(
+    () => ({
+      name: byText<StaffRow>((r) => r.full_name),
+      username: byText<StaffRow>((r) => r.username),
+      phone: byText<StaffRow>((r) => r.phone),
+      jobTitle: byRank<StaffRow, StaffJobTitle>((r) => r.job_title, rankJobTitle),
+      // 非社工不會被指派學生，排序時視為 0 而非空值
+      students: byNumber<StaffRow>((r) =>
+        r.job_title === "social_worker" ? (workerCounts[r.id] ?? 0) : 0
+      ),
+      role: byRank<StaffRow, StaffRole>((r) => r.role, rankRole),
+      status: byRank<StaffRow, StaffAccountStatus>((r) => r.status, rankStaffStatus),
+      lastLogin: byIso<StaffRow>((r) => r.last_login_at),
+    }),
+    [workerCounts]
+  );
+
+  const { sort, toggle, sortRows } = useTableSort<StaffRow>(sorts);
+  const visible = sortRows(filtered);
 
   const confirmRoleChange = async () => {
     if (!roleConfirm) return;
@@ -352,14 +385,14 @@ export default function StaffPage() {
           <TableShell>
             <thead>
               <tr>
-                <Th>姓名</Th>
-                <Th>帳號</Th>
-                <Th>電話</Th>
-                <Th>職稱</Th>
-                <Th>負責學生</Th>
-                <Th>角色</Th>
-                <Th>狀態</Th>
-                <Th>最後上線</Th>
+                <SortableTh sortKey="name" sort={sort} onToggle={toggle}>姓名</SortableTh>
+                <SortableTh sortKey="username" sort={sort} onToggle={toggle}>帳號</SortableTh>
+                <SortableTh sortKey="phone" sort={sort} onToggle={toggle}>電話</SortableTh>
+                <SortableTh sortKey="jobTitle" sort={sort} onToggle={toggle}>職稱</SortableTh>
+                <SortableTh sortKey="students" sort={sort} onToggle={toggle}>負責學生</SortableTh>
+                <SortableTh sortKey="role" sort={sort} onToggle={toggle}>角色</SortableTh>
+                <SortableTh sortKey="status" sort={sort} onToggle={toggle}>狀態</SortableTh>
+                <SortableTh sortKey="lastLogin" sort={sort} onToggle={toggle}>最後上線</SortableTh>
                 {isAdmin && <Th className="text-right">操作</Th>}
               </tr>
             </thead>
@@ -369,7 +402,7 @@ export default function StaffPage() {
               ) : filtered.length === 0 ? (
                 <EmptyRow colSpan={isAdmin ? 9 : 8} message="沒有符合的職員" />
               ) : (
-                filtered.map((row) => {
+                visible.map((row) => {
                   const isSelf = row.id === profile.id;
                   return (
                     <tr key={row.id} className="transition-colors hover:bg-slate-50">

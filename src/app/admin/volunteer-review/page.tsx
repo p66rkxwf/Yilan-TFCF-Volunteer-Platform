@@ -26,11 +26,14 @@ import {
   TabBar,
   BatchBar,
   RowActionMenu,
+  SortableTh,
   rowOpen,
   TimeCell,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
 import { useSelection } from "@/components/admin/use-selection";
+import { byIso, byText, useTableSort } from "@/components/admin/use-table-sort";
+import { GRADE_LEVELS, rankBy } from "@/lib/admin/labels";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
 import { formatDate } from "@/lib/admin/datetime";
 import type { GradeLevel } from "@/lib/types/database";
@@ -59,6 +62,24 @@ interface WorkerOption {
   id: string;
   full_name: string;
 }
+
+const rankGrade = rankBy(GRADE_LEVELS);
+
+const ACCOUNT_SORTS = {
+  name: byText<AccountRow>((r) => r.full_name),
+  // 這一欄同時顯示學制與生日，故先比學制再比生日
+  grade: (a: AccountRow, b: AccountRow) =>
+    rankGrade(a.grade) - rankGrade(b.grade) ||
+    a.birth_date.localeCompare(b.birth_date),
+  contact: byText<AccountRow>((r) => r.email),
+  created: byIso<AccountRow>((r) => r.created_at),
+};
+
+const DEACTIVATION_SORTS = {
+  volunteer: byText<DeactivationRow>((r) => r.volunteer?.full_name),
+  reason: byText<DeactivationRow>((r) => r.reason),
+  created: byIso<DeactivationRow>((r) => r.created_at),
+};
 
 function VolunteerReviewInner() {
   const supabase = createClient();
@@ -90,6 +111,9 @@ function VolunteerReviewInner() {
   const [batchWorker, setBatchWorker] = useState("");
 
   const accountSelection = useSelection(accounts);
+
+  const accountSort = useTableSort<AccountRow>(ACCOUNT_SORTS);
+  const deactivationSort = useTableSort<DeactivationRow>(DEACTIVATION_SORTS);
 
   const loadCounts = useCallback(async () => {
     const [a, d] = await Promise.all([
@@ -251,10 +275,19 @@ function VolunteerReviewInner() {
                       className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/30"
                     />
                   </Th>
-                  <Th>姓名</Th>
-                  <Th>學制／生日</Th>
-                  <Th>聯絡</Th>
-                  <Th>註冊時間</Th>
+                  <SortableTh sortKey="name" sort={accountSort.sort} onToggle={accountSort.toggle}>
+                    姓名
+                  </SortableTh>
+                  <SortableTh sortKey="grade" sort={accountSort.sort} onToggle={accountSort.toggle}>
+                    學制／生日
+                  </SortableTh>
+                  <SortableTh sortKey="contact" sort={accountSort.sort} onToggle={accountSort.toggle}>
+                    聯絡
+                  </SortableTh>
+                  <SortableTh sortKey="created" sort={accountSort.sort} onToggle={accountSort.toggle}>
+                    註冊時間
+                  </SortableTh>
+                  {/* 負責社工欄是每列的指派下拉，不是資料，故不提供排序 */}
                   <Th>負責社工</Th>
                   <Th className="text-right">操作</Th>
                 </tr>
@@ -265,7 +298,7 @@ function VolunteerReviewInner() {
                 ) : accounts.length === 0 ? (
                   <EmptyRow colSpan={7} message="沒有待審核的帳號" />
                 ) : (
-                  accounts.map((row) => (
+                  accountSort.sortRows(accounts).map((row) => (
                     <tr key={row.id} className="transition-colors hover:bg-slate-50">
                       <Td>
                         <input
@@ -344,9 +377,27 @@ function VolunteerReviewInner() {
             <TableShell>
               <thead>
                 <tr>
-                  <Th>學生</Th>
-                  <Th>停用原因</Th>
-                  <Th>申請時間</Th>
+                  <SortableTh
+                    sortKey="volunteer"
+                    sort={deactivationSort.sort}
+                    onToggle={deactivationSort.toggle}
+                  >
+                    學生
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="reason"
+                    sort={deactivationSort.sort}
+                    onToggle={deactivationSort.toggle}
+                  >
+                    停用原因
+                  </SortableTh>
+                  <SortableTh
+                    sortKey="created"
+                    sort={deactivationSort.sort}
+                    onToggle={deactivationSort.toggle}
+                  >
+                    申請時間
+                  </SortableTh>
                   <Th className="text-right">操作</Th>
                 </tr>
               </thead>
@@ -356,7 +407,7 @@ function VolunteerReviewInner() {
                 ) : deactivations.length === 0 ? (
                   <EmptyRow colSpan={4} message="沒有待處理的停用申請" />
                 ) : (
-                  deactivations.map((row) => (
+                  deactivationSort.sortRows(deactivations).map((row) => (
                     <tr
                       key={row.id}
                       {...rowOpen(() => {

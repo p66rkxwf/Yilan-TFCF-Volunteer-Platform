@@ -18,16 +18,33 @@ import {
   Toolbar,
   SearchInput,
   RowActionMenu,
+  SortableTh,
   TimeCell,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
-import { SUPPORT_REQUEST_STATUS } from "@/lib/admin/labels";
+import { SUPPORT_REQUEST_STATUS, rankBy } from "@/lib/admin/labels";
+import { byIso, byRank, byText, useTableSort } from "@/components/admin/use-table-sort";
 import { formatDateTime } from "@/lib/admin/datetime";
-import type { SupportRequest } from "@/lib/types/database";
+import type { SupportRequest, SupportRequestStatus } from "@/lib/types/database";
+
+const rankSupportStatus = rankBy(SUPPORT_REQUEST_STATUS);
+
+const SORTS = {
+  status: byRank<SupportRequest, SupportRequestStatus>(
+    (r) => r.status,
+    rankSupportStatus
+  ),
+  name: byText<SupportRequest>((r) => r.name),
+  topic: byText<SupportRequest>((r) => r.topic),
+  message: byText<SupportRequest>((r) => r.message),
+  created: byIso<SupportRequest>((r) => r.created_at),
+};
 
 export default function SupportRequestsPage() {
   const supabase = createClient();
   const toast = useToast();
+
+  const { sort, toggle, sortRows } = useTableSort<SupportRequest>(SORTS);
 
   const [rows, setRows] = useState<SupportRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -123,11 +140,11 @@ export default function SupportRequestsPage() {
           <TableShell>
             <thead>
               <tr>
-                <Th>狀態</Th>
-                <Th>聯絡人</Th>
-                <Th>類型</Th>
-                <Th>問題描述</Th>
-                <Th>送出時間</Th>
+                <SortableTh sortKey="status" sort={sort} onToggle={toggle}>狀態</SortableTh>
+                <SortableTh sortKey="name" sort={sort} onToggle={toggle}>聯絡人</SortableTh>
+                <SortableTh sortKey="topic" sort={sort} onToggle={toggle}>類型</SortableTh>
+                <SortableTh sortKey="message" sort={sort} onToggle={toggle}>問題描述</SortableTh>
+                <SortableTh sortKey="created" sort={sort} onToggle={toggle}>送出時間</SortableTh>
                 <Th className="text-right">操作</Th>
               </tr>
             </thead>
@@ -137,7 +154,7 @@ export default function SupportRequestsPage() {
               ) : filtered.length === 0 ? (
                 <EmptyRow colSpan={6} message="沒有符合的支援需求" />
               ) : (
-                filtered.map((row) => (
+                sortRows(filtered).map((row) => (
                   <tr key={row.id} className="transition-colors hover:bg-slate-50">
                     <Td>
                       <StatusPill meta={SUPPORT_REQUEST_STATUS[row.status]} />

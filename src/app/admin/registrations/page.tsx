@@ -24,10 +24,12 @@ import {
   TabBar,
   BatchBar,
   RowActionMenu,
+  SortableTh,
   TimeCell,
   rowOpen,
 } from "@/components/admin/ui";
 import { useSelection } from "@/components/admin/use-selection";
+import { byIso, byText, useTableSort } from "@/components/admin/use-table-sort";
 import { formatSessionRange } from "@/lib/admin/datetime";
 
 type TabKey = "pending" | "cancel" | "overdue";
@@ -78,6 +80,25 @@ function RegistrationsInner() {
   const [isConfirming, setIsConfirming] = useState(false);
 
   const { selected, toggle, toggleAll, clear, allSelected } = useSelection(rows);
+
+  // 時間欄在待審核分頁是報名時間、其餘分頁是取消申請時間，比較子跟著切換
+  const sorts = useMemo(
+    () => ({
+      volunteer: byText<ReviewRow>((r) => r.volunteer?.full_name),
+      session: (a: ReviewRow, b: ReviewRow) =>
+        (a.session?.activity?.title ?? "").localeCompare(
+          b.session?.activity?.title ?? "",
+          "zh-Hant"
+        ) || (a.session?.start_at ?? "").localeCompare(b.session?.start_at ?? ""),
+      time: byIso<ReviewRow>((r) =>
+        tab === "pending" ? r.created_at : r.cancel_requested_at
+      ),
+    }),
+    [tab]
+  );
+
+  const { sort, toggle: toggleSort, sortRows } = useTableSort<ReviewRow>(sorts);
+  const visible = sortRows(rows);
 
   const loadCounts = useCallback(async () => {
     const [p, c, o] = await Promise.all([
@@ -249,9 +270,15 @@ function RegistrationsInner() {
                     />
                   </Th>
                 )}
-                <Th>學生</Th>
-                <Th>活動場次</Th>
-                <Th>{tab === "pending" ? "報名時間" : "取消申請時間"}</Th>
+                <SortableTh sortKey="volunteer" sort={sort} onToggle={toggleSort}>
+                  學生
+                </SortableTh>
+                <SortableTh sortKey="session" sort={sort} onToggle={toggleSort}>
+                  活動場次
+                </SortableTh>
+                <SortableTh sortKey="time" sort={sort} onToggle={toggleSort}>
+                  {tab === "pending" ? "報名時間" : "取消申請時間"}
+                </SortableTh>
                 <Th className="text-right">操作</Th>
               </tr>
             </thead>
@@ -261,7 +288,7 @@ function RegistrationsInner() {
               ) : rows.length === 0 ? (
                 <EmptyRow colSpan={colCount + 1} message="目前沒有待處理的項目" />
               ) : (
-                rows.map((row) => (
+                visible.map((row) => (
                   <tr
                     key={row.id}
                     {...rowOpen(() => {

@@ -7,6 +7,7 @@ import Link from "next/link";
 import React from "react";
 import { formatSessionDate, formatTimeRange, splitDateTime } from "@/lib/admin/datetime";
 import type { StatusMeta } from "@/lib/admin/labels";
+import type { SortState } from "@/components/admin/use-table-sort";
 
 export function PageHeader({
   title,
@@ -107,6 +108,9 @@ export function TableShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+const TH_CLASS =
+  "sticky top-0 z-10 whitespace-nowrap border-b border-slate-200 bg-slate-50 text-xs font-bold text-slate-500";
+
 export function Th({
   children,
   className = "",
@@ -114,11 +118,57 @@ export function Th({
   children?: React.ReactNode;
   className?: string;
 }) {
+  return <th className={`${TH_CLASS} px-4 py-3 ${className}`}>{children}</th>;
+}
+
+// 可點擊排序的表頭。整格都是點擊區（padding 移到 button 上），因為只讓文字可點
+// 會讓使用者一直點不中。排序狀態同時以圖示與 aria-sort 表達，後者是螢幕閱讀器
+// 唯一讀得到的來源。
+export function SortableTh({
+  children,
+  sortKey,
+  sort,
+  onToggle,
+  align = "left",
+  className = "",
+}: {
+  children?: React.ReactNode;
+  sortKey: string;
+  sort: SortState | null;
+  onToggle: (key: string) => void;
+  align?: "left" | "right";
+  className?: string;
+}) {
+  const active = sort?.key === sortKey;
+  const icon = !active
+    ? "unfold_more"
+    : sort.dir === "asc"
+      ? "arrow_upward"
+      : "arrow_downward";
+
   return (
     <th
-      className={`sticky top-0 z-10 whitespace-nowrap border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-500 ${className}`}
+      className={`${TH_CLASS} p-0 ${className}`}
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
     >
-      {children}
+      <button
+        type="button"
+        onClick={() => onToggle(sortKey)}
+        className={`flex w-full items-center gap-1 px-4 py-3 text-xs font-bold transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${
+          align === "right" ? "justify-end" : ""
+        } ${active ? "text-slate-700" : "text-slate-500"}`}
+      >
+        {children}
+        <span
+          translate="no"
+          aria-hidden="true"
+          className={`material-symbols-outlined notranslate text-[16px] ${
+            active ? "text-primary" : "text-slate-300"
+          }`}
+        >
+          {icon}
+        </span>
+      </button>
     </th>
   );
 }

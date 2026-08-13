@@ -20,12 +20,35 @@ import {
   Toolbar,
   SearchInput,
   SessionRangeCell,
+  SortableTh,
   rowOpen,
 } from "@/components/admin/ui";
 import { Select } from "@/components/ui/select";
+import { byIso, byNumber, byText, useTableSort } from "@/components/admin/use-table-sort";
 import type { ActivityStats } from "@/lib/types/database";
 
 type RangeKey = "recent" | "past" | "upcoming" | "all";
+
+// 狀態欄是由起訖時間與當下比出來的，沒有對應的 ENUM，故就地定義生命週期順序
+const phaseRank = (s: ActivityStats) => {
+  const now = new Date().toISOString();
+  if (s.end_at <= now) return 2; // 已結束
+  if (s.start_at <= now) return 1; // 進行中
+  return 0; // 未開始
+};
+
+const SORTS = {
+  time: byIso<ActivityStats>((s) => s.start_at),
+  title: byText<ActivityStats>((s) => s.title),
+  phase: (a: ActivityStats, b: ActivityStats) => phaseRank(a) - phaseRank(b),
+  approved: byNumber<ActivityStats>((s) => s.approved_count),
+  // 依表頭的欄位順序比：出席 → 缺席 → 未登
+  attendance: (a: ActivityStats, b: ActivityStats) =>
+    a.attended_count - b.attended_count ||
+    a.absent_count - b.absent_count ||
+    a.approved_count - a.attended_count - a.absent_count -
+      (b.approved_count - b.attended_count - b.absent_count),
+};
 
 export default function AttendanceListPage() {
   const supabase = createClient();
@@ -72,6 +95,9 @@ export default function AttendanceListPage() {
     return rows.filter((r) => r.title.includes(q));
   }, [rows, search]);
 
+  const { sort, toggle, sortRows } = useTableSort<ActivityStats>(SORTS);
+  const visible = sortRows(filtered);
+
   const nowIso = new Date().toISOString();
 
   return (
@@ -108,11 +134,15 @@ export default function AttendanceListPage() {
           <TableShell>
             <thead>
               <tr>
-                <Th>時間</Th>
-                <Th>活動</Th>
-                <Th>狀態</Th>
-                <Th className="text-right">已核准</Th>
-                <Th className="text-right">出席／缺席／未登</Th>
+                <SortableTh sortKey="time" sort={sort} onToggle={toggle}>時間</SortableTh>
+                <SortableTh sortKey="title" sort={sort} onToggle={toggle}>活動</SortableTh>
+                <SortableTh sortKey="phase" sort={sort} onToggle={toggle}>狀態</SortableTh>
+                <SortableTh sortKey="approved" sort={sort} onToggle={toggle} align="right">
+                  已核准
+                </SortableTh>
+                <SortableTh sortKey="attendance" sort={sort} onToggle={toggle} align="right">
+                  出席／缺席／未登
+                </SortableTh>
                 <Th className="text-right">操作</Th>
               </tr>
             </thead>
@@ -122,7 +152,7 @@ export default function AttendanceListPage() {
               ) : filtered.length === 0 ? (
                 <EmptyRow colSpan={6} message="沒有符合條件的場次" />
               ) : (
-                filtered.map((s) => {
+                visible.map((s) => {
                   const unmarked = s.approved_count - s.attended_count - s.absent_count;
                   const isEnded = s.end_at <= nowIso;
                   return (
