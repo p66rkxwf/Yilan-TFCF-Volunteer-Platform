@@ -8,10 +8,18 @@
         "build": "next build",
         "start": "next start",
         "lint": "eslint .",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "test:db": "vitest run tests/db",
+        "db:apply": "node scripts/apply-v2-sql.mjs",
+        "check:registry": "node scripts/check-function-registry.mjs",
         "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
         "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
         "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
         "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    },
+    "engines": {
+        "node": ">=22"
     },
     "repository": {
         "type": "git",
@@ -43,8 +51,10 @@
         "@eslint/eslintrc": "^3.3.5",
         "eslint": "^9.39.4",
         "eslint-config-next": "^16.1.6",
+        "pg": "^8.13.1",
         "postcss": "^8.5.6",
         "tailwindcss": "^4.1.18",
+        "vitest": "^3.2.4",
         "wrangler": "^4.105.0"
     }
 }

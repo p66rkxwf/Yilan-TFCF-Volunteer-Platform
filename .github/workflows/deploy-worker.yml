@@ -1,0 +1,49 @@
+name: Deploy orchestrator (Cloudflare Cron Worker)
+
+# 為什麼要這支：deploy.yml 的 paths-ignore 排除了 workers/**，所以 orchestrator
+# 從來沒有經過 CI，一直靠人工在本機 `wrangler deploy`。人工部署本身沒問題，
+# 問題是「沒人記得部署」與「本機環境與 CI 不一致」——寄信是這個平台的關鍵路徑
+# （Email 驗證碼、審核結果、活動提醒都走它），不該依賴誰記得。
+#
+# secrets 仍以 `wrangler secret put` 手動設定一次即可，本 workflow 不碰它們。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "workers/orchestrator/**"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-worker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Typecheck & deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/orchestrator
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: workers/orchestrator/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+# 提醒：42_notification_queue_hardening.sql 必須「先於」本 worker 部署
+#（worker 會呼叫 rpc_claim_notifications / rpc_complete_notification）；
+# 40_otp_leak_fix.sql 則必須「後於」本 worker 部署。見 supabase/README.md。

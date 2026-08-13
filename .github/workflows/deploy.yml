@@ -10,7 +10,7 @@ on:
     paths-ignore:
       - "**.md"
       - "supabase/**"
-      - "workers/**" # mail worker 另行部署，改動它不需重建 app
+      - "workers/**" # mail worker 另行部署，見 deploy-worker.yml
   workflow_dispatch:
 
 concurrency:
@@ -18,15 +18,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # 部署閘門：lint / typecheck / build / DB 整合測試全綠才允許上 production。
+  # 以 workflow_call 重用 ci.yml，避免兩邊各維護一份檢查清單而漸行漸遠。
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   deploy:
     name: Build & deploy (OpenNext)
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22 # Wrangler 需要 Node >= 22
+          node-version-file: .nvmrc # Wrangler 需要 Node >= 22
           cache: npm
 
       - run: npm ci

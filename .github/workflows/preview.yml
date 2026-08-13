@@ -1,0 +1,62 @@
+name: Deploy staging (PR preview)
+
+# 在 PR 上把整個 app 部署到獨立的 staging worker，指向獨立的 staging Supabase 專案。
+#
+# 為什麼需要：本專案的行為幾乎都取決於資料庫端（RLS + SECURITY DEFINER RPC），
+# 而 SQL 是手動部署的。單看程式碼 diff 看不出「這個改動需要先套哪一支 SQL」，
+# 只有在一個真的套過該 SQL 的環境跑一遍才知道。production 不該是第一個發現的地方。
+#
+# 需要先手動準備（見 README「staging 環境」）：
+#   1. 另建一個 Supabase 專案，依序套用 supabase/v2/*.sql
+#   2. 在 GitHub → Settings → Environments 建立名為 `staging` 的 environment，
+#      並在其中設定下列 variables / secrets
+#   3. npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --env staging
+#      npx wrangler secret put TURNSTILE_SECRET_KEY --env staging
+#         └ Turnstile 有官方測試金鑰（always pass）：
+#           site   1x00000000000000000000AA
+#           secret 1x0000000000000000000000000000000AA
+#
+# staging 刻意「不」部署 orchestrator worker，也不設 cron——避免測試資料真的寄信
+# 給實際信箱。要驗寄信邏輯請在本機 `wrangler dev --test-scheduled`。
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy to staging
+    # 沒設定 staging environment 時整個 job 會被跳過而非失敗，
+    # 讓還沒準備好 staging 的 PR 不會卡住。
+    if: ${{ vars.STAGING_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build & deploy
+        id: deploy
+        run: |
+          npx opennextjs-cloudflare build
+          npx opennextjs-cloudflare deploy -- --env staging
+          echo "url=https://volunteer-staging.${{ vars.CF_WORKERS_SUBDOMAIN }}.workers.dev" >> "$GITHUB_OUTPUT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}

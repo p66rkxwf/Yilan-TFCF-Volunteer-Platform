@@ -1,0 +1,96 @@
+name: CI
+
+# 為什麼要這支：在此之前唯一的 workflow 是 deploy.yml，push main 直接上 production，
+# 中間沒有任何 lint / typecheck / test。34_fix_archived_volunteer_guards.sql 把
+# 21 的 Email 驗證關卡整段洗掉這種事，正是因為沒有任何自動檢查會發現。
+#
+# db 這個 job 是唯一能抓到那類 regression 的東西：它在乾淨的 Postgres 上依序套用
+# 全部 supabase/v2/*.sql，然後對 RPC 的守衛矩陣下斷言。
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  # 供 deploy.yml 以 needs: 串成部署前的閘門，避免兩邊重複維護同一份檢查
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Lint / typecheck / build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: 函式版本登記表
+        run: npm run check:registry
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      # orchestrator 是獨立套件，deploy.yml 的 paths-ignore 也排除了 workers/**，
+      # 過去完全不經任何檢查就手動部署。
+      - name: Orchestrator typecheck
+        working-directory: workers/orchestrator
+        run: npm ci && npm run typecheck
+
+      - name: Next build
+        run: npm run build
+        env:
+          # NEXT_PUBLIC_* 會 inline 進 bundle，build 當下必須存在。
+          # CI 只驗證編得過，用假值即可（不連任何真實服務）。
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          NEXT_PUBLIC_SITE_URL: https://example.invalid
+
+  db:
+    name: DB 整合測試
+    runs-on: ubuntu-latest
+
+    # 用 plain postgres 而非 `supabase start`：全庫掃過，SQL 檔只依賴 Supabase 的
+    # auth.users／auth.uid()／三個角色，由 tests/db/bootstrap.sql 補齊即可。
+    # 拉完整 stack（studio/realtime/storage/edge-runtime…）要數 GB 而且一個都用不到。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: 套用 supabase/v2/*.sql
+        run: npm run db:apply -- --bootstrap
+
+      - name: 執行 DB 測試
+        run: npm run test:db

@@ -14,5 +14,20 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  // staging：PR 預覽用，部署為獨立的 worker（volunteer-staging），指向 staging
+  // Supabase 專案。secrets（SUPABASE_SERVICE_ROLE_KEY 等）需另以
+  //   npx wrangler secret put <NAME> --env staging
+  // 設定一次。詳見 .github/workflows/preview.yml 的說明。
+  "env": {
+    "staging": {
+      "name": "volunteer-staging",
+      "workers_dev": true,
+      "observability": { "enabled": true },
+      "assets": {
+        "directory": ".open-next/assets",
+        "binding": "ASSETS"
+      }
+    }
   }
 }
