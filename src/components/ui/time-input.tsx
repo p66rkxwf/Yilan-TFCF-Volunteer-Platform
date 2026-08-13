@@ -20,7 +20,7 @@ export function TimeInput({
   disabled,
   invalid,
   className = "",
-  placeholder = "14:00",
+  placeholder = "HH:mm",
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedBy,
 }: {

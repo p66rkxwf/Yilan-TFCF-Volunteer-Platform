@@ -147,7 +147,7 @@ export function SupportContent() {
               name="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="name@example.com"
+              placeholder="請輸入 Email"
               className={fieldCls}
             />
             {errors.email && (

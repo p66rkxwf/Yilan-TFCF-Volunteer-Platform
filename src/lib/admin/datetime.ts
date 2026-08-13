@@ -114,9 +114,11 @@ export function splitTaipeiLocal(iso: string | null | undefined): { date: string
   return { date, time };
 }
 
-// 今天（台灣）的 YYYY-MM-DD，供日曆預設月份/今日標記
-export function todayTaipeiDate(): string {
-  return isoToTaipeiLocal(new Date().toISOString()).slice(0, 10);
+// 今天（台灣）的 YYYY-MM-DD，供日曆預設月份/今日標記與表單預設值。
+// offsetDays 供「近 30 天」這類預設區間使用（負數＝往前）。
+export function todayTaipeiDate(offsetDays = 0): string {
+  const at = new Date(Date.now() + offsetDays * 86_400_000).toISOString();
+  return isoToTaipeiLocal(at).slice(0, 10);
 }
 
 // 使用者自行輸入的台灣時間文字 → ISO（UTC）；格式或日期非法時回 null。

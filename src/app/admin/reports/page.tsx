@@ -27,13 +27,8 @@ import {
   AUDIT_ACTOR_KIND_LABELS,
 } from "@/lib/admin/labels";
 import { GRADE_LEVEL_LABELS } from "@/lib/types/database";
-import { formatDateTime } from "@/lib/admin/datetime";
+import { formatDateTime, todayTaipeiDate } from "@/lib/admin/datetime";
 import type { Period } from "@/lib/types/database";
-
-function todayTaipei(offsetDays = 0): string {
-  const d = new Date(Date.now() + offsetDays * 86_400_000 + 8 * 3_600_000);
-  return d.toISOString().slice(0, 10);
-}
 
 export default function ReportsPage() {
   const supabase = createClient();
@@ -44,8 +39,8 @@ export default function ReportsPage() {
   const [kpi, setKpi] = useState({ serviceCount: 0, totalHours: 0, absentRate: 0, blacklisted: 0 });
   const [periods, setPeriods] = useState<Period[]>([]);
   const [periodId, setPeriodId] = useState("");
-  const [dateFrom, setDateFrom] = useState(todayTaipei(-30));
-  const [dateTo, setDateTo] = useState(todayTaipei(0));
+  const [dateFrom, setDateFrom] = useState(todayTaipeiDate(-30));
+  const [dateTo, setDateTo] = useState(todayTaipeiDate());
   const [busy, setBusy] = useState<string | null>(null);
 
   const loadKpi = useCallback(async () => {
@@ -96,7 +91,7 @@ export default function ReportsPage() {
         toast.info("查無資料，未產生檔案");
         return;
       }
-      downloadCsv(`${filename}_${todayTaipei(0)}`, toCsv(headers, rows));
+      downloadCsv(`${filename}_${todayTaipeiDate()}`, toCsv(headers, rows));
       toast.success(`已匯出 ${rows.length} 筆`);
     } catch (error) {
       toast.error(`匯出失敗：${getErrorMessage(error as Error)}`);

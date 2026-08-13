@@ -277,7 +277,7 @@ export function SessionForm({
           className={inputClass}
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder="例：羅東鎮運動公園"
+          placeholder="請輸入地點"
           maxLength={120}
         />
       </Field>
@@ -288,7 +288,7 @@ export function SessionForm({
             className={`${inputClass} min-h-24`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="例：請於開始前 10 分鐘上線，連結 https://…"
+            placeholder="請輸入場次說明"
           />
         </Field>
       )}

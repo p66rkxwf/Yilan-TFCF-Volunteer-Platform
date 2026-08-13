@@ -395,7 +395,7 @@ export default function SettingsPage() {
                   <input
                     type="email"
                     className={inlineInputClass}
-                    placeholder="new-email@example.com"
+                    placeholder="請輸入新的 Email"
                     value={emailForm.email}
                     onChange={(e) => setEmailForm({ email: e.target.value })}
                   />

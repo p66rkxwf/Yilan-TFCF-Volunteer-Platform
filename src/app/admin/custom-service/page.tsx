@@ -29,7 +29,11 @@ import {
 import { DateTimeField } from "@/components/ui/datetime-field";
 import { submitCustomService, reviewCustomService } from "@/lib/actions/custom-service";
 import { callAction } from "@/lib/ui/toast-actions";
-import { dateTimeInputsToIso, formatSessionRange } from "@/lib/admin/datetime";
+import {
+  dateTimeInputsToIso,
+  formatSessionRange,
+  todayTaipeiDate,
+} from "@/lib/admin/datetime";
 import { CUSTOM_SERVICE_STATUS } from "@/lib/admin/labels";
 import type { CustomServiceRecord } from "@/lib/types/database";
 
@@ -62,16 +66,20 @@ function CustomServiceInner() {
   // 代學生登錄
   const [showSubmit, setShowSubmit] = useState(false);
   const [volunteers, setVolunteers] = useState<{ id: string; full_name: string }[]>([]);
-  const [form, setForm] = useState({
+  // 代登錄的是「已完成」的服務，絕大多數發生在當天或前一兩天，故日期預設今天。
+  // 時間不預填：起訖時刻決定服務時數，猜錯會直接算錯，必須由職員自己填。
+  const emptyForm = () => ({
     volunteerId: "",
     title: "",
-    startDate: "",
+    startDate: todayTaipeiDate(),
     startTime: "",
-    endDate: "",
+    endDate: todayTaipeiDate(),
     endTime: "",
     leaderName: "",
     description: "",
   });
+
+  const [form, setForm] = useState(emptyForm);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const loadCount = useCallback(async () => {
@@ -129,16 +137,7 @@ function CustomServiceInner() {
   };
 
   const openSubmit = async () => {
-    setForm({
-      volunteerId: "",
-      title: "",
-      startDate: "",
-      startTime: "",
-      endDate: "",
-      endTime: "",
-      leaderName: "",
-      description: "",
-    });
+    setForm(emptyForm());
     setFormErrors({});
     setShowSubmit(true);
     if (volunteers.length === 0) {

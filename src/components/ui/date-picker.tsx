@@ -43,7 +43,8 @@ export function DatePicker({
   max,
   className = "",
   inputClassName,
-  placeholder = "2026-07-24",
+  // 提示寫格式而非某一天：寫死的樣例日期會隨時間過期，讀起來像是預填值。
+  placeholder = "YYYY-MM-DD",
   "aria-label": ariaLabel,
   "aria-describedby": ariaDescribedBy,
 }: {

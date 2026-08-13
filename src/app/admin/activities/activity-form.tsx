@@ -186,7 +186,7 @@ export function ActivityForm({
               className={inputClass}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="例：兒童課後陪伴——暑期梯次"
+              placeholder="請輸入活動名稱"
               maxLength={120}
             />
           </Field>
@@ -196,7 +196,7 @@ export function ActivityForm({
               value={content}
               onChange={setContent}
               minHeightClass="min-h-32"
-              placeholder="例：陪伴國小學童完成暑假作業，請穿著輕便服裝。"
+              placeholder="請輸入活動說明"
             />
           </Field>
 
@@ -210,7 +210,7 @@ export function ActivityForm({
               className={inputClass}
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="例：宜蘭家扶中心 2 樓"
+              placeholder="請輸入地點"
               maxLength={120}
             />
           </Field>

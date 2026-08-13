@@ -467,7 +467,7 @@ export default function SettingsPage() {
                 <Field label="名稱" required error={periodErrors.label}>
                   <input
                     className={inputClass}
-                    placeholder="例：115上"
+                    placeholder="請輸入期間代號"
                     value={newPeriod.label}
                     onChange={(e) => setNewPeriod({ ...newPeriod, label: e.target.value })}
                   />

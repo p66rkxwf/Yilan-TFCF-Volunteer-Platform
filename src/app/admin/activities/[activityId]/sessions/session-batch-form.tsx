@@ -177,7 +177,6 @@ export function SessionBatchForm({
                 value={startTime}
                 onChange={setStartTime}
                 invalid={!!errors.startTime}
-                placeholder="09:00"
               />
             </Field>
             <Field label="結束時間" required error={errors.endTime}>
@@ -185,7 +184,6 @@ export function SessionBatchForm({
                 value={endTime}
                 onChange={setEndTime}
                 invalid={!!errors.endTime}
-                placeholder="12:00"
               />
             </Field>
             <Field
@@ -208,7 +206,7 @@ export function SessionBatchForm({
               className={inputClass}
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="例：羅東鎮運動公園"
+              placeholder="請輸入地點"
               maxLength={120}
             />
           </Field>

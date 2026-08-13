@@ -11,7 +11,11 @@ import { ProfilePageHeader } from "../profile-page-header";
 import { submitCustomService } from "@/lib/actions/custom-service";
 import { callAction } from "@/lib/ui/toast-actions";
 import { DateTimeField } from "@/components/ui/datetime-field";
-import { dateTimeInputsToIso, formatSessionRange } from "@/lib/admin/datetime";
+import {
+  dateTimeInputsToIso,
+  formatSessionRange,
+  todayTaipeiDate,
+} from "@/lib/admin/datetime";
 import type { CustomServiceRecord } from "@/lib/types/database";
 import { Spinner } from "@/components/ui/spinner";
 import { panelInputClass } from "@/components/site/section";
@@ -26,15 +30,19 @@ export default function CustomServicePage() {
 
   const [records, setRecords] = useState<CustomServiceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [form, setForm] = useState({
+  // 登錄的是「已完成」的服務，絕大多數發生在當天或前一兩天，故日期預設今天。
+  // 時間不預填：起訖時刻決定服務時數，猜錯會直接算錯，必須由使用者自己填。
+  const emptyForm = () => ({
     title: "",
-    startDate: "",
+    startDate: todayTaipeiDate(),
     startTime: "",
-    endDate: "",
+    endDate: todayTaipeiDate(),
     endTime: "",
     leaderName: "",
     description: "",
   });
+
+  const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -96,15 +104,7 @@ export default function CustomServicePage() {
     setIsSaving(false);
     if (result.error) return void toast.error(result.error);
     toast.success("已送出，待職員審核後計入服務時數。");
-    setForm({
-      title: "",
-      startDate: "",
-      startTime: "",
-      endDate: "",
-      endTime: "",
-      leaderName: "",
-      description: "",
-    });
+    setForm(emptyForm());
     setErrors({});
     await load();
   };
@@ -134,7 +134,7 @@ export default function CustomServicePage() {
                   className={panelInputClass}
                   value={form.title}
                   onChange={(e) => set("title", e.target.value)}
-                  placeholder="例：社區獨居長者關懷訪視"
+                  placeholder="請輸入服務名稱"
                   maxLength={120}
                 />
                 {errors.title && (

@@ -246,7 +246,7 @@ export default function RegisterPage() {
                 className={`w-full pl-10 pr-4 py-3 rounded-lg border ${errors.email ? "border-amber-400" : "border-slate-200"} bg-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all`}
                 id="reg-email"
                 name="email"
-                placeholder="example@email.com"
+                placeholder="請輸入 Email"
                 type="email"
                 value={formData.email}
                 onChange={handleChange}
