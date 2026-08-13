@@ -14,8 +14,12 @@
 //   為「以 Cloudflare 為中心、少綁 Supabase」改為本 worker，pg_cron 已移除。
 //   job_* 仍是 Postgres 端可攜的 plpgsql，僅由此以 service_role RPC 觸發。
 //
-// 併發備註：假設由單一排程每分鐘觸發、批量 50 筆、單次執行遠短於 1 分鐘，
-//   故不做 FOR UPDATE SKIP LOCKED 佇列鎖；更新皆帶 .eq('status','pending') 作樂觀防護。
+// 併發備註：outbox 走 claim/complete 佇列（見 supabase/v2/42_notification_queue_hardening.sql）：
+//   rpc_claim_notifications 以 FOR UPDATE SKIP LOCKED 原子佔用（pending → processing），
+//   寄完再以 rpc_complete_notification 回報終態。之所以不能只靠回寫時檢查狀態，是因為
+//   那時信已經送到 Resend 了——重複寄送要在「取件」擋，不是在「回寫」擋。
+//   暫時性失敗由 DB 端算退避（30s→2m→10m→1h→6h），逾次數進 dead letter；
+//   卡在 processing 的列由 job_requeue_stuck_notifications 於 5 分鐘後收回。
 //   job_* 皆為冪等設計（見 supabase/v2/05_scheduled_jobs.sql），偶發延遲／重跑可容忍。
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -40,7 +44,11 @@ export interface Env {
 const BATCH_SIZE = 50;
 const DEFAULT_MAIL_FROM = "宜蘭家扶志工平台 <noreply@example.org>";
 
-// 手動觸發入口（fetch ?job=）僅允許這 5 支排程函式；避免把外部傳入的字串
+// 本 worker 期望的 DB schema 版本（= supabase/v2/ 最新一支 patch 的編號）。
+// 新增 SQL patch 時一併更新，供 ?health=1 偵測部署漂移。
+const EXPECTED_DB_SCHEMA = "43";
+
+// 手動觸發入口（fetch ?job=）僅允許這 8 支排程函式；避免把外部傳入的字串
 // 當函式名直接丟給 admin.rpc()（縱深防禦，即使 secret 外洩也限縮可觸發範圍）。
 const ALLOWED_JOBS = new Set<string>([
   "job_advance_activity_status",
@@ -50,13 +58,16 @@ const ALLOWED_JOBS = new Set<string>([
   "job_send_activity_reminders",
   "job_purge_expired",
   "job_purge_rejected_accounts",
+  "job_requeue_stuck_notifications",
 ]);
 
+// rpc_claim_notifications 的回傳形狀（42_notification_queue_hardening.sql）
 interface OutboxRow {
   id: string;
   recipient_user_id: string;
   notification_type: string;
   payload: Record<string, unknown>;
+  attempt_count: number;
 }
 
 function adminClient(env: Env): SupabaseClient {
@@ -88,15 +99,19 @@ const MAIL_TIME = new Intl.DateTimeFormat("zh-TW", {
   timeZone: "Asia/Taipei",
   hourCycle: "h23",
 });
-const MAIL_WEEKDAY = new Intl.DateTimeFormat("zh-TW", {
-  weekday: "short", // zh-TW → 「週五」，與站內 formatSessionRange 一致
-  timeZone: "Asia/Taipei",
-});
+// 星期只放一個字「五」。刻意不用 Intl 的 weekday:"short"——zh-TW 會吐「週五」。
+// 與站內 taipeiWeekday / WEEKDAY_LABELS 一致（src/lib/admin/datetime.ts）。
+const MAIL_WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
 
 function toDate(value: unknown): Date | null {
   if (typeof value !== "string") return null;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// worker 跑在 UTC，直接用 getDay() 會在台灣時間 08:00 前切錯天，故先位移再取。
+function taipeiWeekdayLabel(d: Date): string {
+  return MAIL_WEEKDAY_LABELS[new Date(d.getTime() + 8 * 3_600_000).getUTCDay()];
 }
 
 /** 單一時刻「2026/07/13 09:00」；對齊站內 formatDateTime。 */
@@ -106,13 +121,13 @@ function formatTW(value: unknown): string {
   return `${MAIL_DATE.format(d)} ${MAIL_TIME.format(d)}`;
 }
 
-/** 含星期的時刻「2026/07/13（週一）09:00」；formatRangeTW 的兩端共用。 */
+/** 含星期的時刻「2026/07/13（一）09:00」；formatRangeTW 的兩端共用。 */
 function formatDayTimeTW(d: Date): string {
-  return `${MAIL_DATE.format(d)}（${MAIL_WEEKDAY.format(d)}）${MAIL_TIME.format(d)}`;
+  return `${MAIL_DATE.format(d)}（${taipeiWeekdayLabel(d)}）${MAIL_TIME.format(d)}`;
 }
 
 /**
- * 場次起訖：同日「2026/07/13（週一）09:00–12:00」，跨日附完整兩端。
+ * 場次起訖：同日「2026/07/13（一）09:00–12:00」，跨日附完整兩端。
  * 對齊站內 formatSessionRange（src/lib/admin/datetime.ts）。
  * 結束時間缺漏或非法時只顯示開始時刻。
  */
@@ -275,15 +290,18 @@ function renderTemplate(
   type: string,
   payload: Record<string, unknown>,
   name: string,
-  siteUrl: string
+  siteUrl: string,
+  otpCode: string
 ): { subject: string; html: string; text: string } {
   const subject = SUBJECTS[type] ?? "志工平台通知";
   const greeting = name ? `${name} 您好：` : "您好：";
   const cta = siteUrl || "";
 
   // Email 驗證碼：內文以驗證碼為主，不引導點連結（避免釣魚觀感）。
-  const code =
-    type === "email_verification" ? String(payload?.["code"] ?? "").trim() : "";
+  // 碼由呼叫端從 email_verifications 取得——絕不放進 outbox payload，因為
+  // 站內通知讓使用者讀得到自己的通知列，明碼放 payload 等於讓 OTP 免進信箱可得
+  // （見 supabase/v2/40_otp_leak_fix.sql）。
+  const code = type === "email_verification" ? otpCode.trim() : "";
 
   if (code) {
     const text = [
@@ -512,43 +530,110 @@ async function loadEmailToggles(
   return { global, perUser };
 }
 
-// 消化 notification_outbox：讀 pending → 解析收件者 → 組信 → Resend 寄出 → 更新狀態
+// Email OTP 明碼只存在 email_verifications（該表 REVOKE ALL、無 policy，只有
+// service_role 與 SECURITY DEFINER RPC 進得去），不進 outbox payload——payload
+// 會被使用者自己讀到，等於讓驗證碼免進信箱可得（見 supabase/v2/40_otp_leak_fix.sql）。
+// 每位志工至多一筆有效碼（PK 為 volunteer_id），故直接以 recipient 取。
+async function loadOtpCodes(
+  admin: SupabaseClient,
+  volunteerIds: string[]
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (volunteerIds.length === 0) return map;
+
+  const { data, error } = await admin
+    .from("email_verifications")
+    .select("volunteer_id, code, expires_at, consumed_at")
+    .in("volunteer_id", volunteerIds);
+
+  if (error) {
+    // 讀不到就讓該列走 retryable 失敗（下一輪再試），不要寄出空白驗證碼。
+    console.warn(`[orchestrator] 讀取驗證碼失敗：${error.message}`);
+    return map;
+  }
+
+  const now = Date.now();
+  for (const row of data ?? []) {
+    // 已用掉或已過期的碼寄出去也沒用，視同查無 → 呼叫端標為永久失敗。
+    if (row.consumed_at) continue;
+    if (Date.parse(row.expires_at) <= now) continue;
+    map.set(row.volunteer_id, row.code);
+  }
+  return map;
+}
+
+// 消化 notification_outbox：佔用 → 解析收件者 → 組信 → Resend 寄出 → 回報結果
 export async function drainOutbox(
   env: Env
-): Promise<{ processed: number; sent: number; failed: number; skipped: number }> {
+): Promise<{
+  processed: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  retried: number;
+}> {
+  const empty = { processed: 0, sent: 0, failed: 0, skipped: 0, retried: 0 };
   if (!env.RESEND_API_KEY) {
     console.warn("[orchestrator] RESEND_API_KEY 未設定，略過 outbox 消化");
-    return { processed: 0, sent: 0, failed: 0, skipped: 0 };
+    return empty;
   }
 
   const admin = adminClient(env);
   const siteUrl = (env.SITE_URL ?? "").replace(/\/+$/, "");
+  // 每次執行一個識別字，寫進 locked_by 供診斷「是誰佔著這一列」。
+  const workerId = crypto.randomUUID();
 
-  const { data: pending, error } = await admin
-    .from("notification_outbox")
-    .select("id, recipient_user_id, notification_type, payload")
-    .eq("status", "pending")
-    .order("created_at", { ascending: true })
-    .limit(BATCH_SIZE);
+  // 先回收前一輪卡在 processing 的列（worker 中途被中斷時會留下）。
+  // 失敗不致命——本輪照常取件即可，下一輪再回收。
+  const { error: requeueError } = await admin.rpc("job_requeue_stuck_notifications");
+  if (requeueError) {
+    console.warn(`[orchestrator] 回收卡住的通知失敗：${requeueError.message}`);
+  }
 
-  if (error) throw new Error(`讀取 outbox 失敗：${error.message}`);
-  if (!pending || pending.length === 0)
-    return { processed: 0, sent: 0, failed: 0, skipped: 0 };
+  // 佔用（pending → processing）與寄送是分開的兩步：claim 內部以
+  // FOR UPDATE SKIP LOCKED 保證同一列不會被兩個執行個體同時取走，
+  // 這是避免重複寄信的關鍵——回寫時才檢查狀態已經太晚，信早就送出去了。
+  const { data: claimed, error } = await admin.rpc("rpc_claim_notifications", {
+    p_limit: BATCH_SIZE,
+    p_worker: workerId,
+  });
 
-  const rows = pending as OutboxRow[];
+  if (error) throw new Error(`佔用 outbox 失敗：${error.message}`);
+  if (!claimed || claimed.length === 0) return empty;
+
+  const rows = claimed as OutboxRow[];
   const recipientIds = [...new Set(rows.map((r) => r.recipient_user_id))];
-  const [recipients, toggles] = await Promise.all([
+  const otpRecipientIds = [
+    ...new Set(
+      rows
+        .filter((r) => r.notification_type === "email_verification")
+        .map((r) => r.recipient_user_id)
+    ),
+  ];
+  const [recipients, toggles, otpCodes] = await Promise.all([
     resolveRecipients(admin, recipientIds),
     loadEmailToggles(admin, recipientIds),
+    loadOtpCodes(admin, otpRecipientIds),
   ]);
+
+  // 回報一列的終態。complete 失敗只記 log 不中斷整批：該列會停在 processing，
+  // 5 分鐘後由 job_requeue_stuck_notifications 收回重試。
+  const complete = async (id: string, status: string, err?: string) => {
+    const { error: e } = await admin.rpc("rpc_complete_notification", {
+      p_id: id,
+      p_status: status,
+      p_error: err ?? null,
+    });
+    if (e) console.error(`[orchestrator] 回報 ${id} (${status}) 失敗：${e.message}`);
+  };
 
   let sent = 0;
   let failed = 0;
   let retried = 0;
   let skipped = 0;
   for (const row of rows) {
-    // 因設定而不寄：必須標成 pending 以外的終端狀態，否則每分鐘重掃一次，
-    // 且 23 的清理只刪 status <> 'pending'，這些列會永遠留著。
+    // 因設定而不寄：必須標成終端狀態，否則每分鐘重掃一次，
+    // 且 23 的清理只刪非 pending/processing 的列，這些列會永遠留著。
     // 站內通知不受影響（read_at 與 status 正交，見 15_notification_center.sql）。
     if (
       // 三重防護之一：Email OTP 永不受設定影響，關掉會讓註冊／自行簽到壞掉。
@@ -556,11 +641,7 @@ export async function drainOutbox(
       (toggles.global.has(row.notification_type) ||
         toggles.perUser.get(row.recipient_user_id)?.has(row.notification_type))
     ) {
-      await admin
-        .from("notification_outbox")
-        .update({ status: "skipped", error: null })
-        .eq("id", row.id)
-        .eq("status", "pending");
+      await complete(row.id, "skipped");
       skipped++;
       continue;
     }
@@ -568,32 +649,35 @@ export async function drainOutbox(
     try {
       const rec = recipients.get(row.recipient_user_id);
       if (!rec?.email) throw new SendError("找不到收件者 email", false);
+
+      // 驗證信必須有碼才寄。查無＝已用掉／已過期／使用者又索取了新碼，
+      // 這封信寄出去也沒有意義，標為永久失敗不重試。
+      let otpCode = "";
+      if (row.notification_type === "email_verification") {
+        otpCode = otpCodes.get(row.recipient_user_id) ?? "";
+        if (!otpCode) throw new SendError("驗證碼已失效或不存在，略過寄送", false);
+      }
+
       const tmpl = renderTemplate(
         row.notification_type,
         row.payload ?? {},
         rec.name,
-        siteUrl
+        siteUrl,
+        otpCode
       );
       await sendEmail(env, rec.email, tmpl.subject, tmpl.html, tmpl.text);
-      await admin
-        .from("notification_outbox")
-        .update({ status: "sent", sent_at: new Date().toISOString(), error: null })
-        .eq("id", row.id)
-        .eq("status", "pending");
+      await complete(row.id, "sent");
       sent++;
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       const retryable = e instanceof SendError ? e.retryable : true;
       if (retryable) {
-        // 暫時性錯誤：保留 pending，不寫 error，交由下一輪重試。
+        // 暫時性錯誤：交給 DB 算退避時間並放回 pending；達重試上限會自動轉 failed。
+        await complete(row.id, "retry", message);
         retried++;
         continue;
       }
-      await admin
-        .from("notification_outbox")
-        .update({ status: "failed", error: message.slice(0, 500) })
-        .eq("id", row.id)
-        .eq("status", "pending");
+      await complete(row.id, "failed", message);
       failed++;
     }
   }
@@ -601,7 +685,7 @@ export async function drainOutbox(
   console.log(
     `[orchestrator] outbox processed=${rows.length} sent=${sent} failed=${failed} retried=${retried} skipped=${skipped}`
   );
-  return { processed: rows.length, sent, failed, skipped };
+  return { processed: rows.length, sent, failed, skipped, retried };
 }
 
 // 以 service_role 觸發 Postgres 端的排程函式（job_*）
@@ -864,12 +948,29 @@ export default {
   //   無參數                     → 消化 outbox
   //   ?job=job_xxx               → 觸發指定排程函式
   //   ?check=errors&minutes=180  → 立即查例外（可自訂區間，用來驗證告警是否暢通）
+  //   ?health=1                  → 回報本 worker 期望的 DB schema 版本與實際版本
   async fetch(req: Request, env: Env): Promise<Response> {
     const secret = env.MANUAL_TRIGGER_SECRET?.trim();
     if (!secret || req.headers.get("x-trigger-secret") !== secret) {
       return new Response("forbidden", { status: 403 });
     }
     const params = new URL(req.url).searchParams;
+
+    // 部署漂移檢查：worker 與 DB 各自手動部署，版本可能對不上
+    // （見 supabase/v2/43_schema_version.sql）。app 端另有 /api/health。
+    if (params.get("health")) {
+      const admin = adminClient(env);
+      const { data, error } = await admin
+        .from("system_settings")
+        .select("schema_version")
+        .maybeSingle();
+      const dbSchema = error ? null : ((data?.schema_version as string) ?? null);
+      return Response.json({
+        ok: !error && dbSchema === EXPECTED_DB_SCHEMA,
+        worker: { expectedDbSchema: EXPECTED_DB_SCHEMA },
+        db: { reachable: !error, schemaVersion: dbSchema },
+      });
+    }
     if (params.get("check") === "errors") {
       // 上限 24 小時：Analytics 查詢區間過長沒有意義，也避免誤打出巨量查詢。
       const minutes = Math.min(

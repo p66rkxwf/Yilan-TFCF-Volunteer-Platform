@@ -10,16 +10,33 @@ Supabase Edge Function（`send-notifications`）＋ pg_cron/pg_net。
 
 | 時機（UTC） | 台灣時間 | 動作 |
 |---|---|---|
-| 每分鐘 | 每分鐘 | 消化 `notification_outbox`（pending）→ Resend 寄出 |
+| 每分鐘 | 每分鐘 | 回收卡住的通知 → 佔用並消化 `notification_outbox` → Resend 寄出 |
 | 每 15 分 | 每 15 分 | `rpc job_advance_activity_status`；查 app worker 例外，超標即寄告警信 |
 | 19:10 | 03:10 | `rpc job_attendance_scan` |
 | 19:20 | 03:20 | `rpc job_release_blacklists` |
+| 19:30 | 03:30 | `rpc job_purge_expired`（定期清除） |
+| 19:35 | 03:35 | `rpc job_purge_rejected_accounts`（清除逾期的未通過帳號） |
 | 01:00 | 09:00 | `rpc job_send_review_reminders` |
 | 10:00 | 18:00 | `rpc job_send_activity_reminders` |
 
-`job_*` 是 Postgres 端可攜的 plpgsql（見 `supabase/v2/05_scheduled_jobs.sql`），
+`job_*` 是 Postgres 端可攜的 plpgsql（見 `supabase/v2/05_scheduled_jobs.sql`、`23`、`35`、`42`），
 本 worker 以 service_role 透過 PostgREST RPC 觸發；需先執行
-`supabase/v2/12_enable_scheduled_jobs.sql` 將這些函式 `GRANT EXECUTE` 給 `service_role`。
+`supabase/v2/12_enable_scheduled_jobs.sql` 將 `05` 的 5 支函式 `GRANT EXECUTE` 給 `service_role`
+（其餘各自在所屬 SQL 檔內授權）。
+
+## 寄信佇列
+
+每分鐘的 outbox 消化走 claim/complete，不是「讀 pending → 寄 → 回寫」：
+
+1. `job_requeue_stuck_notifications` — 收回卡在 `processing` 超過 5 分鐘的列（worker 中途被中斷）
+2. `rpc_claim_notifications` — 以 `FOR UPDATE SKIP LOCKED` 原子佔用（`pending` → `processing`）
+3. 寄信
+4. `rpc_complete_notification` — 回報 `sent`／`failed`／`skipped`，或 `retry`（由 DB 算退避時間）
+
+之所以要在「取件」而非「回寫」擋重複，是因為回寫時信已經送到 Resend 了——
+`WHERE status='pending'` 保護得了資料庫，保護不了已經寄出的信。
+暫時性失敗依 30s → 2m → 10m → 1h → 6h 退避，第 6 次仍失敗即進 dead letter（`failed`）。
+定義見 `supabase/v2/42_notification_queue_hardening.sql`。
 
 ## 本機開發
 

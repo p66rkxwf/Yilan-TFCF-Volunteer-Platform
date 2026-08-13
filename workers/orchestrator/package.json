@@ -9,6 +9,9 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0"
   },
