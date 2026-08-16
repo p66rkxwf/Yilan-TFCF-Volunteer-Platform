@@ -1,0 +1,99 @@
+name: Weekly dependency audit
+
+# 為什麼要這支（而不是只靠 dependabot.yml）：
+#   Dependabot 只在「有修復版本可用」時開 PR，而且安全性更新是 repo 層級的開關，
+#   從 repo 檔案看不出來到底有沒有開。這支則不依賴任何 repo 設定，每週固定把
+#   `npm audit` 的完整結果寫進 job summary——就算沒有任何 PR，也有一個地方可以
+#   回答「現在到底有幾個漏洞」。
+#
+# 為什麼只有 critical 才讓 job 失敗：
+#   2026-08-14 的現況是 9 個 high，全部落在 wrangler → miniflare → undici 這條
+#   devDependency 鏈上，不會進入正式站 bundle。把 high 設成失敗條件，結果會是
+#   這支 workflow 長期紅著、然後被無視——一個永遠紅的檢查等於沒有檢查。
+#   critical 罕見到值得每次都停下來看，故只擋 critical；high 一律照實回報。
+#   （`npm audit --omit=dev` 在本專案的實測結果不可靠：9 個裡只濾掉 1 個，
+#     故不用它來自動區分 dev/prod，改由人看 summary 判斷。）
+
+on:
+  schedule:
+    - cron: "0 1 * * 1" # 每週一 01:00 UTC = 09:00 台灣時間
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: npm audit（主專案 + orchestrator）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: 稽核並產出報告
+        run: |
+          set -uo pipefail
+          fail=0
+
+          audit_one() {
+            dir="$1"; label="$2"
+            echo "## ${label}" >> "$GITHUB_STEP_SUMMARY"
+
+            # --package-lock-only：只讀 lockfile，不必先 npm ci（省掉數分鐘）。
+            # npm audit 發現漏洞時 exit code 非 0，故加 `|| true` 讓腳本繼續。
+            json="$(cd "$dir" && npm audit --package-lock-only --json 2>/dev/null || true)"
+
+            if [ -z "$json" ] || ! echo "$json" | jq -e . >/dev/null 2>&1; then
+              echo "> ⚠️ 無法取得 audit 結果（npm audit 沒有回傳有效 JSON）" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              return
+            fi
+
+            crit=$(echo "$json" | jq -r '.metadata.vulnerabilities.critical // 0')
+            high=$(echo "$json" | jq -r '.metadata.vulnerabilities.high // 0')
+            mod=$(echo "$json"  | jq -r '.metadata.vulnerabilities.moderate // 0')
+            low=$(echo "$json"  | jq -r '.metadata.vulnerabilities.low // 0')
+            total=$(echo "$json" | jq -r '.metadata.vulnerabilities.total // 0')
+
+            echo "critical **${crit}**｜high **${high}**｜moderate ${mod}｜low ${low}｜合計 ${total}" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+
+            if [ "$total" != "0" ]; then
+              echo "| 套件 | 嚴重度 | 依賴方式 | 修復 |" >> "$GITHUB_STEP_SUMMARY"
+              echo "| --- | --- | --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+              # 只列 critical / high；moderate 以下看上面的計數即可。
+              # fixAvailable 有三種形態：true（audit fix 可解）、物件（需升級某個
+              # 上游套件，通常是 major）、false（尚無修復）。
+              echo "$json" | jq -r '
+                (.vulnerabilities // {})
+                | to_entries[]
+                | select(.value.severity == "critical" or .value.severity == "high")
+                | [
+                    .key,
+                    .value.severity,
+                    (if .value.isDirect then "直接" else "間接" end),
+                    (if .value.fixAvailable == true then "npm audit fix"
+                     elif (.value.fixAvailable | type) == "object"
+                       then "升級 " + (.value.fixAvailable.name // "?") + "@" + (.value.fixAvailable.version // "?")
+                     else "尚無修復" end)
+                  ]
+                | "| " + join(" | ") + " |"
+              ' >> "$GITHUB_STEP_SUMMARY" || echo "> ⚠️ 明細解析失敗，請看上方計數" >> "$GITHUB_STEP_SUMMARY"
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+            fi
+
+            if [ "$crit" != "0" ]; then
+              echo "❌ ${label} 有 ${crit} 個 critical 漏洞" >> "$GITHUB_STEP_SUMMARY"
+              fail=1
+            fi
+          }
+
+          echo "# 依賴漏洞週報" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          audit_one "." "主專案（Next.js app）"
+          audit_one "workers/orchestrator" "orchestrator（Cron Worker）"
+
+          echo "---" >> "$GITHUB_STEP_SUMMARY"
+          echo "高風險但屬 devDependency（wrangler／eslint／vitest 等建置工具）者不會進入正式站 bundle，影響範圍限於開發機與 CI runner。判讀時請先看「引入路徑」欄。" >> "$GITHUB_STEP_SUMMARY"
+
+          exit $fail

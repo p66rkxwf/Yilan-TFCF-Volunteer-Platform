@@ -1,0 +1,66 @@
+version: 2
+
+# 為什麼要這支：2026-08-14 的專案評估發現，`npm audit` 在主專案回報 9 個 high、
+# orchestrator 回報 4 個 high（皆為 wrangler → miniflare → undici 這條 devDependency
+# 鏈，不會進入正式站 bundle）。真正的問題不是這批漏洞的嚴重度，而是**沒有任何人
+# 在看**——repo 內沒有任何依賴更新機制，全靠有人剛好想到才會跑一次 audit。
+#
+# 三個 ecosystem 分開列，是因為 orchestrator 有自己的 package-lock.json，
+# 不在根目錄的依賴樹裡（deploy-worker.yml 也是為此另外開一支）。
+#
+# 注意：本檔啟用的是「版本更新」。「安全性更新」（有 CVE 時自動開 PR）是 repo
+# 層級的開關，需另到 GitHub → Settings → Code security 確認已開啟 Dependabot
+# alerts 與 Dependabot security updates。
+
+updates:
+  # --- 主專案（Next.js app）---
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 5
+    # 分組是為了避免每週被十幾個單獨的 PR 淹沒——被淹沒的結果就是全部不看，
+    # 等於回到沒有 Dependabot 的狀態。
+    groups:
+      # 建置／開發工具（wrangler、eslint、vitest…）：一起升，一起用 CI 驗。
+      dev-tooling:
+        dependency-type: development
+        update-types: [minor, patch]
+      # 正式站真的會跑到的依賴，patch/minor 合併成一個 PR。
+      production-minor:
+        dependency-type: production
+        update-types: [minor, patch]
+    # major 升級刻意不分組：Next.js／React 的 major 需要單獨評估與驗證，
+    # 混進群組 PR 只會讓人整包 merge 而不看內容。
+    labels: [dependencies]
+
+  # --- orchestrator（Cloudflare Cron Worker）---
+  # 這支負責 Email 驗證碼、審核結果與活動提醒的寄送，是平台的關鍵路徑，
+  # 不該因為「它有自己的 lockfile」就長期沒人維護。
+  - package-ecosystem: npm
+    directory: /workers/orchestrator
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 5
+    groups:
+      orchestrator-all:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    labels: [dependencies, orchestrator]
+
+  # --- GitHub Actions 本身 ---
+  # actions/checkout@v4、actions/setup-node@v4 這類會逐漸過期；被釘在舊 major
+  # 的 action 是 CI 突然壞掉的常見原因。
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+      timezone: Asia/Taipei
+    open-pull-requests-limit: 3
+    labels: [dependencies, ci]
