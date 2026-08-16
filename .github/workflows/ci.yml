@@ -15,8 +15,21 @@ on:
   # 供 deploy.yml 以 needs: 串成部署前的閘門，避免兩邊重複維護同一份檢查
   workflow_call:
 
+# group 必須帶 github.workflow，否則 push 到 main 時這支會自己撞自己：
+# 同一次 push 會同時啟動「本檔被 push 直接觸發」與「deploy.yml 以 workflow_call
+# 呼叫本檔當部署閘門」兩個 run，兩者共用同一個 group 且 cancel-in-progress: true，
+# 於是必有一個被取消。
+#
+# 先前每次推 main 都會留下一筆紅色的 `CI cancelled`，看起來只是噪音，實際上是
+# 一個看啟動順序決定的擲骰子：被取消的若是 deploy 那一支，deploy 的 `needs: ci`
+# 會判定失敗，整個部署就停在閘門前——而取消的原因跟程式碼一點關係都沒有。
+#
+# reusable workflow 被呼叫時，github.workflow 取的是**呼叫方**的名稱
+# （"Deploy app (Cloudflare Workers)"），直接觸發時則是本檔的 "CI"，
+# 兩者天然分成不同 group，彼此不再取消。同一支 workflow 內的連續推送仍會
+# 正常取消舊 run，原本要的效果不受影響。
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
