@@ -37,11 +37,15 @@ next-env.d.ts
 public/storage/attachments/*
 !public/storage/attachments/.gitkeep
 
-# local-only business spec docs (not committed)
-/files/
-
-# local-only docs (not committed)
-/docs/
+# files/ 與 docs/ 曾被排除為「local-only」，2026-08-14 改為納入版控。
+# 原因：使用手冊、功能需求文件與營運 runbook 是這個平台唯一的營運知識載體，
+# 排除在版控外等於「只存在單一台電腦」——硬碟壞掉、人離開，程式碼還在但沒人
+# 知道怎麼營運。已確認這些檔案不含任何金鑰值與真實個資；其中揭露的 Supabase
+# 專案 ref、網域與 secret 名稱，在 .github/workflows/ 的註解與 src/lib/turnstile.ts
+# 原始碼裡本來就是公開的。
+#
+# 【規約】往這兩個目錄放東西前先確認：不寫金鑰值、不寫真實姓名／電話／地址。
+# 真正的機密一律走 GitHub Secrets 或 `wrangler secret put`，不進 repo。
 
 # backups
 /backups/
