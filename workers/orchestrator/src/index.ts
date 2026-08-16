@@ -39,6 +39,8 @@ export interface Env {
   // 可選：門檻與監看對象（預設 1 次、監看 "volunteer"）
   ALERT_MIN_ERRORS?: string;
   ALERT_WORKER_NAME?: string;
+  // 可選：健康檢查告警的冷卻時間（分鐘，預設 60）。見 checkAppHealth。
+  ALERT_HEALTH_COOLDOWN_MINUTES?: string;
 }
 
 const BATCH_SIZE = 50;
@@ -890,6 +892,157 @@ async function checkWorkerErrors(
   return { ...summary, alerted: true };
 }
 
+// ---- app 健康檢查（輪詢 /api/health）------------------------------------
+//
+// 為什麼要有這支：src/app/api/health/route.ts 會比對 app 期望的 schema 版本與 DB
+// 實際版本（見 supabase/v2/43_schema_version.sql），但在此之前**沒有任何東西會
+// 呼叫它**——端點寫好了，只有人工打開瀏覽器才看得到那個 503。
+//
+// 與 checkWorkerErrors 的分工：
+//   checkWorkerErrors 查的是「已經發生過幾次例外」——事後、15 分鐘彙總、而且
+//   **要有人來踩才會有錯誤數字**。深夜零流量時全站掛掉，它一次都不會告警。
+//   checkAppHealth 查的是「現在還活著嗎、DB 版本對不對」——主動、即時，
+//   沒有流量也照樣偵測得到。兩者互補，缺一邊都會有盲區。
+//
+// 節流：模組層變數記住上次寄信時間，預設 60 分鐘內不重複寄（可用
+// ALERT_HEALTH_COOLDOWN_MINUTES 調整）。Workers 的 isolate 可能被回收而讓這個
+// 狀態歸零——最壞情況是同一次事故多寄幾封信，**不會漏寄**；為此另外引入
+// KV／Durable Object 並不划算（多一個綁定、多一個會壞的東西）。
+// 恢復時補寄一封「已恢復」，否則「後來到底好了沒」只能靠人工再點一次。
+
+interface HealthBody {
+  status?: string;
+  app?: { expectedDbSchema?: string };
+  db?: { reachable?: boolean; schemaVersion?: string | null };
+  drift?: boolean;
+}
+
+interface HealthCheckResult {
+  skipped?: string;
+  url?: string;
+  ok?: boolean;
+  httpStatus?: number;
+  detail?: string;
+  alerted?: boolean;
+  recovered?: boolean;
+}
+
+// 上次寄出告警的時間（0 = 尚未寄過）與目前是否處於異常狀態。
+let healthLastAlertAt = 0;
+let healthIsDown = false;
+
+async function checkAppHealth(
+  env: Env,
+  now: number
+): Promise<HealthCheckResult> {
+  if (!env.SITE_URL || !env.ALERT_EMAIL_TO) {
+    return { skipped: "未設定 SITE_URL／ALERT_EMAIL_TO" };
+  }
+  if (!env.RESEND_API_KEY) return { skipped: "未設定 RESEND_API_KEY" };
+
+  const url = `${env.SITE_URL.replace(/\/+$/, "")}/api/health`;
+  let ok = false;
+  let httpStatus = 0;
+  let detail = "";
+
+  try {
+    // 10 秒逾時：健康檢查本身不該掛住整個 cron 執行。
+    const res = await fetch(url, {
+      headers: { "cache-control": "no-cache" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    httpStatus = res.status;
+    const body = (await res.json().catch(() => null)) as HealthBody | null;
+
+    if (!body) {
+      // 拿不到 JSON 代表根本沒進到那支 route（Worker 例外、平台錯誤頁、
+      // 或網域／路由設定跑掉），這比 degraded 更嚴重。
+      detail = `回應不是預期的 JSON（HTTP ${httpStatus}）`;
+    } else if (body.status === "ok") {
+      ok = true;
+    } else if (body.db?.reachable === false) {
+      detail = "app 連不到資料庫（Supabase 不可用，或 service role key 失效）";
+    } else {
+      detail =
+        `DB schema 版本漂移：app 期望 ${body.app?.expectedDbSchema ?? "(未知)"}、` +
+        `DB 實際 ${body.db?.schemaVersion ?? "(讀不到)"}。` +
+        "最危險的情況是畫面看起來正常、但少了一段只存在於新 patch 的安全限制。";
+    }
+  } catch (e) {
+    detail = `連線失敗：${e instanceof Error ? e.message : String(e)}`;
+  }
+
+  // 每次都留一行 log：正常時這行就是「檢查管道本身還活著」的唯一證據。
+  console.log(
+    `[orchestrator] 健康檢查 ${url}：${ok ? "ok" : `異常 — ${detail}`}`
+  );
+
+  const result: HealthCheckResult = {
+    url,
+    ok,
+    httpStatus,
+    detail: detail || undefined,
+  };
+
+  if (ok) {
+    if (!healthIsDown) return result;
+    // 由異常轉為正常：補一封恢復通知，並把節流狀態歸零。
+    healthIsDown = false;
+    healthLastAlertAt = 0;
+    const subject = "[志工平台] 健康檢查已恢復正常";
+    await sendEmail(
+      env,
+      env.ALERT_EMAIL_TO,
+      subject,
+      `<p>${escapeHtml(url)} 已回復 <b>ok</b>（HTTP ${httpStatus}）。</p>`,
+      `${url} 已回復 ok（HTTP ${httpStatus}）。`
+    );
+    console.log(`[orchestrator] 已寄出恢復通知：${subject}`);
+    return { ...result, recovered: true };
+  }
+
+  const cooldownMs =
+    Math.max(1, Number(env.ALERT_HEALTH_COOLDOWN_MINUTES ?? "60") || 60) *
+    60_000;
+  const firstFailure = !healthIsDown;
+  healthIsDown = true;
+  if (!firstFailure && now - healthLastAlertAt < cooldownMs) {
+    return { ...result, alerted: false };
+  }
+  healthLastAlertAt = now;
+
+  const subject = `[志工平台] 健康檢查異常（HTTP ${httpStatus || "無回應"}）`;
+  const text = [
+    `檢查對象：${url}`,
+    `時間（台灣）：${TW_TIME.format(new Date(now))}`,
+    `HTTP 狀態：${httpStatus || "無回應"}`,
+    "",
+    detail,
+    "",
+    "排查順序：",
+    `1. 直接開 ${url} 看目前回應`,
+    "2. schema 漂移 → 到 Supabase SQL Editor 補跑 supabase/v2/ 尚未套用的 patch",
+    "3. 連不到 → Cloudflare Dashboard → Compute (Workers) → volunteer → Logs",
+    "4. 即時觀察：npx wrangler tail volunteer --status error",
+  ].join("\n");
+  const html = [
+    `<p>檢查對象：<a href="${escapeHtml(url)}">${escapeHtml(url)}</a><br>`,
+    `時間（台灣）：${escapeHtml(TW_TIME.format(new Date(now)))}<br>`,
+    `HTTP 狀態：<b>${httpStatus || "無回應"}</b></p>`,
+    `<p>${escapeHtml(detail)}</p>`,
+    "<p>排查順序：</p><ol>",
+    `<li>直接開 <a href="${escapeHtml(url)}">${escapeHtml(url)}</a> 看目前回應</li>`,
+    "<li>schema 漂移 → 到 Supabase SQL Editor 補跑 <code>supabase/v2/</code> 尚未套用的 patch</li>",
+    "<li>連不到 → Cloudflare Dashboard → Compute (Workers) → volunteer → Logs</li>",
+    "<li>即時觀察：<code>npx wrangler tail volunteer --status error</code></li>",
+    "</ol>",
+  ].join("");
+
+  await sendEmail(env, env.ALERT_EMAIL_TO, subject, html, text);
+  console.log(`[orchestrator] 已寄出健康檢查告警：${subject}`);
+  return { ...result, alerted: true };
+}
+
 // 依 scheduled 觸發時間（UTC）決定這一分鐘要跑哪些 job，最後統一消化 outbox
 // （job 可能寫入新通知，放最後清一次即可同分鐘寄出）。job_* 皆冪等，偶發
 // 重跑或延遲可容忍。
@@ -927,6 +1080,20 @@ async function runScheduled(scheduledTime: number, env: Env): Promise<void> {
     }
   }
 
+  // 每 5 分：主動輪詢 app 的 /api/health（站台不通或 schema 漂移即寄信）。
+  // 比 checkWorkerErrors 密，是因為它偵測的是「現在就掛著」而非「剛才錯過幾次」，
+  // 而且零流量時段只有它抓得到。每天 288 次查詢，成本可忽略。
+  if (mm % 5 === 0) {
+    try {
+      await checkAppHealth(env, scheduledTime);
+    } catch (e) {
+      console.error(
+        "[orchestrator] checkAppHealth 失敗：",
+        e instanceof Error ? e.message : String(e)
+      );
+    }
+  }
+
   await drainOutbox(env);
 }
 
@@ -944,6 +1111,7 @@ export default {
   //   無參數                     → 消化 outbox
   //   ?job=job_xxx               → 觸發指定排程函式
   //   ?check=errors&minutes=180  → 立即查例外（可自訂區間，用來驗證告警是否暢通）
+  //   ?check=health              → 立即輪詢 app 的 /api/health（異常且未在冷卻中會寄信）
   //   ?health=1                  → 回報本 worker 期望的 DB schema 版本與實際版本
   async fetch(req: Request, env: Env): Promise<Response> {
     const secret = env.MANUAL_TRIGGER_SECRET?.trim();
@@ -966,6 +1134,17 @@ export default {
         worker: { expectedDbSchema: EXPECTED_DB_SCHEMA },
         db: { reachable: !error, schemaVersion: dbSchema },
       });
+    }
+    if (params.get("check") === "health") {
+      try {
+        const result = await checkAppHealth(env, Date.now());
+        return Response.json({ ok: true, ...result });
+      } catch (e) {
+        return Response.json(
+          { ok: false, error: e instanceof Error ? e.message : String(e) },
+          { status: 500 }
+        );
+      }
     }
     if (params.get("check") === "errors") {
       // 上限 24 小時：Analytics 查詢區間過長沒有意義，也避免誤打出巨量查詢。
