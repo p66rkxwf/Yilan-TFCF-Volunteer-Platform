@@ -35,6 +35,16 @@ updates:
         update-types: [minor, patch]
     # major 升級刻意不分組：Next.js／React 的 major 需要單獨評估與驗證，
     # 混進群組 PR 只會讓人整包 merge 而不看內容。
+    ignore:
+      # TypeScript 7（原生 Go 版編譯器）暫緩。2026-08-16 實測：
+      #   - tsconfig 的 baseUrl 已移除，tsc 7.0.2 本身可乾淨通過
+      #   - 但 `npm install typescript@7` 會噴一整排 ERESOLVE overriding peer
+      #     dependency——eslint-config-next 帶的 typescript-eslint 尚未宣告支援 7.x
+      # 也就是說擋住的不是我們的程式碼，是 lint 工具鏈還沒跟上。在 npm 不必
+      # override peer 就能裝起來之前，每週開一個註定紅燈的 PR 只是噪音。
+      # 【解除條件】typescript-eslint 宣告支援 TS 7 後刪掉這條，重跑一次即可。
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
     labels: [dependencies]
 
   # --- orchestrator（Cloudflare Cron Worker）---
@@ -52,6 +62,10 @@ updates:
       orchestrator-all:
         patterns: ["*"]
         update-types: [minor, patch]
+    ignore:
+      # 同上：orchestrator 自己也有一份 typescript，一起緩。
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
     labels: [dependencies, orchestrator]
 
   # --- GitHub Actions 本身 ---
